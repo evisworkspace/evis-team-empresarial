@@ -13,14 +13,85 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+// PrismaAdapter exige o PrismaClient base — incompatível com $extends do singleton.
+const prismaBase =
+  (globalThis as unknown as { _prismaBase?: PrismaClient })._prismaBase ??
+  new PrismaClient();
+if (process.env.NODE_ENV !== "production") {
+  (globalThis as unknown as { _prismaBase: PrismaClient })._prismaBase =
+    prismaBase;
+}
+
+const shouldLogOAuthDebug = process.env.AUTH_DEBUG_OAUTH === "1";
+
+const redactAuthPayload = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(redactAuthPayload);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      /token|secret|code|state|verifier/i.test(key)
+        ? "[redacted]"
+        : redactAuthPayload(entry),
+    ]),
+  );
+};
+
+const baseAdapter = PrismaAdapter(prismaBase);
+const adapter = shouldLogOAuthDebug
+  ? (Object.fromEntries(
+    Object.entries(baseAdapter).map(([name, method]) => [
+      name,
+      async (...args: unknown[]) => {
+        const startedAt = Date.now();
+        console.info(`[auth][adapter:start] ${name}`, redactAuthPayload(args));
+        try {
+          const result = await (method as (...methodArgs: unknown[]) => unknown)(
+            ...args,
+          );
+          console.info(`[auth][adapter:ok] ${name}`, {
+            elapsedMs: Date.now() - startedAt,
+            result: redactAuthPayload(result),
+          });
+          return result;
+        } catch (error) {
+          console.error(`[auth][adapter:error] ${name}`, error);
+          throw error;
+        }
+      },
+    ]),
+  ) as typeof baseAdapter)
+  : baseAdapter;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter,
   session: { strategy: "jwt" },
-  providers: [Google],
+  providers: [Google({ allowDangerousEmailAccountLinking: true })],
+  trustHost: true,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (shouldLogOAuthDebug) {
+        console.info("[auth][callback:signIn]", {
+          user: redactAuthPayload(user),
+          account: redactAuthPayload(account),
+          profile: redactAuthPayload(profile),
+        });
+      }
+      return true;
+    },
     async jwt({ token, user }) {
+      if (shouldLogOAuthDebug) {
+        console.info("[auth][callback:jwt]", {
+          hasUser: !!user,
+          tokenSub: token.sub ?? null,
+          userId: user?.id ?? null,
+          userEmail: user?.email ?? null,
+        });
+      }
       // No sign-in, `user` carrega empresaId do adapter (pode ser null).
       if (user) {
         token.empresaId = user.empresaId ?? null;
@@ -40,6 +111,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
+      if (shouldLogOAuthDebug) {
+        console.info("[auth][callback:session]", {
+          tokenSub: token.sub ?? null,
+          tokenEmpresaId: token.empresaId ?? null,
+        });
+      }
       const empresaId = (token.empresaId as string | null | undefined) ?? null;
       // Expõe Auth.js User.id na sessão — necessário para Server Actions de onboarding.
       session.user.id = token.sub as string;
@@ -47,6 +124,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Sem empresaId vinculado → onboarding pendente.
       session.user.onboardingPending = !empresaId;
       return session;
+    },
+  },
+  events: {
+    async createUser({ user }) {
+      if (shouldLogOAuthDebug) {
+        console.info("[auth][event:createUser]", redactAuthPayload(user));
+      }
+    },
+    async linkAccount({ account }) {
+      if (shouldLogOAuthDebug) {
+        console.info("[auth][event:linkAccount]", redactAuthPayload(account));
+      }
+    },
+    async signIn(message) {
+      if (shouldLogOAuthDebug) {
+        console.info("[auth][event:signIn]", redactAuthPayload(message));
+      }
     },
   },
 });

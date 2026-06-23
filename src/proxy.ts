@@ -2,6 +2,15 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const redirectToSignIn = (request: NextRequest, callbackPath: string) => {
+  const signInUrl = new URL("/api/auth/signin", request.url);
+  signInUrl.searchParams.set(
+    "callbackUrl",
+    new URL(callbackPath, request.url).toString(),
+  );
+  return NextResponse.redirect(signInUrl);
+};
+
 // Responsabilidade do proxy:
 // 1. Redirecionar a raiz "/" para o destino correto (signin / onboarding / dashboard).
 // 2. Impedir acesso a /dashboard/* sem sessão (atalho rápido, sem DB).
@@ -26,6 +35,7 @@ export async function proxy(request: NextRequest) {
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === "production",
   });
 
   const isAuthenticated = !!token;
@@ -35,7 +45,7 @@ export async function proxy(request: NextRequest) {
   // Único ponto onde o proxy decide o fluxo completo de entrada.
   if (pathname === "/") {
     if (!isAuthenticated) {
-      return NextResponse.redirect(new URL("/api/auth/signin", request.url));
+      return redirectToSignIn(request, "/onboarding");
     }
     if (empresaId) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -47,6 +57,9 @@ export async function proxy(request: NextRequest) {
   // Se o token JÁ tem empresa, redirecionar para o dashboard.
   // Se não tem (ou não autenticado), deixar a página renderizar e cuidar da lógica.
   if (pathname === "/onboarding") {
+    if (!isAuthenticated) {
+      return redirectToSignIn(request, "/onboarding");
+    }
     if (isAuthenticated && empresaId) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
@@ -59,7 +72,10 @@ export async function proxy(request: NextRequest) {
   // que chama auth() e obtém a sessão atualizada via DB re-fetch.
   if (pathname.startsWith("/dashboard")) {
     if (!isAuthenticated) {
-      return NextResponse.redirect(new URL("/api/auth/signin", request.url));
+      return redirectToSignIn(
+        request,
+        `${pathname}${request.nextUrl.search}`,
+      );
     }
     return NextResponse.next();
   }
