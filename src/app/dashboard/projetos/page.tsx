@@ -1,0 +1,509 @@
+import type React from "react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { getEmpresaId } from "@/lib/tenant";
+import { listProjetosByEmpresaWithCliente, countProjetosByEmpresa, sumValorEstimadoByEmpresa } from "@/data/projeto";
+import { BuildingIcon, PlusIcon, ChevronRightIcon } from "@/components/Icons";
+import OportunidadesKanban from "@/components/OportunidadesKanban";
+import ProjetosKanban from "@/components/ProjetosKanban";
+import AcoesDropdown from "@/components/AcoesDropdown";
+import { GerenciarStatusBotao } from "@/components/GerenciarStatusPanel";
+import { getOrSeedStatuses } from "@/data/statusProjeto";
+
+export const metadata: Metadata = { title: "Projetos e Obras" };
+
+function statusLabel(status: string) {
+  const map: Record<string, string> = {
+    novo: "Agendar Visita",
+    fila_espera: "Fila Espera",
+    em_negociacao: "Em negociação",
+    proposta_enviada: "Proposta enviada",
+    ganho: "Ganho",
+    perdido: "Arquivado",
+    abertura: "Abertura",
+    planejamento: "Planejamento",
+    em_andamento: "Em andamento",
+    pausada: "Pausada",
+    concluida: "Concluída",
+    entregue: "Entregue",
+    encerrada: "Encerrada",
+  };
+  return map[status] ?? status;
+}
+
+function statusStyle(status: string, stage: string): React.CSSProperties {
+  if (stage === "obra") {
+    const obraColors: Record<string, React.CSSProperties> = {
+      em_andamento: { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" },
+      planejamento: { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
+      pausada:      { background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047" },
+      concluida:    { background: "#f0fdf4", color: "#166534", border: "1px solid #86efac" },
+      entregue:     { background: "#f0fdf4", color: "#15803d", border: "1px solid #4ade80" },
+      encerrada:    { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" },
+    };
+    return obraColors[status] ?? { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" };
+  }
+  const funilColors: Record<string, React.CSSProperties> = {
+    novo:             { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
+    fila_espera:      { background: "#ede9fe", color: "#5b21b6", border: "1px solid #c4b5fd" },
+    em_andamento:     { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
+    em_negociacao:    { background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047" },
+    proposta_enviada: { background: "#fed7aa", color: "#9a3412", border: "1px solid #fb923c" },
+    ganho:            { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" },
+    perdido:          { background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" },
+  };
+  return funilColors[status] ?? { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" };
+}
+
+function prioridadeStyle(p: string | null): React.CSSProperties {
+  if (!p) return {};
+  const map: Record<string, React.CSSProperties> = {
+    urgente: { color: "#991b1b", fontWeight: 700 },
+    alta:    { color: "#9a3412", fontWeight: 600 },
+    media:   { color: "#854d0e" },
+    baixa:   { color: "#475569" },
+  };
+  return map[p] ?? {};
+}
+
+function prioridadeLabel(p: string | null) {
+  if (!p) return "—";
+  const map: Record<string, string> = { urgente: "Urgente", alta: "Alta", media: "Média", baixa: "Baixa" };
+  return map[p] ?? p;
+}
+
+function formatDate(d: Date | null | undefined) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("pt-BR");
+}
+
+function formatMoney(v: number | null | undefined) {
+  if (v == null || v === 0) return "—";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(Number(v));
+}
+
+function formatArea(v: number | null | undefined) {
+  if (v == null) return "—";
+  return `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} m²`;
+}
+
+const TH: React.CSSProperties = {
+  fontFamily: "var(--font-mono)",
+  fontSize: 10,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.1em",
+  color: "var(--clr-text-muted)",
+  padding: "10px 16px",
+  textAlign: "left",
+  whiteSpace: "nowrap",
+  borderBottom: "1px solid var(--clr-border)",
+  background: "var(--clr-surface)",
+};
+
+export default async function ProjetosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stage?: string; incluirPerdidas?: string; q?: string; view?: string }>;
+}) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const { stage: stageFilter, incluirPerdidas, q, view } = await searchParams;
+  const busca = q?.trim() || undefined;
+  const viewMode = view === "lista" ? "lista" : (stageFilter === "oportunidade" || stageFilter === "obra") ? "kanban" : "lista";
+
+  const showPerdidas = incluirPerdidas === "1";
+  const excludePerdidas =
+    stageFilter === "oportunidade" && !showPerdidas ? "perdido" : undefined;
+
+  const isOportunidadeKanban = stageFilter === "oportunidade" && viewMode === "kanban";
+  const isObraKanban = stageFilter === "obra" && viewMode === "kanban";
+  const isKanban = isOportunidadeKanban || isObraKanban;
+
+  const kanbanStage = isOportunidadeKanban ? "oportunidade" : isObraKanban ? "obra" : undefined;
+
+  const [projetos, projetosKanban, statusKanban, obrasCount, opCount, opPerdidasCount, totalValor] = await Promise.all([
+    listProjetosByEmpresaWithCliente(empresaId, {
+      stage: stageFilter,
+      excludeStatusInterno: excludePerdidas,
+      q: busca,
+    }),
+    isOportunidadeKanban
+      ? listProjetosByEmpresaWithCliente(empresaId, { stage: "oportunidade", take: 200 })
+      : isObraKanban
+      ? listProjetosByEmpresaWithCliente(empresaId, { stage: "obra", take: 200 })
+      : Promise.resolve([]),
+    kanbanStage ? getOrSeedStatuses(empresaId, kanbanStage) : Promise.resolve([]),
+    countProjetosByEmpresa(empresaId, "obra"),
+    countProjetosByEmpresa(empresaId, "oportunidade", { excludeStatusInterno: "perdido" }),
+    countProjetosByEmpresa(empresaId, "oportunidade"),
+    stageFilter === "oportunidade" && !showPerdidas
+      ? sumValorEstimadoByEmpresa(empresaId, { excludeStatusInterno: "perdido" })
+      : Promise.resolve(0),
+  ]);
+
+  const isOportunidadeView = stageFilter === "oportunidade";
+  const isObraView = stageFilter === "obra";
+
+  const pageLabel = isObraView ? "Obras" : isOportunidadeView ? "Oportunidades" : "Projetos e Obras";
+  const pageDesc = isObraView
+    ? `${obrasCount} obra${obrasCount !== 1 ? "s" : ""} ativa${obrasCount !== 1 ? "s" : ""}`
+    : isOportunidadeView
+    ? `${opCount} oportunidade${opCount !== 1 ? "s" : ""} ativa${opCount !== 1 ? "s" : ""}`
+    : `${obrasCount} obra${obrasCount !== 1 ? "s" : ""} · ${opCount} oportunidade${opCount !== 1 ? "s" : ""} ativa${opCount !== 1 ? "s" : ""}`;
+
+  return (
+    <div>
+      {/* ── Header ── */}
+      <div className="page-header">
+        <div className="page-header-row">
+          <div>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.16em",
+              color: "var(--clr-primary)",
+              marginBottom: 8,
+            }}>
+              <BuildingIcon size={13} />
+              {pageLabel}
+            </div>
+            <h1 className="page-title">{pageLabel}</h1>
+            <p className="page-subtitle">
+              {pageDesc}
+              {!stageFilter && opPerdidasCount - opCount > 0 && (
+                <span style={{ color: "var(--clr-text-muted)" }}>
+                  {" "}· {opPerdidasCount - opCount} perdida{opPerdidasCount - opCount !== 1 ? "s" : ""}
+                </span>
+              )}
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {isOportunidadeView && <AcoesDropdown />}
+            {(isOportunidadeKanban || isObraKanban) && (
+              <GerenciarStatusBotao statuses={statusKanban} stage={kanbanStage!} />
+            )}
+            {isOportunidadeView && !showPerdidas && totalValor > 0 && (
+              <div style={{
+                background: "var(--clr-surface)",
+                border: "1px solid var(--clr-border)",
+                borderRadius: "var(--r-lg)",
+                padding: "10px 18px",
+                textAlign: "right",
+                boxShadow: "var(--shadow-xs)",
+              }}>
+                <div style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  color: "var(--clr-text-muted)",
+                  marginBottom: 3,
+                }}>
+                  Valor estimado total
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--clr-success)", fontFamily: "var(--font-mono)" }}>
+                  {formatMoney(totalValor)}
+                </div>
+              </div>
+            )}
+            <Link
+              href={isObraView ? "/dashboard/projetos/novo?stage=obra" : "/dashboard/projetos/novo?stage=oportunidade"}
+              className="btn btn-primary"
+            >
+              <PlusIcon size={16} />
+              {isObraView ? "Nova obra" : "Nova oportunidade"}
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Filtros + Busca ── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+
+        {/* Pill group de filtros */}
+        <div style={{ display: "flex", gap: 3, background: "#fff", border: "1px solid #e2e8f0", borderRadius: "var(--r-xl)", padding: 4 }}>
+          {(
+            [
+              { href: "/dashboard/projetos", label: `Todos (${obrasCount + opCount})`, active: !stageFilter },
+              { href: "/dashboard/projetos?stage=obra", label: `Obras (${obrasCount})`, active: isObraView },
+              { href: "/dashboard/projetos?stage=oportunidade", label: `CRM (${opCount})`, active: isOportunidadeView && !showPerdidas },
+              ...(opPerdidasCount - opCount > 0
+                ? [{
+                    href: showPerdidas ? "/dashboard/projetos?stage=oportunidade" : "/dashboard/projetos?stage=oportunidade&incluirPerdidas=1",
+                    label: `Perdidas (${opPerdidasCount - opCount})`,
+                    active: showPerdidas,
+                  }]
+                : []),
+            ] as { href: string; label: string; active: boolean }[]
+          ).map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              style={{
+                padding: "6px 14px",
+                borderRadius: "var(--r-lg)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: "uppercase" as const,
+                letterSpacing: "0.06em",
+                textDecoration: "none",
+                transition: "all 0.12s",
+                whiteSpace: "nowrap" as const,
+                ...(tab.active
+                  ? { background: "var(--clr-primary)", color: "#fff", boxShadow: "var(--shadow-xs)" }
+                  : { color: "#6b7280" }),
+              }}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Toggle Lista / Quadro — oportunidades e obras */}
+        {(isOportunidadeView || isObraView) && (
+          <div style={{ display: "flex", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "var(--r-md)", padding: 3 }}>
+            {([
+              { href: `/dashboard/projetos?stage=${isObraView ? "obra" : "oportunidade"}&view=lista`, label: "Lista", mode: "lista" },
+              { href: `/dashboard/projetos?stage=${isObraView ? "obra" : "oportunidade"}&view=kanban`, label: "Quadro", mode: "kanban" },
+            ] as { href: string; label: string; mode: string }[]).map((t) => (
+              <Link
+                key={t.mode}
+                href={t.href}
+                style={{
+                  padding: "5px 14px",
+                  borderRadius: "var(--r-sm)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: "uppercase" as const,
+                  letterSpacing: "0.06em",
+                  textDecoration: "none",
+                  transition: "all 0.12s",
+                  ...(viewMode === t.mode
+                    ? { background: "#fff", color: "var(--clr-primary)", boxShadow: "var(--shadow-xs)" }
+                    : { color: "#9ca3af" }),
+                }}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <form method="GET" action="/dashboard/projetos" style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+          {stageFilter && <input type="hidden" name="stage" value={stageFilter} />}
+          {showPerdidas && <input type="hidden" name="incluirPerdidas" value="1" />}
+          {viewMode === "kanban" && <input type="hidden" name="view" value="kanban" />}
+          <input
+            name="q"
+            type="search"
+            className="form-input"
+            placeholder="Buscar por título..."
+            defaultValue={busca ?? ""}
+            style={{ width: 220, fontSize: 13 }}
+          />
+          <button type="submit" className="btn btn-secondary btn-sm">Buscar</button>
+          {busca && (
+            <Link
+              href={stageFilter ? `/dashboard/projetos?stage=${stageFilter}${showPerdidas ? "&incluirPerdidas=1" : ""}${viewMode === "kanban" ? "&view=kanban" : ""}` : "/dashboard/projetos"}
+              className="btn btn-secondary btn-sm"
+            >
+              Limpar
+            </Link>
+          )}
+        </form>
+      </div>
+
+      {/* ── Kanban ── */}
+      {isOportunidadeKanban && <OportunidadesKanban projetos={projetosKanban} colunas={statusKanban} />}
+      {isObraKanban && <ProjetosKanban projetos={projetosKanban} colunas={statusKanban} />}
+
+      {/* ── Lista ── */}
+      {!isKanban && (projetos.length === 0 ? (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon"><BuildingIcon size={24} /></div>
+            <div className="empty-state-title">
+              {isObraView ? "Nenhuma obra criada" : isOportunidadeView ? "Nenhuma oportunidade" : "Nenhum projeto criado"}
+            </div>
+            <p className="empty-state-sub">Crie seu primeiro registro para começar a operar no EVIS.</p>
+            <Link
+              href={isObraView ? "/dashboard/projetos/novo?stage=obra" : "/dashboard/projetos/novo?stage=oportunidade"}
+              className="btn btn-primary"
+              style={{ marginTop: 8 }}
+            >
+              <PlusIcon size={15} />
+              {isObraView ? "Nova obra" : "Nova oportunidade"}
+            </Link>
+          </div>
+        </div>
+      ) : isOportunidadeView ? (
+        /* ── Tabela enriquecida de oportunidades ── */
+        <div className="card">
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--clr-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--clr-text-muted)" }}>
+              {projetos.length} oportunidade{projetos.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="table-wrap">
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1000 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, width: 48 }}>#</th>
+                  <th style={TH}>Oportunidade</th>
+                  <th style={TH}>Cliente</th>
+                  <th style={TH}>Status</th>
+                  <th style={TH}>Prioridade</th>
+                  <th style={TH}>Tipo</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Valor est.</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Metragem</th>
+                  <th style={TH}>Origem</th>
+                  <th style={TH}>Criada em</th>
+                  <th style={TH}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {projetos.map((p, rowIdx) => {
+                  const pr = p as typeof p & { prioridade?: string | null; tipoObra?: string | null; valorEstimado?: number | null; metragemEstimada?: number | null };
+                  return (
+                    <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", width: 48 }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", fontWeight: 600 }}>
+                          #{String(rowIdx + 1).padStart(3, "0")}
+                        </span>
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                        <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
+                            {pr.tipoObra && (
+                              <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>{pr.tipoObra}</div>
+                            )}
+                          </div>
+                        </Link>
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                        {p.cliente?.nome ?? "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                        <span style={{
+                          ...statusStyle(p.statusInterno, p.stage),
+                          display: "inline-block",
+                          padding: "3px 9px",
+                          borderRadius: "var(--r-full)",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {statusLabel(p.statusInterno)}
+                        </span>
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, ...prioridadeStyle(pr.prioridade ?? null) }}>
+                        {prioridadeLabel(pr.prioridade ?? null)}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontSize: 12, color: "var(--clr-text-muted)" }}>
+                        {pr.tipoObra ?? "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--clr-text)" }}>
+                        {formatMoney(pr.valorEstimado)}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--clr-text-secondary)" }}>
+                        {formatArea(pr.metragemEstimada)}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontSize: 12, color: "var(--clr-text-muted)" }}>
+                        {p.origem ?? "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", whiteSpace: "nowrap" }}>
+                        {formatDate(p.createdAt)}
+                      </td>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                        <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)", transition: "color 0.12s" }}>
+                          <ChevronRightIcon size={16} />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* ── Tabela padrão (obras ou todos) ── */
+        <div className="card">
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--clr-border)", display: "flex", alignItems: "center" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--clr-text-muted)" }}>
+              {projetos.length} resultado{projetos.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="table-wrap">
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={TH}>Título</th>
+                  <th style={TH}>Cliente</th>
+                  <th style={TH}>Tipo</th>
+                  <th style={TH}>Status</th>
+                  <th style={TH}>Início estimado</th>
+                  <th style={TH}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {projetos.map((p) => (
+                  <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
+                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                      <Link href={`/dashboard/projetos/${p.id}`} style={{ textDecoration: "none" }}>
+                        <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
+                        {p.numeroObra && (
+                          <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>#{p.numeroObra}</div>
+                        )}
+                      </Link>
+                    </td>
+                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                      {p.cliente?.nome ?? "—"}
+                    </td>
+                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                      <span className={p.stage === "obra" ? "badge badge-obra" : "badge badge-oportunidade"}>
+                        {p.stage === "obra" ? "Obra" : "Oportunidade"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                      <span style={{
+                        ...statusStyle(p.statusInterno, p.stage),
+                        display: "inline-block",
+                        padding: "3px 9px",
+                        borderRadius: "var(--r-full)",
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}>
+                        {statusLabel(p.statusInterno)}
+                      </span>
+                    </td>
+                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                      {formatDate(p.dataInicioEstimada)}
+                    </td>
+                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                      <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)" }}>
+                        <ChevronRightIcon size={16} />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

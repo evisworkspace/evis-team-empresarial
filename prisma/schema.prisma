@@ -1,0 +1,352 @@
+// EVIS Team Empresarial — Schema do núcleo mínimo
+// Fonte: docs/06_modelagem_relacional_nucleo_minimo.md (VALIDADO)
+// Lote 1 do Despacho 007: schema validável, sem migration, sem banco conectado.
+//
+// Convenções:
+// - Modelos em pt + @@map para snake_case (idioma pt/en é decisão futura — docs/06 §12)
+// - Campos de domínio controlado como String com comentário do domínio
+//   (forma final ENUM vs CHECK vs tabela é decisão ADIADA — docs/06 §6 e §12)
+// - empresa_id obrigatório nas 8 tabelas subordinadas (multi-tenancy D1)
+// - rastreio_auditoria é append-only: só created_at, sem updated_at/deleted_at
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// NÚCLEO EVIS — 9 tabelas (docs/06)
+// ============================================================
+
+/// Tenant raiz — não carrega empresa_id de si mesma.
+model Empresa {
+  id         String    @id @default(uuid()) @db.Uuid
+  nome       String
+  tipoPessoa String    @map("tipo_pessoa") // domínio: PF | PJ
+  documento  String?
+  status     String // domínio: ativo | inativo
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  usuarios   Usuario[]
+  clientes   Cliente[]
+  projetos   Projeto[]
+  itens      ProjetoItemOrcamento[]
+  fornecedores Fornecedor[]
+  tarefas    Tarefa[]
+  lancamentos LancamentoFinanceiro[]
+  rastreios  RastreioAuditoria[]
+  atividades ProjetoAtividade[]
+  statusProjetos StatusProjeto[]
+  users      User[] // Auth.js — vínculo tenant do usuário autenticado
+
+  @@map("empresa")
+}
+
+/// Operador humano (HITL) — identifica o humano na trilha de auditoria.
+model Usuario {
+  id        String    @id @default(uuid()) @db.Uuid
+  empresaId String    @map("empresa_id") @db.Uuid
+  nome      String
+  email     String
+  perfil    String // domínio: admin | operador | viewer
+  status    String // domínio: ativo | inativo
+  // Vínculo explícito com a identidade Auth.js (decisão 9.1). Email é apenas dado de
+  // apoio, NUNCA o vínculo principal. Relação 1:1 (MVP): um User ↔ um usuario.
+  authUserId String?  @unique @map("auth_user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  empresa            Empresa             @relation(fields: [empresaId], references: [id])
+  authUser           User?               @relation(fields: [authUserId], references: [id])
+  tarefasResponsavel Tarefa[]            @relation("TarefaResponsavelUsuario")
+  rastreios          RastreioAuditoria[]
+
+  @@unique([empresaId, email])
+  @@index([empresaId])
+  @@map("usuario")
+}
+
+/// Destinatário do serviço — pode existir antes de qualquer projeto.
+model Cliente {
+  id           String    @id @default(uuid()) @db.Uuid
+  empresaId    String    @map("empresa_id") @db.Uuid
+  nome         String
+  telefone     String?
+  tipoPessoa   String?   @map("tipo_pessoa") // domínio: PF | PJ
+  origemContato String?  @map("origem_contato")
+  status       String // domínio: ativo | inativo
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  empresa  Empresa   @relation(fields: [empresaId], references: [id])
+  projetos Projeto[]
+
+  @@index([empresaId])
+  @@map("cliente")
+}
+
+/// Entidade-base única (Oportunidade + Obra), discriminada por stage.
+model Projeto {
+  id                 String    @id @default(uuid()) @db.Uuid
+  empresaId          String    @map("empresa_id") @db.Uuid
+  clienteId          String    @map("cliente_id") @db.Uuid
+  numeroObra         String?   @map("numero_obra") // UNIQUE por empresa quando não nulo
+  titulo             String
+  descricao          String?
+  stage              String // domínio: oportunidade | obra
+  statusInterno      String    @map("status_interno") // domínio por stage (docs/06 §6)
+  origem             String?
+  tipoObra           String?   @map("tipo_obra") // residencial | comercial | industrial | reforma | outro
+  prioridade         String?   // baixa | media | alta | urgente
+  metragemEstimada   Decimal?  @map("metragem_estimada") @db.Decimal(10, 2)
+  valorEstimado      Decimal?  @map("valor_estimado") @db.Decimal(15, 2)
+  valorGanhoEstimativa Decimal? @map("valor_ganho_estimativa") @db.Decimal(15, 2)
+  enderecoObra       String?   @map("endereco_obra")
+  dataInicioEstimada DateTime? @map("data_inicio_estimada") @db.Date
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  empresa     Empresa                @relation(fields: [empresaId], references: [id])
+  cliente     Cliente                @relation(fields: [clienteId], references: [id])
+  itens       ProjetoItemOrcamento[]
+  tarefas     Tarefa[]
+  lancamentos LancamentoFinanceiro[]
+  rastreios   RastreioAuditoria[]
+  atividades  ProjetoAtividade[]
+
+  @@unique([empresaId, numeroObra])
+  @@index([empresaId, stage, statusInterno])
+  @@index([clienteId])
+  @@map("projeto")
+}
+
+/// Registro manual de atividades comerciais — ligações, visitas, notas, e-mails.
+/// Append-only: não tem updatedAt/deletedAt.
+model ProjetoAtividade {
+  id        String   @id @default(uuid()) @db.Uuid
+  empresaId String   @map("empresa_id") @db.Uuid
+  projetoId String   @map("projeto_id") @db.Uuid
+  tipo      String   // ligacao | visita | email | reuniao | nota | outro
+  descricao String
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  projeto Projeto @relation(fields: [projetoId], references: [id])
+
+  @@index([projetoId, createdAt])
+  @@index([empresaId])
+  @@map("projeto_atividade")
+}
+
+/// Orçamento mínimo/preliminar — sem BDI/SINAPI/composições (escopo futuro).
+model ProjetoItemOrcamento {
+  id            String    @id @default(uuid()) @db.Uuid
+  empresaId     String    @map("empresa_id") @db.Uuid
+  projetoId     String    @map("projeto_id") @db.Uuid
+  descricao     String
+  quantidade    Decimal?  @db.Decimal(15, 3) // precisão provisória — docs/06 §12 adiado
+  unidade       String?
+  precoEstimado Decimal?  @map("preco_estimado") @db.Decimal(15, 2) // precisão provisória
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  projeto Projeto @relation(fields: [projetoId], references: [id])
+
+  @@index([empresaId])
+  @@index([projetoId])
+  @@map("projeto_item_orcamento")
+}
+
+/// Prestador ou fornecedor de material.
+model Fornecedor {
+  id        String    @id @default(uuid()) @db.Uuid
+  empresaId String    @map("empresa_id") @db.Uuid
+  nome      String
+  contato   String?
+  tipo      String // domínio: servico | material | ambos
+  status    String // domínio: ativo | inativo
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  empresa     Empresa                @relation(fields: [empresaId], references: [id])
+  tarefas     Tarefa[]               @relation("TarefaResponsavelFornecedor")
+  lancamentos LancamentoFinanceiro[]
+
+  @@index([empresaId])
+  @@map("fornecedor")
+}
+
+/// Unidade mínima de operação — vinculada ao projeto por projeto_id.
+model Tarefa {
+  id                      String    @id @default(uuid()) @db.Uuid
+  empresaId               String    @map("empresa_id") @db.Uuid
+  projetoId               String    @map("projeto_id") @db.Uuid
+  descricao               String
+  status                  String // domínio: aberta | em_andamento | concluida | cancelada
+  dataPrevista            DateTime? @map("data_prevista") @db.Date
+  responsavelUsuarioId    String?   @map("responsavel_usuario_id") @db.Uuid
+  responsavelFornecedorId String?   @map("responsavel_fornecedor_id") @db.Uuid
+  origem                  String // domínio: manual | sugerida_ia
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  deletedAt               DateTime? @map("deleted_at")
+
+  empresa              Empresa     @relation(fields: [empresaId], references: [id])
+  projeto              Projeto     @relation(fields: [projetoId], references: [id])
+  responsavelUsuario   Usuario?    @relation("TarefaResponsavelUsuario", fields: [responsavelUsuarioId], references: [id])
+  responsavelFornecedor Fornecedor? @relation("TarefaResponsavelFornecedor", fields: [responsavelFornecedorId], references: [id])
+
+  @@index([projetoId, status])
+  @@index([empresaId])
+  @@index([responsavelUsuarioId])
+  @@index([responsavelFornecedorId])
+  @@map("tarefa")
+}
+
+/// Entrada ou saída básica. "vencido" é estado derivado, não armazenado.
+model LancamentoFinanceiro {
+  id             String    @id @default(uuid()) @db.Uuid
+  empresaId      String    @map("empresa_id") @db.Uuid
+  projetoId      String    @map("projeto_id") @db.Uuid
+  fornecedorId   String?   @map("fornecedor_id") @db.Uuid
+  tipo           String // domínio: entrada | saida
+  valor          Decimal   @db.Decimal(15, 2) // precisão provisória — docs/06 §12 adiado
+  dataVencimento DateTime  @map("data_vencimento") @db.Date
+  dataRealizacao DateTime? @map("data_realizacao") @db.Date // só quando status = realizado
+  descricao      String?
+  status         String // domínio: previsto | realizado | cancelado
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  empresa    Empresa     @relation(fields: [empresaId], references: [id])
+  projeto    Projeto     @relation(fields: [projetoId], references: [id])
+  fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])
+
+  @@index([projetoId, status])
+  @@index([empresaId])
+  @@index([fornecedorId])
+  @@map("lancamento_financeiro")
+}
+
+/// Camada de auditoria transversal — APPEND-ONLY, imutável.
+/// Sem updated_at, sem deleted_at: nunca UPDATE, nunca DELETE.
+model RastreioAuditoria {
+  id                  String   @id @default(uuid()) @db.Uuid
+  empresaId           String   @map("empresa_id") @db.Uuid
+  projetoId           String?  @map("projeto_id") @db.Uuid
+  entidadeAfetadaTipo String   @map("entidade_afetada_tipo")
+  entidadeAfetadaId   String   @map("entidade_afetada_id") @db.Uuid
+  eventoTipo          String   @map("evento_tipo") // domínio: criacao | edicao | validacao_ia | rejeicao_ia | conversao_stage | alteracao_status | alteracao_financeiro
+  usuarioId           String?  @map("usuario_id") @db.Uuid // null quando gerado pelo sistema
+  conteudoSugeridoIa  Json?    @map("conteudo_sugerido_ia") @db.JsonB
+  conteudoPersistido  Json     @map("conteudo_persistido") @db.JsonB
+  origemInformacao    String?  @map("origem_informacao")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  empresa Empresa  @relation(fields: [empresaId], references: [id])
+  projeto Projeto? @relation(fields: [projetoId], references: [id])
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidadeAfetadaTipo, entidadeAfetadaId, createdAt])
+  @@index([empresaId, projetoId, createdAt])
+  @@index([usuarioId])
+  @@map("rastreio_auditoria")
+}
+
+/// Status customizáveis do kanban por empresa e stage — seed automático no primeiro acesso.
+model StatusProjeto {
+  id        String   @id @default(uuid()) @db.Uuid
+  empresaId String   @map("empresa_id") @db.Uuid
+  stage     String   // "oportunidade" | "obra"
+  slug      String   // valor armazenado em Projeto.statusInterno
+  label     String
+  cor       String   @default("#6b7280")
+  ordem     Int
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, stage, slug])
+  @@index([empresaId, stage, ordem])
+  @@map("status_projeto")
+}
+
+// ============================================================
+// AUTH.JS / PrismaAdapter — 4 tabelas (esquema oficial do adapter)
+// Configuração do Auth.js NÃO entra no Lote 1 — só os modelos.
+// User carrega empresaId (multi-tenancy). usuario (HITL) x User: reconciliar no Lote 2.
+// ============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  empresaId     String?   @map("empresa_id") @db.Uuid // null até onboarding definir a empresa
+  accounts      Account[]
+  sessions      Session[]
+
+  empresa Empresa? @relation(fields: [empresaId], references: [id])
+  usuario Usuario? // vínculo 1:1 com o usuario EVIS (HITL) — decisão 9.1
+
+  @@index([empresaId])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}

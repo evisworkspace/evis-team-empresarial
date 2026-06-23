@@ -1,0 +1,382 @@
+"use server";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
+import { getEmpresaId } from "@/lib/tenant";
+import { createProjeto, listProjetosByEmpresa, updateProjeto } from "@/data/projeto";
+import { createCliente, updateCliente } from "@/data/cliente";
+import { createAuditEntry } from "@/lib/audit";
+import { createAtividade } from "@/data/projetoAtividade";
+
+export async function criarProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const clienteMode = (formData.get("clienteMode") as string) || "existente";
+  let clienteId: string;
+
+  if (clienteMode === "novo") {
+    const novoNome = (formData.get("novoClienteNome") as string)?.trim();
+    const novoTelefone = (formData.get("novoClienteTelefone") as string)?.trim() || undefined;
+    const novoOrigem = (formData.get("novoClienteOrigem") as string)?.trim() || undefined;
+
+    if (!novoNome || novoNome.length < 2) throw new Error("Nome do cliente é obrigatório.");
+
+    const novoCliente = await createCliente(empresaId, {
+      nome: novoNome,
+      telefone: novoTelefone,
+      origemContato: novoOrigem,
+    });
+
+    await createAuditEntry({
+      empresaId,
+      eventoTipo: "criacao",
+      entidadeTipo: "cliente",
+      entidadeId: novoCliente.id,
+      conteudoPersistido: { nome: novoNome, criado_em: "nova_oportunidade" },
+    });
+
+    clienteId = novoCliente.id;
+  } else {
+    clienteId = (formData.get("clienteId") as string)?.trim();
+    if (!clienteId) throw new Error("Selecione um cliente ou crie um novo lead.");
+  }
+
+  const titulo = (formData.get("titulo") as string)?.trim();
+  const stage = (formData.get("stage") as string) || "oportunidade";
+  const descricao = (formData.get("descricao") as string)?.trim() || undefined;
+  const origem = (formData.get("origem") as string)?.trim() || undefined;
+  const numeroObra = (formData.get("numeroObra") as string)?.trim() || undefined;
+  const tipoObra = (formData.get("tipoObra") as string)?.trim() || undefined;
+  const prioridade = (formData.get("prioridade") as string)?.trim() || undefined;
+  const enderecoObra = (formData.get("enderecoObra") as string)?.trim() || undefined;
+  const metragemRaw = (formData.get("metragemEstimada") as string)?.trim();
+  const valorRaw = (formData.get("valorEstimado") as string)?.trim();
+  const valorGanhoRaw = (formData.get("valorGanhoEstimativa") as string)?.trim();
+  const dataInicioEstimadaStr = (formData.get("dataInicioEstimada") as string)?.trim();
+  const statusInicialParam = (formData.get("statusInicial") as string)?.trim();
+
+  if (!titulo || titulo.length < 2) throw new Error("Título é obrigatório.");
+
+  const metragemEstimada = metragemRaw ? parseFloat(metragemRaw.replace(",", ".")) || undefined : undefined;
+  const valorEstimado = valorRaw ? parseFloat(valorRaw.replace(",", ".")) || undefined : undefined;
+  const valorGanhoEstimativa = valorGanhoRaw ? parseFloat(valorGanhoRaw.replace(",", ".")) || undefined : undefined;
+  const dataInicioEstimada = dataInicioEstimadaStr ? new Date(dataInicioEstimadaStr) : undefined;
+
+  const STATUS_FUNIL = ["novo", "fila_espera", "em_andamento", "proposta_enviada", "em_negociacao", "ganho", "perdido"];
+  const statusInterno =
+    stage === "obra"
+      ? "em_andamento"
+      : statusInicialParam && STATUS_FUNIL.includes(statusInicialParam)
+      ? statusInicialParam
+      : "novo";
+
+  const projeto = await createProjeto(empresaId, {
+    clienteId,
+    titulo,
+    descricao,
+    stage,
+    statusInterno,
+    origem,
+    tipoObra,
+    prioridade,
+    metragemEstimada,
+    valorEstimado,
+    valorGanhoEstimativa,
+    enderecoObra,
+    numeroObra,
+    dataInicioEstimada,
+  });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId: projeto.id,
+    eventoTipo: "criacao",
+    entidadeTipo: "projeto",
+    entidadeId: projeto.id,
+    conteudoPersistido: { titulo, stage, clienteId },
+  });
+
+  redirect(`/dashboard/projetos/${projeto.id}`);
+}
+
+export async function converterEmObra(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+
+  if (!projetoId) throw new Error("ID do projeto obrigatório.");
+
+  const result = await updateProjeto(empresaId, projetoId, {
+    stage: "obra",
+    statusInterno: "em_andamento",
+  });
+
+  if (result.count === 0) throw new Error("Oportunidade não encontrada.");
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "conversao_stage",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { de: "oportunidade", para: "obra" },
+  });
+
+  redirect(`/dashboard/projetos/${projetoId}`);
+}
+
+// Lote 10C/10D — Completa dados do cliente e converte em obra em sequência.
+export async function confirmarConversaoComCliente(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+  const clienteId = formData.get("clienteId") as string;
+
+  if (!projetoId || !clienteId) throw new Error("Dados obrigatórios ausentes.");
+
+  const nome = (formData.get("clienteNome") as string)?.trim();
+  const telefone = (formData.get("clienteTelefone") as string)?.trim() || null;
+  const tipoPessoa = (formData.get("clienteTipoPessoa") as string) || "PF";
+  const origemContato = (formData.get("clienteOrigemContato") as string)?.trim() || null;
+
+  if (!nome || nome.length < 2) throw new Error("Nome do cliente é obrigatório.");
+
+  await updateCliente(empresaId, clienteId, { nome, telefone, tipoPessoa, origemContato });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "edicao",
+    entidadeTipo: "cliente",
+    entidadeId: clienteId,
+    conteudoPersistido: { nome, revisado_em: "confirmar_conversao" },
+  });
+
+  const result = await updateProjeto(empresaId, projetoId, {
+    stage: "obra",
+    statusInterno: "em_andamento",
+  });
+
+  if (result.count === 0) throw new Error("Oportunidade não encontrada.");
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "conversao_stage",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { de: "oportunidade", para: "obra", cliente_revisado: true },
+  });
+
+  redirect(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function atualizarStatusFunil(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+  const novoStatus = formData.get("statusInterno") as string;
+
+  const statusValidos = ["novo", "fila_espera", "em_andamento", "em_negociacao", "proposta_enviada", "ganho", "perdido"];
+  if (!projetoId || !novoStatus || !statusValidos.includes(novoStatus)) {
+    throw new Error("Dados inválidos.");
+  }
+
+  await updateProjeto(empresaId, projetoId, { statusInterno: novoStatus });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus },
+  });
+
+  revalidatePath(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function editarProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const projetoId = formData.get("projetoId") as string;
+  const titulo = (formData.get("titulo") as string)?.trim();
+  const descricao = (formData.get("descricao") as string)?.trim() || null;
+  const numeroObra = (formData.get("numeroObra") as string)?.trim() || null;
+  const origem = (formData.get("origem") as string)?.trim() || null;
+  const tipoObra = (formData.get("tipoObra") as string)?.trim() || null;
+  const prioridade = (formData.get("prioridade") as string)?.trim() || null;
+  const enderecoObra = (formData.get("enderecoObra") as string)?.trim() || null;
+  const metragemRaw = (formData.get("metragemEstimada") as string)?.trim();
+  const valorRaw = (formData.get("valorEstimado") as string)?.trim();
+  const valorGanhoRaw = (formData.get("valorGanhoEstimativa") as string)?.trim();
+  const dataInicioEstimadaStr = (formData.get("dataInicioEstimada") as string)?.trim();
+
+  if (!projetoId || !titulo || titulo.length < 2) {
+    throw new Error("Título é obrigatório.");
+  }
+
+  const metragemEstimada = metragemRaw ? parseFloat(metragemRaw.replace(",", ".")) || null : null;
+  const valorEstimado = valorRaw ? parseFloat(valorRaw.replace(",", ".")) || null : null;
+  const valorGanhoEstimativa = valorGanhoRaw ? parseFloat(valorGanhoRaw.replace(",", ".")) || null : null;
+  const dataInicioEstimada = dataInicioEstimadaStr
+    ? new Date(dataInicioEstimadaStr)
+    : null;
+
+  const result = await updateProjeto(empresaId, projetoId, {
+    titulo,
+    descricao,
+    numeroObra,
+    origem,
+    tipoObra,
+    prioridade,
+    metragemEstimada,
+    valorEstimado,
+    valorGanhoEstimativa,
+    enderecoObra,
+    dataInicioEstimada,
+  });
+
+  if (result.count === 0) throw new Error("Projeto não encontrado.");
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "edicao",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { titulo },
+  });
+
+  redirect(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function atualizarStatusObra(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+  const novoStatus = formData.get("statusInterno") as string;
+
+  const statusValidos = [
+    "abertura",
+    "planejamento",
+    "em_andamento",
+    "pausada",
+    "concluida",
+    "entregue",
+    "encerrada",
+  ];
+  if (!projetoId || !novoStatus || !statusValidos.includes(novoStatus)) {
+    throw new Error("Dados inválidos.");
+  }
+
+  await updateProjeto(empresaId, projetoId, { statusInterno: novoStatus });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus },
+  });
+
+  revalidatePath(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function criarAtividadeProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const projetoId = formData.get("projetoId") as string;
+  const tipo = (formData.get("tipo") as string)?.trim();
+  const descricao = (formData.get("descricao") as string)?.trim();
+
+  const tiposValidos = ["ligacao", "visita", "email", "reuniao", "nota", "outro"];
+  if (!projetoId || !tipo || !tiposValidos.includes(tipo) || !descricao || descricao.length < 2) {
+    throw new Error("Dados inválidos para registrar atividade.");
+  }
+
+  await createAtividade(empresaId, { projetoId, tipo, descricao });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "edicao",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { acao: "atividade_registrada", tipo },
+  });
+
+  revalidatePath(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function moverEtapaKanban(projetoId: string, novoStatus: string) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const statusValidos = ["novo", "fila_espera", "em_andamento", "em_negociacao", "proposta_enviada", "ganho", "perdido"];
+  if (!projetoId || !novoStatus || !statusValidos.includes(novoStatus)) {
+    throw new Error("Dados inválidos.");
+  }
+
+  await updateProjeto(empresaId, projetoId, { statusInterno: novoStatus });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus },
+  });
+
+  revalidatePath("/dashboard/projetos");
+}
+
+export async function moverStatusObra(projetoId: string, novoStatus: string) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const statusValidos = ["abertura", "planejamento", "em_andamento", "pausada", "concluida", "entregue", "encerrada"];
+  if (!projetoId || !novoStatus || !statusValidos.includes(novoStatus)) {
+    throw new Error("Dados inválidos.");
+  }
+
+  await updateProjeto(empresaId, projetoId, { statusInterno: novoStatus });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus },
+  });
+
+  revalidatePath("/dashboard/projetos");
+}
+
+export async function provaFluxoListarProjetos() {
+  const session = await auth();
+  const empresaId = getEmpresaId(session);
+
+  const projetos = await listProjetosByEmpresa(empresaId, { take: 10 });
+
+  await createAuditEntry({
+    empresaId,
+    eventoTipo: "validacao_ia",
+    entidadeTipo: "projeto",
+    entidadeId: empresaId,
+    usuarioId: null,
+    conteudoPersistido: {
+      acao: "prova_fluxo_listar_projetos",
+      totalRetornado: projetos.length,
+    },
+    origemInformacao: "scaffold:lote3c:prova",
+  });
+
+  return { total: projetos.length };
+}

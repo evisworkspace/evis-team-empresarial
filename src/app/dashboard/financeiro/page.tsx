@@ -1,0 +1,212 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { getEmpresaId } from "@/lib/tenant";
+import { listLancamentosByEmpresa, sumLancamentosByEmpresa } from "@/data/financeiro";
+import { FinanceIcon, ArrowRightIcon, CalendarIcon } from "@/components/Icons";
+import { marcarLancamentoPago } from "@/actions/financeiro";
+
+export const metadata: Metadata = { title: "Financeiro" };
+
+function formatCurrency(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDate(d: Date | null | undefined) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("pt-BR");
+}
+
+function tipoLabel(tipo: string) {
+  return tipo === "entrada" ? "Entrada" : "Saída";
+}
+
+function statusLabel(status: string) {
+  const map: Record<string, string> = {
+    previsto: "Previsto",
+    pago: "Pago",
+    recebido: "Recebido",
+    cancelado: "Cancelado",
+  };
+  return map[status] ?? status;
+}
+
+export default async function FinanceiroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tipo?: string }>;
+}) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const { tipo: tipoFilter } = await searchParams;
+
+  const [lancamentos, totais] = await Promise.all([
+    listLancamentosByEmpresa(empresaId, { tipo: tipoFilter }),
+    sumLancamentosByEmpresa(empresaId),
+  ]);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div className="page-header-row">
+          <div>
+            <h1 className="page-title">Financeiro</h1>
+            <p className="page-subtitle">Visão consolidada de todos os lançamentos</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Resumo */}
+      <div className="stat-grid" style={{ marginBottom: 24 }}>
+        <div className="stat-card" style={{ cursor: "default" }}>
+          <div className="stat-card__icon-wrap icon-green">
+            <FinanceIcon size={18} />
+          </div>
+          <div className="stat-card__value" style={{ color: "var(--clr-success)" }}>
+            {formatCurrency(totais.totalEntrada)}
+          </div>
+          <div className="stat-card__label">Total de entradas</div>
+        </div>
+
+        <div className="stat-card" style={{ cursor: "default" }}>
+          <div className="stat-card__icon-wrap icon-orange">
+            <FinanceIcon size={18} />
+          </div>
+          <div className="stat-card__value" style={{ color: "var(--clr-danger)" }}>
+            {formatCurrency(totais.totalSaida)}
+          </div>
+          <div className="stat-card__label">Total de saídas</div>
+        </div>
+
+        <div className="stat-card" style={{ cursor: "default" }}>
+          <div
+            className="stat-card__icon-wrap"
+            style={{ background: totais.saldo >= 0 ? "rgba(34,197,94,.12)" : "rgba(239,68,68,.12)" }}
+          >
+            <FinanceIcon size={18} />
+          </div>
+          <div
+            className="stat-card__value"
+            style={{ color: totais.saldo >= 0 ? "var(--clr-success)" : "var(--clr-danger)" }}
+          >
+            {formatCurrency(totais.saldo)}
+          </div>
+          <div className="stat-card__label">Saldo geral</div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <Link href="/dashboard/financeiro" className={`btn btn-sm ${!tipoFilter ? "btn-primary" : "btn-secondary"}`}>
+          Todos
+        </Link>
+        <Link href="/dashboard/financeiro?tipo=entrada" className={`btn btn-sm ${tipoFilter === "entrada" ? "btn-primary" : "btn-secondary"}`}>
+          Entradas
+        </Link>
+        <Link href="/dashboard/financeiro?tipo=saida" className={`btn btn-sm ${tipoFilter === "saida" ? "btn-primary" : "btn-secondary"}`}>
+          Saídas
+        </Link>
+      </div>
+
+      {/* Lista */}
+      {lancamentos.length === 0 ? (
+        <div className="card card-pad">
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <FinanceIcon size={24} />
+            </div>
+            <div className="empty-state-title">Nenhum lançamento encontrado</div>
+            <p className="empty-state-sub">
+              Lançamentos são registrados dentro de cada obra na Central da Obra.
+            </p>
+            <Link href="/dashboard/projetos?stage=obra" className="btn btn-primary" style={{ marginTop: 8 }}>
+              <ArrowRightIcon size={14} />
+              Ver obras
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="table-wrap">
+            <table className="evis-table">
+              <thead>
+                <tr>
+                  <th>Descrição</th>
+                  <th>Obra</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Vencimento</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lancamentos.map((l) => (
+                  <tr key={l.id}>
+                    <td style={{ color: "var(--clr-text)", fontSize: 13 }}>
+                      {l.descricao ?? "—"}
+                    </td>
+                    <td style={{ color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                      {l.projeto ? (
+                        <Link
+                          href={`/dashboard/projetos/${l.projeto.id}`}
+                          style={{ color: "var(--clr-primary)", fontWeight: 500 }}
+                        >
+                          {l.projeto.titulo}
+                        </Link>
+                      ) : "—"}
+                    </td>
+                    <td>
+                      <span
+                        className="badge"
+                        style={
+                          l.tipo === "entrada"
+                            ? { background: "rgba(34,197,94,.12)", color: "#166534", border: "1px solid rgba(34,197,94,.3)" }
+                            : { background: "rgba(239,68,68,.08)", color: "#991b1b", border: "1px solid rgba(239,68,68,.2)" }
+                        }
+                      >
+                        {tipoLabel(l.tipo)}
+                      </span>
+                    </td>
+                    <td style={{ fontWeight: 600, fontSize: 13, color: l.tipo === "entrada" ? "var(--clr-success)" : "var(--clr-danger)" }}>
+                      {l.tipo === "saida" ? "− " : "+ "}
+                      {formatCurrency(Number(l.valor))}
+                    </td>
+                    <td style={{ fontSize: 13, color: "var(--clr-text-muted)" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <CalendarIcon size={12} />
+                        {formatDate(l.dataVencimento)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge badge-${l.status}`}>{statusLabel(l.status)}</span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {l.status === "previsto" && l.projeto && (
+                          <form action={marcarLancamentoPago}>
+                            <input type="hidden" name="lancamentoId" value={l.id} />
+                            <input type="hidden" name="projetoId" value={l.projeto.id} />
+                            <input type="hidden" name="tipo" value={l.tipo} />
+                            <button type="submit" className="btn btn-sm btn-secondary" style={{ fontSize: 11 }}>
+                              {l.tipo === "entrada" ? "Recebido" : "Pago"}
+                            </button>
+                          </form>
+                        )}
+                        {l.projeto && (
+                          <Link href={`/dashboard/projetos/${l.projeto.id}`} className="btn btn-sm btn-secondary">
+                            Obra <ArrowRightIcon size={12} />
+                          </Link>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
