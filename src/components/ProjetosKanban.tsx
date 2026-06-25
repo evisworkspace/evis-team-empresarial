@@ -2,7 +2,6 @@
 import { useState, useTransition, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { moverStatusObra } from "@/actions/projeto";
 
 type Projeto = {
@@ -103,8 +102,15 @@ function CardMenu({
   );
 }
 
-function ProjetoCard({ projeto, colunas }: { projeto: Projeto; colunas: StatusCol[] }) {
-  const router = useRouter();
+function ProjetoCard({
+  projeto, colunas, isDragging, onDragStartCard, onDragEndCard,
+}: {
+  projeto: Projeto;
+  colunas: StatusCol[];
+  isDragging: boolean;
+  onDragStartCard: (id: string) => void;
+  onDragEndCard: () => void;
+}) {
   const [isPending, startTransition] = useTransition();
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -116,15 +122,33 @@ function ProjetoCard({ projeto, colunas }: { projeto: Projeto; colunas: StatusCo
 
   return (
     <div
+      draggable
       style={{
-        background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
-        padding: "11px 12px", opacity: isPending ? 0.5 : 1,
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 8,
+        padding: "11px 12px",
+        opacity: isDragging || isPending ? 0.4 : 1,
         transition: "opacity 0.15s, box-shadow 0.15s, border-color 0.15s",
-        cursor: "pointer",
+        cursor: isDragging ? "grabbing" : "grab",
       }}
-      onMouseEnter={(e) => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = "#cbd5e1"; el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.07)"; }}
-      onMouseLeave={(e) => { const el = e.currentTarget as HTMLDivElement; el.style.borderColor = "#e2e8f0"; el.style.boxShadow = "none"; }}
-      onClick={() => router.push(`/dashboard/projetos/${projeto.id}`)}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", projeto.id);
+        onDragStartCard(projeto.id);
+      }}
+      onDragEnd={onDragEndCard}
+      onMouseEnter={(e) => {
+        if (isDragging) return;
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.borderColor = "#cbd5e1";
+        el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.07)";
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.borderColor = "#e2e8f0";
+        el.style.boxShadow = "none";
+      }}
     >
       {/* Título + menu */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4, marginBottom: 3 }}>
@@ -134,6 +158,7 @@ function ProjetoCard({ projeto, colunas }: { projeto: Projeto; colunas: StatusCo
             fontWeight: 600, fontSize: 13, color: "#111827", textDecoration: "none",
             lineHeight: 1.4, flex: 1, minWidth: 0, overflow: "hidden",
             display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            cursor: "pointer",
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -208,21 +233,40 @@ function ProjetoCard({ projeto, colunas }: { projeto: Projeto; colunas: StatusCo
 
 export default function ProjetosKanban({ projetos, colunas }: { projetos: Projeto[]; colunas: StatusCol[] }) {
   const cols = colunas.filter((c) => c.ativo);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const handleDrop = (targetSlug: string) => {
+    if (!draggedId) return;
+    const current = projetos.find((p) => p.id === draggedId)?.statusInterno;
+    setDraggedId(null);
+    setOverCol(null);
+    if (!current || current === targetSlug) return;
+    startTransition(async () => { await moverStatusObra(draggedId, targetSlug); });
+  };
 
   return (
     <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 16, alignItems: "flex-start" }}>
       {cols.map((col) => {
         const cards = projetos.filter((p) => p.statusInterno === col.slug);
         const totalValor = cards.reduce((s, p) => s + (Number(p.valorEstimado) || 0), 0);
+        const isDragOver = overCol === col.slug;
 
         return (
           <div
             key={col.slug}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (overCol !== col.slug) setOverCol(col.slug); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol(null); }}
+            onDrop={(e) => { e.preventDefault(); handleDrop(col.slug); }}
             style={{
-              width: 240, minWidth: 240, background: "#fff",
-              border: "1px solid #e2e8f0", borderRadius: 12,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+              width: 240, minWidth: 240,
+              background: isDragOver ? "#f8fafc" : "#fff",
+              border: `1px solid ${isDragOver ? col.cor : "#e2e8f0"}`,
+              borderRadius: 12,
+              boxShadow: isDragOver ? `0 0 0 2px ${col.cor}40` : "0 1px 3px rgba(0,0,0,0.06)",
               display: "flex", flexDirection: "column",
+              transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
             }}
           >
             {/* Header */}
@@ -257,13 +301,37 @@ export default function ProjetosKanban({ projetos, colunas }: { projetos: Projet
               {cards.length === 0 ? (
                 <div style={{
                   flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                  border: "1.5px dashed #e2e8f0", borderRadius: 8, padding: "28px 12px",
-                  color: "#d1d5db", fontSize: 11, textAlign: "center", minHeight: 80,
+                  border: `1.5px dashed ${isDragOver ? col.cor : "#e2e8f0"}`,
+                  borderRadius: 8, padding: "28px 12px",
+                  color: isDragOver ? col.cor : "#d1d5db",
+                  fontSize: 11, textAlign: "center", minHeight: 80,
+                  background: isDragOver ? `${col.cor}08` : "transparent",
+                  transition: "all 0.12s",
                 }}>
-                  Nenhuma obra neste status.
+                  {isDragOver ? "Soltar aqui" : "Nenhuma obra neste status."}
                 </div>
               ) : (
-                cards.map((p) => <ProjetoCard key={p.id} projeto={p} colunas={cols} />)
+                <>
+                  {cards.map((p) => (
+                    <ProjetoCard
+                      key={p.id}
+                      projeto={p}
+                      colunas={cols}
+                      isDragging={draggedId === p.id}
+                      onDragStartCard={setDraggedId}
+                      onDragEndCard={() => { setDraggedId(null); setOverCol(null); }}
+                    />
+                  ))}
+                  {isDragOver && (
+                    <div style={{
+                      border: `1.5px dashed ${col.cor}`, borderRadius: 8, padding: "14px 12px",
+                      color: col.cor, fontSize: 11, textAlign: "center",
+                      background: `${col.cor}08`, transition: "all 0.12s",
+                    }}>
+                      Soltar aqui
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
