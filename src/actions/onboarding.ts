@@ -1,17 +1,8 @@
 "use server";
-// Server Action de onboarding mínimo (Lote 5).
-// Cria Empresa + Usuario EVIS vinculados ao Auth User em uma transação atômica.
-// Atualiza User.empresaId para que o próximo JWT callback reflita o vínculo
-// sem necessidade de re-login.
-//
-// Proteções:
-// - Exige sessão autenticada (session.user.id = token.sub).
-// - Exige onboardingPending: true (idempotência: usuário com empresa já → redirect).
-// - Transação: se qualquer etapa falhar, nada é persistido.
-// - P2002 (unique constraint): clique duplo tratado sem erro exposto ao usuário.
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { seedCategoriasFinanceiras } from "@/lib/seedCategoriasFinanceiras";
 
 export async function criarEmpresaOnboarding(formData: FormData) {
   const session = await auth();
@@ -34,8 +25,10 @@ export async function criarEmpresaOnboarding(formData: FormData) {
   const nomeUsuario = session.user.name ?? session.user.email ?? "Usuário";
   const emailUsuario = session.user.email ?? "";
 
+  let novaEmpresaId: string | null = null;
+
   try {
-    await prisma.$transaction(async (tx) => {
+    novaEmpresaId = await prisma.$transaction(async (tx) => {
       // 1. Criar Empresa.
       const empresa = await tx.empresa.create({
         data: {
@@ -62,12 +55,20 @@ export async function criarEmpresaOnboarding(formData: FormData) {
         where: { id: authUserId },
         data: { empresaId: empresa.id },
       });
+
+      return empresa.id;
     });
   } catch (error: unknown) {
     // P2002 = unique constraint — usuário já passou pelo onboarding (clique duplo).
     // Silencia e deixa redirect resolver.
     const e = error as { code?: string };
     if (e?.code !== "P2002") throw error;
+  }
+
+  // Seed de categorias financeiras padrão (VOBI template — idempotente).
+  // Executado fora da transação para garantir que a empresa já foi commitada.
+  if (novaEmpresaId) {
+    await seedCategoriasFinanceiras(novaEmpresaId);
   }
 
   redirect("/");

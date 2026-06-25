@@ -10,6 +10,7 @@ import {
   editarCategoriaFinanceira,
   toggleAtivoCategoriaFinanceira,
   excluirCategoriaFinanceira,
+  importarCategoriasPadrao,
 } from "@/actions/categoriaFinanceira"
 import {
   criarCentroDeCusto,
@@ -144,10 +145,15 @@ export default async function FinanceiroConfigPage({
           </form>
 
           {categorias.length === 0 ? (
-            <div className="card card-pad">
-              <p style={{ color: "var(--clr-text-muted)", fontSize: 14, textAlign: "center" }}>
-                Nenhuma categoria financeira cadastrada.
+            <div className="card card-pad" style={{ textAlign: "center" }}>
+              <p style={{ color: "var(--clr-text-muted)", fontSize: 14, marginBottom: 16 }}>
+                Nenhuma categoria cadastrada. Importe o modelo padrão para começar.
               </p>
+              <form action={importarCategoriasPadrao}>
+                <button type="submit" className="btn btn-primary btn-sm">
+                  Importar categorias padrão
+                </button>
+              </form>
             </div>
           ) : (
             <div className="card">

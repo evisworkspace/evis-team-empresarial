@@ -8,6 +8,7 @@ import {
   updateCategoriaFinanceira,
   deleteCategoriaFinanceira,
 } from "@/data/categoriaFinanceira"
+import { seedCategoriasFinanceiras } from "@/lib/seedCategoriasFinanceiras"
 
 const PATH = "/dashboard/financeiro/config"
 
@@ -59,5 +60,13 @@ export async function excluirCategoriaFinanceira(formData: FormData) {
   const empresaId = getEmpresaId(session)
   const id = formData.get("id") as string
   await deleteCategoriaFinanceira(empresaId, id)
+  revalidatePath(PATH)
+}
+
+export async function importarCategoriasPadrao() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/api/auth/signin")
+  const empresaId = getEmpresaId(session)
+  await seedCategoriasFinanceiras(empresaId)
   revalidatePath(PATH)
 }
