@@ -168,6 +168,9 @@ export default async function ClienteDetalhe({
             {[
               { label: "Nome", value: cliente.nome },
               { label: "Tipo", value: cliente.tipoPessoa ?? "—" },
+              ...(cliente.razaoSocial ? [{ label: "Razão Social", value: cliente.razaoSocial }] : []),
+              ...(cliente.cpfCnpj ? [{ label: "CPF / CNPJ", value: cliente.cpfCnpj }] : []),
+              ...(cliente.email ? [{ label: "E-mail", value: cliente.email }] : []),
               { label: "Telefone", value: cliente.telefone ?? "—" },
               { label: "Origem", value: cliente.origemContato ?? "—" },
               { label: "Status", value: cliente.status },
@@ -177,6 +180,28 @@ export default async function ClienteDetalhe({
                 <span style={{ color: "var(--clr-text)", fontWeight: 500 }}>{value}</span>
               </div>
             ))}
+            {(cliente.rua || cliente.cidade) && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderBottom: "1px solid var(--clr-border-light)", paddingBottom: 6 }}>
+                <span style={{ color: "var(--clr-text-muted)" }}>Endereço</span>
+                <span style={{ color: "var(--clr-text)", fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>
+                  {[
+                    cliente.rua,
+                    cliente.numero,
+                    cliente.complemento,
+                    cliente.bairro,
+                    cliente.cidade,
+                    cliente.estado,
+                  ].filter(Boolean).join(", ")}
+                  {cliente.cep ? ` — CEP ${cliente.cep}` : ""}
+                </span>
+              </div>
+            )}
+            {cliente.observacoes && (
+              <div style={{ fontSize: 13, paddingTop: 4 }}>
+                <div style={{ color: "var(--clr-text-muted)", marginBottom: 4 }}>Observações</div>
+                <div style={{ color: "var(--clr-text)", lineHeight: 1.6 }}>{cliente.observacoes}</div>
+              </div>
+            )}
           </div>
         </div>
 

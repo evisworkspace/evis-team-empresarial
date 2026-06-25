@@ -352,11 +352,23 @@ function OportunidadeView({ projeto, financeiro }: { projeto: ProjetoDetalhes; f
                   <DetailItem label="Criado em" value={formatDate(projeto.createdAt)} />
                   <DetailItem label="Valor estimado" value={formatMoney(projeto.valorEstimado != null ? Number(projeto.valorEstimado) : null)} highlight />
                   <DetailItem label="Metragem" value={formatArea(projeto.metragemEstimada != null ? Number(projeto.metragemEstimada) : null)} />
-                  {projeto.enderecoObra && (
+                  {projeto.dataDeGanho && (
+                    <DetailItem label="Data de ganho" value={formatDate(projeto.dataDeGanho)} />
+                  )}
+                  {(projeto.logradouroObra || projeto.cidadeObra || projeto.enderecoObra) && (
                     <DetailItem label="Endereço da obra" value={
                       <span style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
                         <MapPinIcon size={13} />
-                        {projeto.enderecoObra}
+                        {projeto.logradouroObra
+                          ? [
+                              projeto.logradouroObra,
+                              projeto.numeroEnderecoObra,
+                              projeto.complementoObra,
+                              projeto.bairroObra,
+                              projeto.cidadeObra,
+                              projeto.estadoObra,
+                            ].filter(Boolean).join(", ")
+                          : projeto.enderecoObra}
                       </span>
                     } />
                   )}
@@ -430,20 +442,6 @@ function OportunidadeView({ projeto, financeiro }: { projeto: ProjetoDetalhes; f
                       Chegou via: {projeto.cliente.origemContato}
                     </div>
                   )}
-                  <div
-                    style={{
-                      background: "var(--clr-warning-bg)",
-                      borderRadius: "var(--r-md)",
-                      padding: "10px 14px",
-                      fontSize: 12,
-                      color: "var(--clr-warning)",
-                      marginTop: 8,
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    Campos pendentes no schema atual: email, CPF/CNPJ, endereço completo.
-                    Serão adicionados na próxima fase.
-                  </div>
                 </div>
                 <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
                   <Link href={`/dashboard/clientes/${projeto.cliente.id}`} className="btn btn-secondary btn-sm" style={{ fontSize: 12 }}>
@@ -949,6 +947,16 @@ function CentralDaObraView({ projeto, financeiro }: { projeto: ProjetoDetalhes; 
                       <span style={{ color: "var(--clr-text)", fontWeight: 500 }}>{value}</span>
                     </div>
                   ))}
+                  {(projeto.logradouroObra || projeto.cidadeObra || projeto.enderecoObra) && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderBottom: "1px solid var(--clr-border-light)", paddingBottom: 6, gap: 8 }}>
+                      <span style={{ color: "var(--clr-text-muted)", flexShrink: 0 }}>Endereço</span>
+                      <span style={{ color: "var(--clr-text)", fontWeight: 500, textAlign: "right" }}>
+                        {projeto.logradouroObra
+                          ? [projeto.logradouroObra, projeto.numeroEnderecoObra, projeto.complementoObra, projeto.bairroObra, projeto.cidadeObra, projeto.estadoObra].filter(Boolean).join(", ")
+                          : projeto.enderecoObra}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

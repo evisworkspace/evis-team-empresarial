@@ -5,7 +5,6 @@ import { getEmpresaId } from "@/lib/tenant";
 import { listClientesByEmpresa } from "@/data/cliente";
 import { criarProjeto } from "@/actions/projeto";
 import { PlusIcon } from "@/components/Icons";
-import EnderecoAutocomplete from "@/components/EnderecoAutocomplete";
 
 export const metadata: Metadata = { title: "Nova Oportunidade" };
 
@@ -183,13 +182,82 @@ export default async function NovaOportunidade({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Endereço da obra</label>
-                <EnderecoAutocomplete
-                  name="enderecoObra"
+                <label className="form-label">CEP da obra</label>
+                <input
+                  name="cepObra"
+                  type="text"
                   className="form-input"
-                  placeholder="Rua, número, bairro, cidade"
-                  maxLength={300}
+                  placeholder="00000-000"
+                  maxLength={10}
                 />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Logradouro da obra</label>
+                <input
+                  name="logradouroObra"
+                  type="text"
+                  className="form-input"
+                  placeholder="Rua, Avenida, Estrada..."
+                  maxLength={200}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Número</label>
+                  <input
+                    name="numeroEnderecoObra"
+                    type="text"
+                    className="form-input"
+                    placeholder="Ex: 123"
+                    maxLength={20}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Complemento</label>
+                  <input
+                    name="complementoObra"
+                    type="text"
+                    className="form-input"
+                    placeholder="Apto, Galpão, Bloco..."
+                    maxLength={100}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Bairro</label>
+                <input
+                  name="bairroObra"
+                  type="text"
+                  className="form-input"
+                  placeholder="Bairro"
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Cidade</label>
+                  <input
+                    name="cidadeObra"
+                    type="text"
+                    className="form-input"
+                    placeholder="Cidade"
+                    maxLength={100}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Estado</label>
+                  <input
+                    name="estadoObra"
+                    type="text"
+                    className="form-input"
+                    placeholder="SP"
+                    maxLength={2}
+                  />
+                </div>
               </div>
 
               {isObra && (

@@ -55,6 +55,15 @@ export async function criarProjeto(formData: FormData) {
   const valorGanhoRaw = (formData.get("valorGanhoEstimativa") as string)?.trim();
   const dataInicioEstimadaStr = (formData.get("dataInicioEstimada") as string)?.trim();
   const statusInicialParam = (formData.get("statusInicial") as string)?.trim();
+  const dataDeGanhoRaw = (formData.get("dataDeGanho") as string)?.trim();
+  const dataDeGanho = dataDeGanhoRaw ? new Date(dataDeGanhoRaw) : undefined;
+  const cepObra = (formData.get("cepObra") as string)?.trim() || undefined;
+  const logradouroObra = (formData.get("logradouroObra") as string)?.trim() || undefined;
+  const numeroEnderecoObra = (formData.get("numeroEnderecoObra") as string)?.trim() || undefined;
+  const complementoObra = (formData.get("complementoObra") as string)?.trim() || undefined;
+  const bairroObra = (formData.get("bairroObra") as string)?.trim() || undefined;
+  const cidadeObra = (formData.get("cidadeObra") as string)?.trim() || undefined;
+  const estadoObra = (formData.get("estadoObra") as string)?.trim() || undefined;
 
   if (!titulo || titulo.length < 2) throw new Error("Título é obrigatório.");
 
@@ -86,6 +95,14 @@ export async function criarProjeto(formData: FormData) {
     enderecoObra,
     numeroObra,
     dataInicioEstimada,
+    dataDeGanho,
+    cepObra,
+    logradouroObra,
+    numeroEnderecoObra,
+    complementoObra,
+    bairroObra,
+    cidadeObra,
+    estadoObra,
   });
 
   await createAuditEntry({
@@ -213,6 +230,14 @@ export async function editarProjeto(formData: FormData) {
   const valorRaw = (formData.get("valorEstimado") as string)?.trim();
   const valorGanhoRaw = (formData.get("valorGanhoEstimativa") as string)?.trim();
   const dataInicioEstimadaStr = (formData.get("dataInicioEstimada") as string)?.trim();
+  const dataDeGanhoStr = (formData.get("dataDeGanho") as string)?.trim();
+  const cepObra = (formData.get("cepObra") as string)?.trim() || null;
+  const logradouroObra = (formData.get("logradouroObra") as string)?.trim() || null;
+  const numeroEnderecoObra = (formData.get("numeroEnderecoObra") as string)?.trim() || null;
+  const complementoObra = (formData.get("complementoObra") as string)?.trim() || null;
+  const bairroObra = (formData.get("bairroObra") as string)?.trim() || null;
+  const cidadeObra = (formData.get("cidadeObra") as string)?.trim() || null;
+  const estadoObra = (formData.get("estadoObra") as string)?.trim() || null;
 
   if (!projetoId || !titulo || titulo.length < 2) {
     throw new Error("Título é obrigatório.");
@@ -221,9 +246,8 @@ export async function editarProjeto(formData: FormData) {
   const metragemEstimada = metragemRaw ? parseFloat(metragemRaw.replace(",", ".")) || null : null;
   const valorEstimado = valorRaw ? parseFloat(valorRaw.replace(",", ".")) || null : null;
   const valorGanhoEstimativa = valorGanhoRaw ? parseFloat(valorGanhoRaw.replace(",", ".")) || null : null;
-  const dataInicioEstimada = dataInicioEstimadaStr
-    ? new Date(dataInicioEstimadaStr)
-    : null;
+  const dataInicioEstimada = dataInicioEstimadaStr ? new Date(dataInicioEstimadaStr) : null;
+  const dataDeGanho = dataDeGanhoStr ? new Date(dataDeGanhoStr) : null;
 
   const result = await updateProjeto(empresaId, projetoId, {
     titulo,
@@ -237,6 +261,14 @@ export async function editarProjeto(formData: FormData) {
     valorGanhoEstimativa,
     enderecoObra,
     dataInicioEstimada,
+    dataDeGanho,
+    cepObra,
+    logradouroObra,
+    numeroEnderecoObra,
+    complementoObra,
+    bairroObra,
+    cidadeObra,
+    estadoObra,
   });
 
   if (result.count === 0) throw new Error("Projeto não encontrado.");

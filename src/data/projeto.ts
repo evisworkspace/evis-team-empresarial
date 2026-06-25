@@ -92,6 +92,14 @@ export function createProjeto(
     enderecoObra?: string;
     dataInicioEstimada?: Date;
     numeroObra?: string;
+    dataDeGanho?: Date;
+    cepObra?: string;
+    logradouroObra?: string;
+    numeroEnderecoObra?: string;
+    complementoObra?: string;
+    bairroObra?: string;
+    cidadeObra?: string;
+    estadoObra?: string;
   },
 ) {
   return prisma.projeto.create({
@@ -110,6 +118,14 @@ export function createProjeto(
       valorGanhoEstimativa: data.valorGanhoEstimativa,
       enderecoObra: data.enderecoObra,
       dataInicioEstimada: data.dataInicioEstimada,
+      dataDeGanho: data.dataDeGanho,
+      cepObra: data.cepObra,
+      logradouroObra: data.logradouroObra,
+      numeroEnderecoObra: data.numeroEnderecoObra,
+      complementoObra: data.complementoObra,
+      bairroObra: data.bairroObra,
+      cidadeObra: data.cidadeObra,
+      estadoObra: data.estadoObra,
       ...(data.numeroObra ? { numeroObra: data.numeroObra } : {}),
     },
   });
@@ -132,6 +148,14 @@ export async function updateProjeto(
     valorGanhoEstimativa?: number | null;
     enderecoObra?: string | null;
     dataInicioEstimada?: Date | null;
+    dataDeGanho?: Date | null;
+    cepObra?: string | null;
+    logradouroObra?: string | null;
+    numeroEnderecoObra?: string | null;
+    complementoObra?: string | null;
+    bairroObra?: string | null;
+    cidadeObra?: string | null;
+    estadoObra?: string | null;
   },
 ) {
   return prisma.projeto.updateMany({

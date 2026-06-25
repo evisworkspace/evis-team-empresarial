@@ -75,6 +75,133 @@ export default async function NovoClientePage({
             />
           </div>
 
+          {/* Dados de identificação */}
+          <div className="form-group" style={{ marginTop: 24 }}>
+            <label className="form-label">Razão Social</label>
+            <input
+              name="razaoSocial"
+              type="text"
+              className="form-input"
+              placeholder="Nome empresarial (somente PJ)"
+              maxLength={200}
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">E-mail</label>
+              <input
+                name="email"
+                type="email"
+                className="form-input"
+                placeholder="contato@exemplo.com"
+                maxLength={200}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">CPF / CNPJ</label>
+              <input
+                name="cpfCnpj"
+                type="text"
+                className="form-input"
+                placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                maxLength={20}
+              />
+            </div>
+          </div>
+
+          {/* Endereço */}
+          <div className="form-group" style={{ marginTop: 24 }}>
+            <label className="form-label">CEP</label>
+            <input
+              name="cep"
+              type="text"
+              className="form-input"
+              placeholder="00000-000"
+              maxLength={10}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Rua / Logradouro</label>
+            <input
+              name="rua"
+              type="text"
+              className="form-input"
+              placeholder="Rua, Avenida, Estrada..."
+              maxLength={200}
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Número</label>
+              <input
+                name="numero"
+                type="text"
+                className="form-input"
+                placeholder="Ex: 123"
+                maxLength={20}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Complemento</label>
+              <input
+                name="complemento"
+                type="text"
+                className="form-input"
+                placeholder="Apto, Sala, Bloco..."
+                maxLength={100}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Bairro</label>
+            <input
+              name="bairro"
+              type="text"
+              className="form-input"
+              placeholder="Bairro"
+              maxLength={100}
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Cidade</label>
+              <input
+                name="cidade"
+                type="text"
+                className="form-input"
+                placeholder="Cidade"
+                maxLength={100}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Estado</label>
+              <input
+                name="estado"
+                type="text"
+                className="form-input"
+                placeholder="SP"
+                maxLength={2}
+              />
+            </div>
+          </div>
+
+          {/* Observações */}
+          <div className="form-group" style={{ marginTop: 24 }}>
+            <label className="form-label">Observações</label>
+            <textarea
+              name="observacoes"
+              className="form-input form-textarea"
+              placeholder="Notas sobre o cliente..."
+              maxLength={1000}
+              rows={3}
+            />
+          </div>
+
           <div className="form-actions">
             <button type="submit" className="btn btn-primary">
               <PlusIcon size={15} />

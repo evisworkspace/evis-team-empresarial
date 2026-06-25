@@ -82,6 +82,17 @@ model Cliente {
   telefone     String?
   tipoPessoa   String?   @map("tipo_pessoa") // domínio: PF | PJ
   origemContato String?  @map("origem_contato")
+  razaoSocial  String?  @map("razao_social")
+  email        String?
+  cpfCnpj      String?  @map("cpf_cnpj")
+  cep          String?
+  rua          String?
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String?
+  estado       String?
+  observacoes  String?
   status       String // domínio: ativo | inativo
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
@@ -112,6 +123,14 @@ model Projeto {
   valorGanhoEstimativa Decimal? @map("valor_ganho_estimativa") @db.Decimal(15, 2)
   enderecoObra       String?   @map("endereco_obra")
   dataInicioEstimada DateTime? @map("data_inicio_estimada") @db.Date
+  dataDeGanho        DateTime? @map("data_de_ganho") @db.Date
+  cepObra            String?   @map("cep_obra")
+  logradouroObra     String?   @map("logradouro_obra")
+  numeroEnderecoObra String?   @map("numero_endereco_obra")
+  complementoObra    String?   @map("complemento_obra")
+  bairroObra         String?   @map("bairro_obra")
+  cidadeObra         String?   @map("cidade_obra")
+  estadoObra         String?   @map("estado_obra")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   deletedAt          DateTime? @map("deleted_at")

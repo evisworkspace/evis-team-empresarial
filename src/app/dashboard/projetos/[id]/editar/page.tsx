@@ -6,7 +6,6 @@ import { getEmpresaId } from "@/lib/tenant";
 import { getProjetoByEmpresa } from "@/data/projeto";
 import { editarProjeto } from "@/actions/projeto";
 import { EditIcon } from "@/components/Icons";
-import EnderecoAutocomplete from "@/components/EnderecoAutocomplete";
 
 export const metadata: Metadata = { title: "Editar Projeto" };
 
@@ -167,13 +166,98 @@ export default async function EditarProjetoPage({
               </div>
 
               <div className="form-group" style={{ marginTop: 18 }}>
-                <label className="form-label">Endereço da obra</label>
-                <EnderecoAutocomplete
-                  name="enderecoObra"
-                  defaultValue={projeto.enderecoObra ?? ""}
+                <label className="form-label">CEP da obra</label>
+                <input
+                  name="cepObra"
+                  type="text"
                   className="form-input"
-                  placeholder="Rua, número, bairro, cidade"
-                  maxLength={300}
+                  defaultValue={projeto.cepObra ?? ""}
+                  placeholder="00000-000"
+                  maxLength={10}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Logradouro da obra</label>
+                <input
+                  name="logradouroObra"
+                  type="text"
+                  className="form-input"
+                  defaultValue={projeto.logradouroObra ?? ""}
+                  placeholder="Rua, Avenida, Estrada..."
+                  maxLength={200}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Número</label>
+                  <input
+                    name="numeroEnderecoObra"
+                    type="text"
+                    className="form-input"
+                    defaultValue={projeto.numeroEnderecoObra ?? ""}
+                    placeholder="Ex: 123"
+                    maxLength={20}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Complemento</label>
+                  <input
+                    name="complementoObra"
+                    type="text"
+                    className="form-input"
+                    defaultValue={projeto.complementoObra ?? ""}
+                    placeholder="Apto, Galpão, Bloco..."
+                    maxLength={100}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Bairro</label>
+                <input
+                  name="bairroObra"
+                  type="text"
+                  className="form-input"
+                  defaultValue={projeto.bairroObra ?? ""}
+                  placeholder="Bairro"
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Cidade</label>
+                  <input
+                    name="cidadeObra"
+                    type="text"
+                    className="form-input"
+                    defaultValue={projeto.cidadeObra ?? ""}
+                    placeholder="Cidade"
+                    maxLength={100}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Estado</label>
+                  <input
+                    name="estadoObra"
+                    type="text"
+                    className="form-input"
+                    defaultValue={projeto.estadoObra ?? ""}
+                    placeholder="SP"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: 18 }}>
+                <label className="form-label">Data de ganho da oportunidade</label>
+                <input
+                  name="dataDeGanho"
+                  type="date"
+                  className="form-input"
+                  defaultValue={toDateInputValue(projeto.dataDeGanho)}
                 />
               </div>
             </>
