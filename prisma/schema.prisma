@@ -58,6 +58,7 @@ model Empresa {
   unidades              UnidadeMedida[]
   categoriasFinanceiras CategoriaFinanceira[]
   centrosDeCusto        CentroDeCusto[]
+  itensBiblioteca       ItemBiblioteca[]
 
   @@map("empresa")
 }
@@ -296,7 +297,8 @@ model GrupoItem {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  empresa Empresa @relation(fields: [empresaId], references: [id])
+  empresa Empresa          @relation(fields: [empresaId], references: [id])
+  itens   ItemBiblioteca[]
 
   @@index([empresaId])
   @@map("grupo_item")
@@ -311,7 +313,8 @@ model CategoriaItem {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  empresa Empresa @relation(fields: [empresaId], references: [id])
+  empresa Empresa          @relation(fields: [empresaId], references: [id])
+  itens   ItemBiblioteca[]
 
   @@index([empresaId])
   @@map("categoria_item")
@@ -326,7 +329,8 @@ model UnidadeMedida {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  empresa Empresa @relation(fields: [empresaId], references: [id])
+  empresa Empresa          @relation(fields: [empresaId], references: [id])
+  itens   ItemBiblioteca[]
 
   @@index([empresaId])
   @@map("unidade_medida")
@@ -367,6 +371,34 @@ model CentroDeCusto {
 
   @@index([empresaId])
   @@map("centro_de_custo")
+}
+
+model ItemBiblioteca {
+  id            String   @id @default(uuid()) @db.Uuid
+  empresaId     String   @map("empresa_id") @db.Uuid
+  codigo        String?  @map("codigo") @db.VarChar(50)
+  nome          String   @db.VarChar(200)
+  descricao     String?  @db.Text
+  tipo          String   @db.VarChar(30)
+  ativo         Boolean  @default(true)
+  precoUnitario Decimal? @map("preco_unitario") @db.Decimal(15, 4)
+
+  unidadeId   String? @map("unidade_id") @db.Uuid
+  grupoId     String? @map("grupo_id") @db.Uuid
+  categoriaId String? @map("categoria_id") @db.Uuid
+
+  unidade   UnidadeMedida? @relation(fields: [unidadeId], references: [id])
+  grupo     GrupoItem?     @relation(fields: [grupoId], references: [id])
+  categoria CategoriaItem? @relation(fields: [categoriaId], references: [id])
+  empresa   Empresa        @relation(fields: [empresaId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([empresaId])
+  @@index([tipo])
+  @@map("item_biblioteca")
 }
 
 /// Entrada ou saída básica. "vencido" é estado derivado, não armazenado.

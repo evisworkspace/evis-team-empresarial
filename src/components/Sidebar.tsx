@@ -14,6 +14,7 @@ import {
   ChevronDownIcon,
   SettingsIcon,
   CloseIcon,
+  ActivityIcon,
 } from "@/components/Icons";
 import { handleSignOut } from "@/actions/auth";
 
@@ -172,6 +173,13 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
           >
             <BuildingIcon className="sidebar-link-icon" />
             Catálogo
+          </Link>
+          <Link
+            href="/dashboard/biblioteca"
+            className={`sidebar-link ${isActive("/dashboard/biblioteca") ? "active" : ""}`}
+          >
+            <ActivityIcon className="sidebar-link-icon" />
+            Biblioteca
           </Link>
         </div>
 
