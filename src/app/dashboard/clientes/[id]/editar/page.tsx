@@ -6,6 +6,7 @@ import { getEmpresaId } from "@/lib/tenant";
 import { getClienteByEmpresa } from "@/data/cliente";
 import { editarCliente } from "@/actions/cliente";
 import { EditIcon } from "@/components/Icons";
+import EnderecoFields from "@/components/EnderecoFields";
 
 export const metadata: Metadata = { title: "Editar Cliente" };
 
@@ -122,91 +123,10 @@ export default async function EditarClientePage({
           </div>
 
           {/* Endereço */}
-          <div className="form-group" style={{ marginTop: 24 }}>
-            <label className="form-label">CEP</label>
-            <input
-              name="cep"
-              type="text"
-              className="form-input"
-              defaultValue={cliente.cep ?? ""}
-              placeholder="00000-000"
-              maxLength={10}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Rua / Logradouro</label>
-            <input
-              name="rua"
-              type="text"
-              className="form-input"
-              defaultValue={cliente.rua ?? ""}
-              placeholder="Rua, Avenida, Estrada..."
-              maxLength={200}
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Número</label>
-              <input
-                name="numero"
-                type="text"
-                className="form-input"
-                defaultValue={cliente.numero ?? ""}
-                placeholder="Ex: 123"
-                maxLength={20}
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Complemento</label>
-              <input
-                name="complemento"
-                type="text"
-                className="form-input"
-                defaultValue={cliente.complemento ?? ""}
-                placeholder="Apto, Sala, Bloco..."
-                maxLength={100}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Bairro</label>
-            <input
-              name="bairro"
-              type="text"
-              className="form-input"
-              defaultValue={cliente.bairro ?? ""}
-              placeholder="Bairro"
-              maxLength={100}
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Cidade</label>
-              <input
-                name="cidade"
-                type="text"
-                className="form-input"
-                defaultValue={cliente.cidade ?? ""}
-                placeholder="Cidade"
-                maxLength={100}
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Estado</label>
-              <input
-                name="estado"
-                type="text"
-                className="form-input"
-                defaultValue={cliente.estado ?? ""}
-                placeholder="SP"
-                maxLength={2}
-              />
-            </div>
-          </div>
+          <EnderecoFields
+            fieldNames={{ cep: "cep", logradouro: "rua", numero: "numero", complemento: "complemento", bairro: "bairro", cidade: "cidade", estado: "estado" }}
+            defaults={{ cep: cliente.cep ?? "", logradouro: cliente.rua ?? "", numero: cliente.numero ?? "", complemento: cliente.complemento ?? "", bairro: cliente.bairro ?? "", cidade: cliente.cidade ?? "", estado: cliente.estado ?? "" }}
+          />
 
           {/* Observações */}
           <div className="form-group" style={{ marginTop: 24 }}>
