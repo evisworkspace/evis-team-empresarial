@@ -31,6 +31,7 @@ export function EmpresaForm({
   celular, isWhatsapp, tipoEmpresa, descricao, logoUrl,
 }: Props) {
   const [tipo, setTipo] = useState(tipoPessoa || "PJ")
+  const [tipoEmp, setTipoEmp] = useState(tipoEmpresa ?? "")
   const [logoPreview, setLogoPreview] = useState<string | null>(logoUrl)
   const logoRef = useRef<HTMLInputElement>(null)
 
@@ -95,7 +96,12 @@ export function EmpresaForm({
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label">Tipo de empresa</label>
-          <select name="tipoEmpresa" className="form-input form-select" defaultValue={tipoEmpresa ?? ""}>
+          <select
+            name="tipoEmpresa"
+            className="form-input form-select"
+            value={tipoEmp}
+            onChange={(e) => setTipoEmp(e.target.value)}
+          >
             <option value="">Selecione...</option>
             {tiposEmpresa.map((t) => (
               <option key={t} value={t}>{t}</option>
