@@ -268,3 +268,19 @@ export function ActivityIcon({ size = 18, className }: IconProps) {
     </svg>
   );
 }
+
+export function MenuIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 4h14M2 9h14M2 14h14" />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4l10 10M14 4L4 14" />
+    </svg>
+  );
+}

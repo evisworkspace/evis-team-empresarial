@@ -13,12 +13,15 @@ import {
   FinanceIcon,
   ChevronDownIcon,
   SettingsIcon,
+  CloseIcon,
 } from "@/components/Icons";
 import { handleSignOut } from "@/actions/auth";
 
 interface SidebarProps {
   userName: string;
   companyName: string;
+  mobileOpen?: boolean;
+  onClose?: () => void;
 }
 
 function getInitials(name: string) {
@@ -30,7 +33,7 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export function Sidebar({ userName, companyName }: SidebarProps) {
+export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [financeiroOpen, setFinanceiroOpen] = useState(false);
@@ -49,22 +52,28 @@ export function Sidebar({ userName, companyName }: SidebarProps) {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
       {/* Logo v2 — AiStudio */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-row">
-          <div className="sidebar-logo-badge">
-            <span className="sidebar-logo-badge-letter">E</span>
-          </div>
-          <div className="sidebar-logo-text-block">
-            <div className="sidebar-logo-name-row">
-              EVIS
-              <span className="sidebar-erp-chip">ERP</span>
+        <div className="sidebar-logo-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="sidebar-logo-badge">
+              <span className="sidebar-logo-badge-letter">E</span>
             </div>
-            <div className="sidebar-logo-company-mono" title={companyName}>
-              {companyName}
+            <div className="sidebar-logo-text-block">
+              <div className="sidebar-logo-name-row">
+                <span className="sidebar-logo-title">EVIS</span>
+                <span className="sidebar-erp-chip">ERP</span>
+              </div>
+              <div className="sidebar-logo-company-mono" title={companyName}>
+                {companyName}
+              </div>
             </div>
           </div>
+          {/* Botão de fechar visível apenas no mobile */}
+          <button className="mobile-close-btn" onClick={onClose} aria-label="Fechar menu">
+            <CloseIcon size={20} />
+          </button>
         </div>
       </div>
 
