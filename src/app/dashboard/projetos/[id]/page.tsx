@@ -9,7 +9,11 @@ import { getProjetoWithDetails } from "@/data/projeto";
 import { sumLancamentosByProjeto } from "@/data/financeiro";
 import { criarTarefa, toggleTarefaStatus } from "@/actions/tarefa";
 import { criarLancamento, marcarLancamentoPago } from "@/actions/financeiro";
-import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto } from "@/actions/projeto";
+import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade } from "@/actions/projeto";
+import { listItensOrcamentoByProjeto, sumOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
+import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
+import { listItensByEmpresa } from "@/data/itemBiblioteca";
+import { OrcamentoTab } from "@/components/orcamento/OrcamentoTab";
 import {
   BuildingIcon,
   CalendarIcon,
@@ -167,6 +171,7 @@ function eventoLabel(tipo: string, conteudo?: unknown) {
 
 type ProjetoDetalhes = NonNullable<Awaited<ReturnType<typeof getProjetoWithDetails>>>;
 type Financeiro = { totalEntrada: number; totalSaida: number; saldo: number };
+type OrcamentoProps = React.ComponentProps<typeof OrcamentoTab>;
 
 // Função utilitária compartilhada entre as duas views
 function isOverdue(t: ProjetoDetalhes["tarefas"][0], now: Date) {
@@ -175,7 +180,7 @@ function isOverdue(t: ProjetoDetalhes["tarefas"][0], now: Date) {
 
 // ─── Visão de Oportunidade ────────────────────────────────────────────────────
 
-function OportunidadeView({ projeto, financeiro }: { projeto: ProjetoDetalhes; financeiro: Financeiro }) {
+function OportunidadeView({ projeto, financeiro, orcamento }: { projeto: ProjetoDetalhes; financeiro: Financeiro; orcamento: OrcamentoProps }) {
   const isPerdida = projeto.statusInterno === "perdido";
   const isGanho = projeto.statusInterno === "ganho";
   const currentIdx = getFunilIndex(projeto.statusInterno);
@@ -539,30 +544,7 @@ function OportunidadeView({ projeto, financeiro }: { projeto: ProjetoDetalhes; f
 
           {/* ── Orçamento ─────────────────────────────────────────── */}
           <div className="obra-tab-panel op-panel-orcamento">
-            {(
-              <div className="obra-card obra-card--full">
-                <div className="obra-card-header">
-                  <span className="obra-card-label">Orçamento</span>
-                </div>
-                <div className="placeholder-block">
-                  Nenhum item de orçamento ainda. Itens de orçamento serão adicionados quando Otto estiver ativo.
-                </div>
-                <div
-                  style={{
-                    background: "var(--clr-primary-light)",
-                    borderRadius: "var(--r-md)",
-                    padding: "12px 16px",
-                    marginTop: 16,
-                    fontSize: 13,
-                    color: "var(--clr-primary-text)",
-                    lineHeight: 1.7,
-                  }}
-                >
-                  <strong>Otto (em breve):</strong> o agente de orçamento lerá os projetos e arquivos recebidos
-                  e preencherá o orçamento automaticamente com base no escopo.
-                </div>
-              </div>
-            )}
+            <OrcamentoTab {...orcamento} />
           </div>
 
           {/* ── Tarefas ───────────────────────────────────────────── */}
@@ -754,7 +736,7 @@ function OportunidadeView({ projeto, financeiro }: { projeto: ProjetoDetalhes; f
 
 // ─── Visão de Obra (Central da Obra) ─────────────────────────────────────────
 
-function CentralDaObraView({ projeto, financeiro }: { projeto: ProjetoDetalhes; financeiro: Financeiro }) {
+function CentralDaObraView({ projeto, financeiro, orcamento }: { projeto: ProjetoDetalhes; financeiro: Financeiro; orcamento: OrcamentoProps }) {
   const now = new Date();
   const tarefasAbertas = projeto.tarefas.filter((t) => t.status === "aberta" || t.status === "em_andamento");
   const tarefasConcluidas = projeto.tarefas.filter((t) => t.status === "concluida");
@@ -960,6 +942,27 @@ function CentralDaObraView({ projeto, financeiro }: { projeto: ProjetoDetalhes; 
                 </div>
               </div>
             </div>
+
+            {/* Card — Reverter para Oportunidade */}
+            <div className="obra-card obra-card--full" style={{ border: "1px solid #fde68a", background: "#fffbeb", marginTop: 20 }}>
+              <div className="obra-card-header">
+                <span className="obra-card-label" style={{ color: "#92400e" }}>⚠ Reverter para Oportunidade</span>
+              </div>
+              <p style={{ fontSize: 13, color: "#78350f", marginBottom: 14, lineHeight: 1.6 }}>
+                Use apenas se a conversão foi feita por engano. O projeto voltará para o funil de oportunidades com status <strong>Ganho</strong>.
+                Todas as tarefas, lançamentos e histórico serão preservados.
+              </p>
+              <form action={reverterParaOportunidade}>
+                <input type="hidden" name="projetoId" value={projeto.id} />
+                <button
+                  type="submit"
+                  className="btn btn-secondary btn-sm"
+                  style={{ color: "#92400e", borderColor: "#fcd34d", fontSize: 13 }}
+                >
+                  Reverter para Oportunidade
+                </button>
+              </form>
+            </div>
           </div>
 
           {/* Tarefas */}
@@ -1098,30 +1101,9 @@ function CentralDaObraView({ projeto, financeiro }: { projeto: ProjetoDetalhes; 
             </div>
           </div>
 
-          {/* Orçamento — Lote 10E */}
+          {/* Orçamento — D4 */}
           <div className="obra-tab-panel panel-orcamento">
-            <div className="obra-card obra-card--full">
-              <div className="obra-card-header">
-                <span className="obra-card-label">Orçamento da obra</span>
-              </div>
-              <div className="placeholder-block">
-                Nenhum item de orçamento ainda. O orçamento será consolidado aqui após a fase de planejamento.
-              </div>
-              <div
-                style={{
-                  background: "var(--clr-primary-light)",
-                  borderRadius: "var(--r-md)",
-                  padding: "12px 16px",
-                  marginTop: 16,
-                  fontSize: 13,
-                  color: "var(--clr-primary-text)",
-                  lineHeight: 1.7,
-                }}
-              >
-                <strong>Otto (motor disponível):</strong> integração com o agente de orçamento será ativada
-                na fase de planejamento. O motor já existe no sistema — aguardando ativação.
-              </div>
-            </div>
+            <OrcamentoTab {...orcamento} />
           </div>
 
           {/* Planejamento — Lote 10E */}
@@ -1231,11 +1213,38 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const financeiro = await sumLancamentosByProjeto(empresaId, id);
+  const [financeiro, itensOrcamento, bibliotecaItens] = await Promise.all([
+    sumLancamentosByProjeto(empresaId, id),
+    listItensOrcamentoByProjeto(empresaId, id),
+    listItensByEmpresa(empresaId),
+  ]);
+
+  const orcamentoProps = {
+    items: itensOrcamento.map((i) => ({
+      ...i,
+      quantidade: i.quantidade ? Number(i.quantidade) : null,
+      custoServicos: i.custoServicos ? Number(i.custoServicos) : null,
+      bdi: i.bdi ? Number(i.bdi) : null,
+      produtos: i.produtos ? Number(i.produtos) : null,
+      servicos: i.servicos ? Number(i.servicos) : null,
+    })),
+    projetoId: projeto.id,
+    bibliotecaItens: bibliotecaItens.map((b) => ({
+      id: b.id,
+      nome: b.nome,
+      codigo: b.codigo ?? null,
+    })),
+    actions: {
+      criarGrupo: criarGrupoOrcamento,
+      criarItem: criarItemOrcamento,
+      editarItem: editarItemOrcamento,
+      excluirItem: excluirItemOrcamento,
+    },
+  };
 
   if (projeto.stage === "oportunidade") {
-    return <OportunidadeView projeto={projeto} financeiro={financeiro} />;
+    return <OportunidadeView projeto={projeto} financeiro={financeiro} orcamento={orcamentoProps} />;
   }
 
-  return <CentralDaObraView projeto={projeto} financeiro={financeiro} />;
+  return <CentralDaObraView projeto={projeto} financeiro={financeiro} orcamento={orcamentoProps} />;
 }
