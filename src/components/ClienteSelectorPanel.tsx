@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type ClienteBasico = {
   id: string;
@@ -16,9 +17,10 @@ type Props = {
   defaultClienteId?: string;
   semClientes: boolean;
   origens: readonly { value: string; label: string }[];
+  novoClienteHref?: string;
 };
 
-export default function ClienteSelectorPanel({ clientes, defaultClienteId, semClientes, origens }: Props) {
+export default function ClienteSelectorPanel({ clientes, defaultClienteId, semClientes, origens, novoClienteHref }: Props) {
   const [selectedId, setSelectedId] = useState(defaultClienteId ?? "");
   const [activeTab, setActiveTab] = useState<"existente" | "novo">(semClientes ? "novo" : "existente");
 
@@ -117,12 +119,44 @@ export default function ClienteSelectorPanel({ clientes, defaultClienteId, semCl
         </div>
       )}
 
-      {/* Seção: novo cliente inline */}
+      {/* Seção: novo cliente */}
       {activeTab === "novo" && (
         <div>
-          <p style={{ fontSize: 12, color: "var(--clr-text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
-            Dados mínimos. Informações completas podem ser adicionadas depois.
-          </p>
+          {novoClienteHref && (
+            <div style={{
+              background: "var(--clr-bg-subtle)",
+              border: "1px solid var(--clr-border)",
+              borderRadius: "var(--r-md)",
+              padding: "14px 16px",
+              marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--clr-text)", marginBottom: 4 }}>
+                Cadastro completo
+              </div>
+              <p style={{ fontSize: 12, color: "var(--clr-text-muted)", lineHeight: 1.6, marginBottom: 10 }}>
+                Preencha nome, CPF, endereço, data de nascimento e todos os campos. Após salvar, você volta aqui com o cliente já selecionado.
+              </p>
+              <Link
+                href={novoClienteHref}
+                className="btn btn-primary"
+                style={{ fontSize: 13, display: "inline-block" }}
+              >
+                Cadastrar cliente completo →
+              </Link>
+            </div>
+          )}
+
+          <div style={{
+            background: "var(--clr-info-bg)",
+            borderRadius: "var(--r-md)",
+            padding: "10px 12px",
+            fontSize: 12,
+            color: "var(--clr-info)",
+            lineHeight: 1.6,
+            marginBottom: 12,
+          }}>
+            Ou preencha só o essencial agora e complete o cadastro depois.
+          </div>
 
           <div className="form-group">
             <label className="form-label">Nome *</label>
@@ -156,17 +190,6 @@ export default function ClienteSelectorPanel({ clientes, defaultClienteId, semCl
                 </option>
               ))}
             </select>
-          </div>
-
-          <div style={{
-            background: "var(--clr-info-bg)",
-            borderRadius: "var(--r-md)",
-            padding: "10px 12px",
-            fontSize: 12,
-            color: "var(--clr-info)",
-            lineHeight: 1.6,
-          }}>
-            O cliente será criado junto com a oportunidade. Dados completos (email, CPF, endereço) podem ser adicionados após o fechamento.
           </div>
         </div>
       )}

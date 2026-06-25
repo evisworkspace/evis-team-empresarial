@@ -230,6 +230,9 @@ export default async function NovaOportunidade({
                 defaultClienteId={preSelectedClienteId}
                 semClientes={semClientes}
                 origens={ORIGENS_LEAD}
+                novoClienteHref={`/dashboard/clientes/novo?redirectTo=${encodeURIComponent(
+                  `/dashboard/projetos/novo${defaultStage ? `?stage=${defaultStage}` : ""}`
+                )}`}
               />
             </div>
           </div>

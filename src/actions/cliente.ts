@@ -46,8 +46,11 @@ export async function criarCliente(formData: FormData) {
     conteudoPersistido: { nome, tipoPessoa },
   });
 
-  const redirectTo = (formData.get("redirectTo") as string) || `/dashboard/clientes/${cliente.id}`;
-  redirect(redirectTo);
+  const redirectToRaw = (formData.get("redirectTo") as string)?.trim();
+  const destination = redirectToRaw
+    ? `${redirectToRaw}${redirectToRaw.includes("?") ? "&" : "?"}clienteId=${cliente.id}`
+    : `/dashboard/clientes/${cliente.id}`;
+  redirect(destination);
 }
 
 export async function editarCliente(formData: FormData) {
