@@ -253,9 +253,10 @@ model Fornecedor {
   updatedAt        DateTime  @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
 
-  empresa     Empresa                @relation(fields: [empresaId], references: [id])
-  tarefas     Tarefa[]               @relation("TarefaResponsavelFornecedor")
-  lancamentos LancamentoFinanceiro[]
+  empresa         Empresa                @relation(fields: [empresaId], references: [id])
+  tarefas         Tarefa[]               @relation("TarefaResponsavelFornecedor")
+  lancamentos     LancamentoFinanceiro[]
+  itensBiblioteca ItemBiblioteca[]
 
   @@index([empresaId])
   @@map("fornecedor")
@@ -383,14 +384,16 @@ model ItemBiblioteca {
   ativo         Boolean  @default(true)
   precoUnitario Decimal? @map("preco_unitario") @db.Decimal(15, 4)
 
-  unidadeId   String? @map("unidade_id") @db.Uuid
-  grupoId     String? @map("grupo_id") @db.Uuid
-  categoriaId String? @map("categoria_id") @db.Uuid
+  unidadeId    String? @map("unidade_id") @db.Uuid
+  grupoId      String? @map("grupo_id") @db.Uuid
+  categoriaId  String? @map("categoria_id") @db.Uuid
+  fornecedorId String? @map("fornecedor_id") @db.Uuid
 
-  unidade   UnidadeMedida? @relation(fields: [unidadeId], references: [id])
-  grupo     GrupoItem?     @relation(fields: [grupoId], references: [id])
-  categoria CategoriaItem? @relation(fields: [categoriaId], references: [id])
-  empresa   Empresa        @relation(fields: [empresaId], references: [id])
+  unidade    UnidadeMedida? @relation(fields: [unidadeId], references: [id])
+  grupo      GrupoItem?     @relation(fields: [grupoId], references: [id])
+  categoria  CategoriaItem? @relation(fields: [categoriaId], references: [id])
+  fornecedor Fornecedor?    @relation(fields: [fornecedorId], references: [id])
+  empresa    Empresa        @relation(fields: [empresaId], references: [id])
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

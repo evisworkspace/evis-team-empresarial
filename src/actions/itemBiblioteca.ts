@@ -38,6 +38,7 @@ export async function criarItemBiblioteca(formData: FormData) {
     unidadeId:     strOrNull(formData.get("unidadeId"))     ?? undefined,
     grupoId:       strOrNull(formData.get("grupoId"))       ?? undefined,
     categoriaId:   strOrNull(formData.get("categoriaId"))   ?? undefined,
+    fornecedorId:  strOrNull(formData.get("fornecedorId"))  ?? undefined,
   })
   revalidatePath(PATH)
   redirect(PATH)
@@ -60,6 +61,7 @@ export async function editarItemBiblioteca(formData: FormData) {
     unidadeId:     strOrNull(formData.get("unidadeId")),
     grupoId:       strOrNull(formData.get("grupoId")),
     categoriaId:   strOrNull(formData.get("categoriaId")),
+    fornecedorId:  strOrNull(formData.get("fornecedorId")),
   })
   revalidatePath(PATH)
   redirect(PATH)

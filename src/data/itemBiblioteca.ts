@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma"
 
 const INCLUDE = {
-  unidade:   { select: { id: true, nome: true } },
-  grupo:     { select: { id: true, nome: true } },
-  categoria: { select: { id: true, nome: true } },
+  unidade:    { select: { id: true, nome: true } },
+  grupo:      { select: { id: true, nome: true } },
+  categoria:  { select: { id: true, nome: true } },
+  fornecedor: { select: { id: true, nome: true } },
 } as const
 
 export function listItensByEmpresa(
@@ -48,6 +49,7 @@ export function createItemBiblioteca(
     unidadeId?: string
     grupoId?: string
     categoriaId?: string
+    fornecedorId?: string
   },
 ) {
   return prisma.itemBiblioteca.create({ data: { empresaId, ...data } })
@@ -65,6 +67,7 @@ export function updateItemBiblioteca(
     unidadeId?: string | null
     grupoId?: string | null
     categoriaId?: string | null
+    fornecedorId?: string | null
     ativo?: boolean
   },
 ) {

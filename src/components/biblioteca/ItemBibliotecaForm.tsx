@@ -9,6 +9,7 @@ type Props = {
   unidades: SelectOption[]
   grupos: SelectOption[]
   categorias: SelectOption[]
+  fornecedores: SelectOption[]
   defaultValues?: {
     id?: string
     nome?: string
@@ -19,6 +20,7 @@ type Props = {
     unidadeId?: string | null
     grupoId?: string | null
     categoriaId?: string | null
+    fornecedorId?: string | null
   }
 }
 
@@ -27,6 +29,7 @@ export function ItemBibliotecaForm({
   unidades,
   grupos,
   categorias,
+  fornecedores,
   defaultValues,
 }: Props) {
   const [tipo, setTipo] = useState(defaultValues?.tipo ?? "")
@@ -153,6 +156,22 @@ export function ItemBibliotecaForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Fornecedor padrão</label>
+        <select
+          name="fornecedorId"
+          className="form-input"
+          defaultValue={defaultValues?.fornecedorId ?? ""}
+        >
+          <option value="">Nenhum</option>
+          {fornecedores.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.nome}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

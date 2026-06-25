@@ -6,6 +6,7 @@ import { getItemBiblioteca } from "@/data/itemBiblioteca"
 import { listGruposByEmpresa } from "@/data/grupoItem"
 import { listCategoriasByEmpresa } from "@/data/categoriaItem"
 import { listUnidadesByEmpresa } from "@/data/unidadeMedida"
+import { listFornecedoresByEmpresa } from "@/data/fornecedor"
 import { ItemBibliotecaForm } from "@/components/biblioteca/ItemBibliotecaForm"
 import { editarItemBiblioteca } from "@/actions/itemBiblioteca"
 
@@ -19,11 +20,12 @@ export default async function EditarBibliotecaPage({
   const { id } = await params
   const session = await auth()
   const empresaId = getEmpresaId(session!)
-  const [item, grupos, categorias, unidades] = await Promise.all([
+  const [item, grupos, categorias, unidades, fornecedores] = await Promise.all([
     getItemBiblioteca(empresaId, id),
     listGruposByEmpresa(empresaId),
     listCategoriasByEmpresa(empresaId),
     listUnidadesByEmpresa(empresaId),
+    listFornecedoresByEmpresa(empresaId, { take: 200 }),
   ])
   if (!item) notFound()
 
@@ -38,6 +40,7 @@ export default async function EditarBibliotecaPage({
           grupos={grupos}
           categorias={categorias}
           unidades={unidades}
+          fornecedores={fornecedores}
           defaultValues={{
             id:            item.id,
             nome:          item.nome,
@@ -48,6 +51,7 @@ export default async function EditarBibliotecaPage({
             unidadeId:     item.unidadeId,
             grupoId:       item.grupoId,
             categoriaId:   item.categoriaId,
+            fornecedorId:  item.fornecedorId,
           }}
         />
       </div>
