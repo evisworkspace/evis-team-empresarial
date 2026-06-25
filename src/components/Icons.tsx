@@ -1,7 +1,7 @@
 // Ícones inline — SVG simples, sem dependência externa.
 // Uso: <DashboardIcon /> ou <DashboardIcon size={20} className="..." />
 
-type IconProps = { size?: number; className?: string };
+type IconProps = { size?: number; className?: string; style?: React.CSSProperties };
 
 export function DashboardIcon({ size = 18, className }: IconProps) {
   return (
@@ -14,9 +14,9 @@ export function DashboardIcon({ size = 18, className }: IconProps) {
   );
 }
 
-export function BuildingIcon({ size = 18, className }: IconProps) {
+export function BuildingIcon({ size = 18, className, style }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} style={style}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M2 16V8.5L9 2l7 6.5V16H2z" />
       <path strokeLinecap="round" d="M6 16v-5h6v5" />
     </svg>
@@ -228,6 +228,33 @@ export function HistoryIcon({ size = 18, className }: IconProps) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 6v3l2 2" />
     </svg>
   );
+}
+
+export function SettingsIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <circle cx="9" cy="9" r="2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 1v2M9 15v2M1 9h2M15 9h2M3.22 3.22l1.42 1.42M13.36 13.36l1.42 1.42M14.78 3.22l-1.42 1.42M4.64 13.36l-1.42 1.42" />
+    </svg>
+  )
+}
+
+export function CameraIcon({ size = 18, className, style }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} style={style}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M1 5h2l2-3h8l2 3h2a1 1 0 011 1v9a1 1 0 01-1 1H1a1 1 0 01-1-1V6a1 1 0 011-1z" />
+      <circle cx="9" cy="10" r="2.5" />
+    </svg>
+  )
+}
+
+export function MailIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <rect x="1" y="4" width="16" height="11" rx="2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M1 7l8 5 8-5" />
+    </svg>
+  )
 }
 
 export function ActivityIcon({ size = 18, className }: IconProps) {

@@ -28,8 +28,15 @@ model Empresa {
   id         String    @id @default(uuid()) @db.Uuid
   nome       String
   tipoPessoa String    @map("tipo_pessoa") // domínio: PF | PJ
-  documento  String?
-  status     String // domínio: ativo | inativo
+  documento    String?
+  razaoSocial  String?   @map("razao_social")
+  email        String?
+  celular      String?
+  isWhatsapp   Boolean?  @default(false) @map("is_whatsapp")
+  tipoEmpresa  String?   @map("tipo_empresa")
+  logo         String?
+  descricao    String?   @db.Text
+  status       String // domínio: ativo | inativo
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
@@ -45,6 +52,7 @@ model Empresa {
   atividades ProjetoAtividade[]
   statusProjetos StatusProjeto[]
   users      User[] // Auth.js — vínculo tenant do usuário autenticado
+  convites   ConviteEquipe[]
 
   @@map("empresa")
 }
@@ -60,7 +68,10 @@ model Usuario {
   // Vínculo explícito com a identidade Auth.js (decisão 9.1). Email é apenas dado de
   // apoio, NUNCA o vínculo principal. Relação 1:1 (MVP): um User ↔ um usuario.
   authUserId String?  @unique @map("auth_user_id")
-  createdAt DateTime  @default(now()) @map("created_at")
+  cpf        String?
+  telefone   String?
+  foto       String?   // URL Vercel Blob — avatar pessoal (prevalece sobre User.image do Google)
+  createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
@@ -72,6 +83,23 @@ model Usuario {
   @@unique([empresaId, email])
   @@index([empresaId])
   @@map("usuario")
+}
+
+/// Convite de e-mail para adicionar membro à equipe — token de aceite único.
+model ConviteEquipe {
+  id        String    @id @default(uuid()) @db.Uuid
+  empresaId String    @map("empresa_id") @db.Uuid
+  email     String
+  perfil    String    // domínio: admin | membro
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  empresa   Empresa   @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+  @@map("convite_equipe")
 }
 
 /// Destinatário do serviço — pode existir antes de qualquer projeto.

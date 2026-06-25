@@ -13,6 +13,7 @@ import {
   FinanceIcon,
   ChevronDownIcon,
   ZapIcon,
+  SettingsIcon,
 } from "@/components/Icons";
 import { handleSignOut } from "@/actions/auth";
 
@@ -149,6 +150,17 @@ export function Sidebar({ userName, companyName }: SidebarProps) {
           >
             <TruckIcon className="sidebar-link-icon" />
             Fornecedores
+          </Link>
+        </div>
+
+        {/* Configurações */}
+        <div className="sidebar-section">
+          <Link
+            href="/dashboard/configuracoes/perfil"
+            className={`sidebar-link ${isActive("/dashboard/configuracoes") ? "active" : ""}`}
+          >
+            <SettingsIcon className="sidebar-link-icon" />
+            Configurações
           </Link>
         </div>
 

@@ -2254,3 +2254,248 @@ table.evis-table {
   border-color: #fca5a5;
   color: var(--clr-danger);
 }
+
+/* --- CONFIGURAÇÕES ----------------------------------------- */
+.settings-layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-xl);
+  padding: 8px;
+  box-shadow: var(--shadow-xs);
+}
+
+.settings-nav-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clr-text-muted);
+  padding: 8px 12px 4px;
+}
+
+.settings-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--clr-text-secondary);
+  transition: all var(--t-fast);
+  border-left: 3px solid transparent;
+}
+
+.settings-nav-link:hover {
+  background: var(--clr-surface-hover);
+  color: var(--clr-text);
+}
+
+.settings-nav-link.active {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary-text);
+  font-weight: 600;
+  border-left-color: var(--clr-primary);
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Avatar upload */
+.avatar-wrap {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.avatar-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--clr-border);
+  display: block;
+}
+
+.avatar-initials {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--clr-primary);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--clr-border);
+  letter-spacing: 0.04em;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+
+.avatar-wrap:hover .avatar-overlay {
+  opacity: 1;
+}
+
+/* Logo upload */
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.logo-preview {
+  width: 120px;
+  height: 56px;
+  border-radius: var(--r-md);
+  border: 2px dashed var(--clr-border);
+  background: var(--clr-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+  flex-shrink: 0;
+}
+
+.logo-preview:hover {
+  border-color: var(--clr-primary);
+}
+
+.logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logo-hint {
+  font-size: 12.5px;
+  color: var(--clr-text-muted);
+  line-height: 1.6;
+}
+
+/* Team table */
+.team-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.team-table th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--clr-text-muted);
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.team-table td {
+  padding: 12px 12px;
+  font-size: 13.5px;
+  color: var(--clr-text);
+  border-bottom: 1px solid var(--clr-border-light);
+  vertical-align: middle;
+}
+
+.team-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Convite form inline */
+.convite-form {
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-lg);
+  padding: 20px 24px;
+  margin-top: 16px;
+}
+
+/* Convite page (pública) */
+.convite-page {
+  min-height: 100dvh;
+  background: var(--clr-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.convite-card {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-xl);
+  padding: 48px 40px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.convite-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-lg);
+  background: var(--clr-primary);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--r-full);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.badge-admin {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary-text);
+}
+
+.badge-membro {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-ativo {
+  background: var(--clr-success-bg);
+  color: var(--clr-success);
+}
+
+.badge-inativo {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
