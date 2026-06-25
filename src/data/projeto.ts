@@ -49,7 +49,7 @@ export function countProjetosByEmpresa(
 
 export function listProjetosByEmpresaWithCliente(
   empresaId: string,
-  opts?: { stage?: string; take?: number; skip?: number; excludeStatusInterno?: string; q?: string },
+  opts?: { stage?: string; take?: number; skip?: number; excludeStatusInterno?: string; statusInternoIn?: string[]; q?: string },
 ) {
   return prisma.projeto.findMany({
     where: {
@@ -58,6 +58,9 @@ export function listProjetosByEmpresaWithCliente(
       ...(opts?.stage ? { stage: opts.stage } : {}),
       ...(opts?.excludeStatusInterno
         ? { statusInterno: { not: opts.excludeStatusInterno } }
+        : {}),
+      ...(opts?.statusInternoIn && opts.statusInternoIn.length > 0
+        ? { statusInterno: { in: opts.statusInternoIn } }
         : {}),
       ...(opts?.q
         ? {

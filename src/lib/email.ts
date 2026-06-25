@@ -1,7 +1,5 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function enviarConviteEquipe({
   para,
   nomeEmpresa,
@@ -11,6 +9,7 @@ export async function enviarConviteEquipe({
   nomeEmpresa: string
   linkConvite: string
 }) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   await resend.emails.send({
     from: "EVIS <onboarding@resend.dev>",
     to: para,

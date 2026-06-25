@@ -31,10 +31,32 @@ export function countFornecedoresByEmpresa(empresaId: string) {
   });
 }
 
+type FornecedorFields = {
+  nome?: string;
+  contato?: string | null;
+  tipo?: string;
+  tipoPessoa?: string;
+  razaoSocial?: string;
+  cpfCnpj?: string;
+  categorias?: string;
+  email?: string;
+  telefone?: string;
+  site?: string;
+  nomeResponsavel?: string;
+  nomeContato?: string;
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+};
+
 export function updateFornecedor(
   empresaId: string,
   fornecedorId: string,
-  data: { nome?: string; contato?: string | null; tipo?: string },
+  data: FornecedorFields,
 ) {
   return prisma.fornecedor.updateMany({
     where: { id: fornecedorId, empresaId, deletedAt: null },
@@ -44,7 +66,7 @@ export function updateFornecedor(
 
 export function createFornecedor(
   empresaId: string,
-  data: { nome: string; contato?: string; tipo: string },
+  data: { nome: string; tipo: string } & FornecedorFields,
 ) {
   return prisma.fornecedor.create({
     data: {
@@ -52,6 +74,22 @@ export function createFornecedor(
       nome: data.nome,
       contato: data.contato,
       tipo: data.tipo,
+      tipoPessoa: data.tipoPessoa,
+      razaoSocial: data.razaoSocial,
+      cpfCnpj: data.cpfCnpj,
+      categorias: data.categorias,
+      email: data.email,
+      telefone: data.telefone,
+      site: data.site,
+      nomeResponsavel: data.nomeResponsavel,
+      nomeContato: data.nomeContato,
+      cep: data.cep,
+      rua: data.rua,
+      numero: data.numero,
+      complemento: data.complemento,
+      bairro: data.bairro,
+      cidade: data.cidade,
+      estado: data.estado,
       status: "ativo",
     },
   });

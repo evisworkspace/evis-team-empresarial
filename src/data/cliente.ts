@@ -53,6 +53,8 @@ export async function updateCliente(
     cidade?: string | null;
     estado?: string | null;
     observacoes?: string | null;
+    rg?: string | null;
+    dataNascimento?: Date | null;
   },
 ) {
   return prisma.cliente.updateMany({
@@ -86,6 +88,8 @@ export function createCliente(
     cidade?: string;
     estado?: string;
     observacoes?: string;
+    rg?: string;
+    dataNascimento?: Date | null;
   },
 ) {
   return prisma.cliente.create({
@@ -106,6 +110,8 @@ export function createCliente(
       cidade: data.cidade,
       estado: data.estado,
       observacoes: data.observacoes,
+      rg: data.rg,
+      dataNascimento: data.dataNascimento,
       status: "ativo",
     },
   });

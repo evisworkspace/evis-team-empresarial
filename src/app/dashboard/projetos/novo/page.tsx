@@ -7,19 +7,10 @@ import { criarProjeto } from "@/actions/projeto";
 import { PlusIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
 import { STATUS_OPORTUNIDADE, STATUS_OBRA } from "@/lib/status";
+import { ORIGENS_LEAD } from "@/lib/origens";
+import ClienteSelectorPanel from "@/components/ClienteSelectorPanel";
 
 export const metadata: Metadata = { title: "Nova Oportunidade" };
-
-const ORIGENS = [
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "indicacao", label: "Indicação" },
-  { value: "instagram", label: "Instagram" },
-  { value: "site", label: "Site" },
-  { value: "telefone", label: "Telefone" },
-  { value: "cliente_antigo", label: "Cliente antigo" },
-  { value: "prospeccao_ativa", label: "Prospecção ativa" },
-  { value: "outro", label: "Outro" },
-];
 
 const TIPOS_OBRA = [
   { value: "residencial", label: "Residencial" },
@@ -114,9 +105,9 @@ export default async function NovaOportunidade({
               <div className="form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Origem do lead</label>
-                  <select name="origem" className="form-input form-select" defaultValue="whatsapp">
+                  <select name="origem" className="form-input form-select" defaultValue="indicacao">
                     <option value="">Não informada</option>
-                    {ORIGENS.map((o) => (
+                    {ORIGENS_LEAD.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
@@ -234,114 +225,12 @@ export default async function NovaOportunidade({
           <div className="novo-op-client-panel">
             <div className="form-card" style={{ marginBottom: 0 }}>
               <div className="form-card-title">Cliente / Lead</div>
-
-              {/* Toggle entre existente e novo — CSS-only via radio */}
-              <input
-                type="radio"
-                name="clienteMode"
-                id="cm-existente"
-                value="existente"
-                className="cm-radio"
-                defaultChecked={!semClientes}
+              <ClienteSelectorPanel
+                clientes={clientes}
+                defaultClienteId={preSelectedClienteId}
+                semClientes={semClientes}
+                origens={ORIGENS_LEAD}
               />
-              <input
-                type="radio"
-                name="clienteMode"
-                id="cm-novo"
-                value="novo"
-                className="cm-radio"
-                defaultChecked={semClientes}
-              />
-
-              <div className="cm-tabs">
-                <label htmlFor="cm-existente" className="cm-tab">Existente</label>
-                <label htmlFor="cm-novo" className="cm-tab">Novo lead</label>
-              </div>
-
-              {/* Seção: cliente existente */}
-              <div className="cm-section cm-section-existente">
-                {semClientes ? (
-                  <p style={{ fontSize: 13, color: "var(--clr-text-muted)", padding: "12px 0" }}>
-                    Nenhum cliente cadastrado. Use a aba Novo lead ao lado.
-                  </p>
-                ) : (
-                  <>
-                    <div className="form-group" style={{ marginBottom: 8 }}>
-                      <label className="form-label">Selecionar cliente *</label>
-                      <select
-                        name="clienteId"
-                        className="form-input form-select"
-                        defaultValue={preSelectedClienteId ?? ""}
-                      >
-                        <option value="">Escolha um cliente...</option>
-                        {clientes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                            {c.telefone ? ` — ${c.telefone}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <p style={{ fontSize: 12, color: "var(--clr-text-muted)" }}>
-                      Lead novo? Use a aba Novo lead ao lado.
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {/* Seção: novo cliente inline */}
-              <div className="cm-section cm-section-novo">
-                <p style={{ fontSize: 12, color: "var(--clr-text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
-                  Dados mínimos. Informações completas podem ser adicionadas depois.
-                </p>
-
-                <div className="form-group">
-                  <label className="form-label">Nome *</label>
-                  <input
-                    name="novoClienteNome"
-                    type="text"
-                    className="form-input"
-                    placeholder="Nome do cliente ou empresa"
-                    maxLength={200}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">WhatsApp / Telefone</label>
-                  <input
-                    name="novoClienteTelefone"
-                    type="tel"
-                    className="form-input"
-                    placeholder="(00) 00000-0000"
-                    maxLength={30}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Como chegou até você?</label>
-                  <select name="novoClienteOrigem" className="form-input form-select" defaultValue="whatsapp">
-                    <option value="">Não informado</option>
-                    {ORIGENS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div
-                  style={{
-                    background: "var(--clr-info-bg)",
-                    borderRadius: "var(--r-md)",
-                    padding: "10px 12px",
-                    fontSize: 12,
-                    color: "var(--clr-info)",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  O cliente será criado junto com a oportunidade. Dados completos (email, CPF, endereço) podem ser adicionados após o fechamento.
-                </div>
-              </div>
             </div>
           </div>
         </div>

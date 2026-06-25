@@ -24,6 +24,9 @@ export async function criarCliente(formData: FormData) {
   const cidade = (formData.get("cidade") as string)?.trim() || undefined;
   const estado = (formData.get("estado") as string)?.trim() || undefined;
   const observacoes = (formData.get("observacoes") as string)?.trim() || undefined;
+  const rg = (formData.get("rg") as string)?.trim() || undefined;
+  const dataNascimentoRaw = (formData.get("dataNascimento") as string) || null;
+  const dataNascimento = dataNascimentoRaw ? new Date(dataNascimentoRaw) : undefined;
 
   if (!nome || nome.length < 2) {
     throw new Error("Nome é obrigatório.");
@@ -32,6 +35,7 @@ export async function criarCliente(formData: FormData) {
   const cliente = await createCliente(empresaId, {
     nome, telefone, tipoPessoa, origemContato,
     razaoSocial, email, cpfCnpj, cep, rua, numero, complemento, bairro, cidade, estado, observacoes,
+    rg, dataNascimento,
   });
 
   await createAuditEntry({
@@ -66,6 +70,9 @@ export async function editarCliente(formData: FormData) {
   const cidade = (formData.get("cidade") as string)?.trim() || null;
   const estado = (formData.get("estado") as string)?.trim() || null;
   const observacoes = (formData.get("observacoes") as string)?.trim() || null;
+  const rg = (formData.get("rg") as string)?.trim() || null;
+  const dataNascimentoRaw = (formData.get("dataNascimento") as string) || null;
+  const dataNascimento = dataNascimentoRaw ? new Date(dataNascimentoRaw) : null;
 
   if (!clienteId || !nome || nome.length < 2) {
     throw new Error("Nome é obrigatório.");
@@ -74,6 +81,7 @@ export async function editarCliente(formData: FormData) {
   const result = await updateCliente(empresaId, clienteId, {
     nome, telefone, tipoPessoa, origemContato,
     razaoSocial, email, cpfCnpj, cep, rua, numero, complemento, bairro, cidade, estado, observacoes,
+    rg, dataNascimento,
   });
 
   if (result.count === 0) throw new Error("Cliente não encontrado.");

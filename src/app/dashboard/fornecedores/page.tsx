@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listFornecedoresByEmpresa, countFornecedoresByEmpresa } from "@/data/fornecedor";
-import { TruckIcon, PlusIcon, ArrowRightIcon, PhoneIcon } from "@/components/Icons";
+import { TruckIcon, PlusIcon, ArrowRightIcon } from "@/components/Icons";
 
 export const metadata: Metadata = { title: "Fornecedores" };
 
@@ -33,6 +33,31 @@ export default async function FornecedoresPage({
 
   return (
     <div>
+      {/* Tab nav Contatos */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid var(--clr-border)" }}>
+        {[
+          { href: "/dashboard/clientes", label: "Clientes", active: false },
+          { href: "/dashboard/fornecedores", label: "Fornecedores", active: true },
+        ].map((tab) => (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            style={{
+              padding: "10px 20px",
+              fontSize: 14,
+              fontWeight: tab.active ? 700 : 400,
+              color: tab.active ? "var(--clr-primary)" : "var(--clr-text-muted)",
+              textDecoration: "none",
+              borderBottom: tab.active ? "2px solid var(--clr-primary)" : "2px solid transparent",
+              marginBottom: "-2px",
+              transition: "all 0.12s",
+            }}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="page-header">
         <div className="page-header-row">
           <div>
@@ -113,7 +138,10 @@ export default async function FornecedoresPage({
                 <tr>
                   <th>Nome</th>
                   <th>Tipo</th>
-                  <th>Contato</th>
+                  <th>Categorias</th>
+                  <th>Telefone</th>
+                  <th>E-mail</th>
+                  <th>Site</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -129,12 +157,20 @@ export default async function FornecedoresPage({
                         {tipoLabel(f.tipo)}
                       </span>
                     </td>
+                    <td style={{ color: "var(--clr-text-secondary)", fontSize: 12 }}>
+                      {f.categorias ?? "—"}
+                    </td>
                     <td style={{ color: "var(--clr-text-secondary)", fontSize: 13 }}>
-                      {f.contato ? (
-                        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <PhoneIcon size={12} />
-                          {f.contato}
-                        </span>
+                      {f.telefone ?? "—"}
+                    </td>
+                    <td style={{ color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                      {f.email ?? "—"}
+                    </td>
+                    <td style={{ color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                      {f.site ? (
+                        <a href={f.site} target="_blank" rel="noopener noreferrer" style={{ color: "var(--clr-primary)", textDecoration: "none" }}>
+                          {f.site.replace(/^https?:\/\//, "").split("/")[0]}
+                        </a>
                       ) : "—"}
                     </td>
                     <td>

@@ -120,7 +120,9 @@ model Cliente {
   bairro       String?
   cidade       String?
   estado       String?
-  observacoes  String?
+  observacoes    String?
+  rg             String?   @map("rg")
+  dataNascimento DateTime? @map("data_nascimento")
   status       String // domínio: ativo | inativo
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
@@ -219,15 +221,31 @@ model ProjetoItemOrcamento {
 
 /// Prestador ou fornecedor de material.
 model Fornecedor {
-  id        String    @id @default(uuid()) @db.Uuid
-  empresaId String    @map("empresa_id") @db.Uuid
-  nome      String
-  contato   String?
-  tipo      String // domínio: servico | material | ambos
-  status    String // domínio: ativo | inativo
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  id               String    @id @default(uuid()) @db.Uuid
+  empresaId        String    @map("empresa_id") @db.Uuid
+  nome             String
+  contato          String?
+  tipoPessoa       String?   @map("tipo_pessoa")
+  razaoSocial      String?   @map("razao_social")
+  cpfCnpj          String?   @map("cpf_cnpj")
+  tipo             String // domínio: servico | material | ambos
+  categorias       String?
+  email            String?
+  telefone         String?
+  site             String?
+  nomeResponsavel  String?   @map("nome_responsavel")
+  nomeContato      String?   @map("nome_contato")
+  cep              String?
+  rua              String?
+  numero           String?
+  complemento      String?
+  bairro           String?
+  cidade           String?
+  estado           String?
+  status           String // domínio: ativo | inativo
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
 
   empresa     Empresa                @relation(fields: [empresaId], references: [id])
   tarefas     Tarefa[]               @relation("TarefaResponsavelFornecedor")

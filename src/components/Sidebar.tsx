@@ -12,7 +12,6 @@ import {
   SignOutIcon,
   FinanceIcon,
   ChevronDownIcon,
-  ZapIcon,
   SettingsIcon,
 } from "@/components/Icons";
 import { handleSignOut } from "@/actions/auth";
@@ -184,18 +183,6 @@ export function Sidebar({ userName, companyName }: SidebarProps) {
 
       {/* Footer — plano + usuário */}
       <div className="sidebar-footer">
-        <div className="sidebar-plan-card">
-          <div className="sidebar-plan-header">
-            <span className="sidebar-plan-badge">PLANO GRATUITO</span>
-            <ZapIcon size={14} className="sidebar-plan-zap" />
-          </div>
-          <p className="sidebar-plan-text">
-            Sua construtora opera no plano gratuito.
-          </p>
-          <button className="sidebar-plan-btn">
-            Fazer Upgrade Pro
-          </button>
-        </div>
 
         <div className="sidebar-user">
           <div className="sidebar-avatar">{getInitials(userName)}</div>

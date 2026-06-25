@@ -13,6 +13,7 @@ import { getOrSeedStatuses } from "@/data/statusProjeto";
 import StatusDropdown from "@/components/StatusDropdown";
 import ProjetoAcoes from "@/components/ProjetoAcoes";
 import { getStatusConfig } from "@/lib/status";
+import FiltrarStatusPanel from "@/components/FiltrarStatusPanel";
 
 export const metadata: Metadata = { title: "Projetos e Obras" };
 
@@ -66,13 +67,14 @@ const TH: React.CSSProperties = {
 export default async function ProjetosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; incluirPerdidas?: string; q?: string; view?: string }>;
+  searchParams: Promise<{ stage?: string; incluirPerdidas?: string; q?: string; view?: string; statusFiltro?: string }>;
 }) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
-  const { stage: stageFilter, incluirPerdidas, q, view } = await searchParams;
+  const { stage: stageFilter, incluirPerdidas, q, view, statusFiltro } = await searchParams;
   const busca = q?.trim() || undefined;
   const viewMode = view === "lista" ? "lista" : (stageFilter === "oportunidade" || stageFilter === "obra") ? "kanban" : "lista";
+  const statusFiltroAtivos = statusFiltro ? statusFiltro.split(",").filter(Boolean) : [];
 
   const showPerdidas = incluirPerdidas === "1";
   const excludePerdidas =
@@ -84,10 +86,13 @@ export default async function ProjetosPage({
 
   const kanbanStage = isOportunidadeKanban ? "oportunidade" : isObraKanban ? "obra" : undefined;
 
-  const [projetos, projetosKanban, statusKanban, obrasCount, opCount, opPerdidasCount, totalValor] = await Promise.all([
+  const filtroStage = (stageFilter === "oportunidade" || stageFilter === "obra") ? stageFilter : undefined;
+
+  const [projetos, projetosKanban, statusKanban, todasColunasFiltro, obrasCount, opCount, opPerdidasCount, totalValor] = await Promise.all([
     listProjetosByEmpresaWithCliente(empresaId, {
       stage: stageFilter,
       excludeStatusInterno: excludePerdidas,
+      statusInternoIn: statusFiltroAtivos.length > 0 ? statusFiltroAtivos : undefined,
       q: busca,
     }),
     isOportunidadeKanban
@@ -96,6 +101,7 @@ export default async function ProjetosPage({
       ? listProjetosByEmpresaWithCliente(empresaId, { stage: "obra", take: 200 })
       : Promise.resolve([]),
     kanbanStage ? getOrSeedStatuses(empresaId, kanbanStage) : Promise.resolve([]),
+    filtroStage ? getOrSeedStatuses(empresaId, filtroStage) : Promise.resolve([]),
     countProjetosByEmpresa(empresaId, "obra"),
     countProjetosByEmpresa(empresaId, "oportunidade", { excludeStatusInterno: "perdido" }),
     countProjetosByEmpresa(empresaId, "oportunidade"),
@@ -106,6 +112,30 @@ export default async function ProjetosPage({
 
   const isOportunidadeView = stageFilter === "oportunidade";
   const isObraView = stageFilter === "obra";
+
+  function buildBaseUrl(overrides: Record<string, string | undefined> = {}) {
+    const params = new URLSearchParams();
+    const merged: Record<string, string | undefined> = {
+      stage: stageFilter,
+      incluirPerdidas: showPerdidas ? "1" : undefined,
+      view: viewMode === "kanban" ? "kanban" : undefined,
+      q: busca,
+      ...overrides,
+    };
+    for (const [k, v] of Object.entries(merged)) {
+      if (v !== undefined) params.set(k, v);
+    }
+    const qs = params.toString();
+    return `/dashboard/projetos${qs ? `?${qs}` : ""}`;
+  }
+
+  const baseUrlSemFiltro = buildBaseUrl({ statusFiltro: undefined });
+  const baseUrlParaFiltroPanel = buildBaseUrl({ statusFiltro: undefined });
+
+  function chipRemoveUrl(slug: string) {
+    const remaining = statusFiltroAtivos.filter((s) => s !== slug);
+    return buildBaseUrl({ statusFiltro: remaining.length > 0 ? remaining.join(",") : undefined });
+  }
 
   const pageLabel = isObraView ? "Obras" : isOportunidadeView ? "Oportunidades" : "Projetos e Obras";
   const pageDesc = isObraView
@@ -261,6 +291,15 @@ export default async function ProjetosPage({
           </div>
         )}
 
+        {/* Botão de filtro por status — só quando há stage selecionado */}
+        {filtroStage && todasColunasFiltro.length > 0 && (
+          <FiltrarStatusPanel
+            colunas={todasColunasFiltro}
+            statusAtivos={statusFiltroAtivos}
+            baseUrl={baseUrlParaFiltroPanel}
+          />
+        )}
+
         <form method="GET" action="/dashboard/projetos" style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           {stageFilter && <input type="hidden" name="stage" value={stageFilter} />}
           {showPerdidas && <input type="hidden" name="incluirPerdidas" value="1" />}
@@ -284,6 +323,22 @@ export default async function ProjetosPage({
           )}
         </form>
       </div>
+
+      {/* ── Chips de filtro ativo ── */}
+      {statusFiltroAtivos.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {statusFiltroAtivos.map((slug) => {
+            const col = todasColunasFiltro.find((c) => c.slug === slug);
+            return (
+              <span key={slug} style={{ background: "var(--clr-bg-subtle)", border: "1px solid var(--clr-border)", borderRadius: "var(--r-xl)", padding: "3px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                {col?.label ?? slug}
+                <Link href={chipRemoveUrl(slug)} style={{ color: "#9ca3af", textDecoration: "none" }}>×</Link>
+              </span>
+            );
+          })}
+          <Link href={baseUrlSemFiltro} style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center" }}>Limpar filtros</Link>
+        </div>
+      )}
 
       {/* ── Kanban ── */}
       {isOportunidadeKanban && <OportunidadesKanban projetos={projetosKanban} colunas={statusKanban} />}

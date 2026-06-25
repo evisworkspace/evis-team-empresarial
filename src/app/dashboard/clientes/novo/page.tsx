@@ -3,6 +3,7 @@ import Link from "next/link";
 import { criarCliente } from "@/actions/cliente";
 import { PlusIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
+import { ORIGENS_CONTATO } from "@/lib/origens";
 
 export const metadata: Metadata = { title: "Novo Cliente" };
 
@@ -67,13 +68,34 @@ export default async function NovoClientePage({
           {/* Origem */}
           <div className="form-group" style={{ marginTop: 18 }}>
             <label className="form-label">Origem do contato</label>
-            <input
-              name="origemContato"
-              type="text"
-              className="form-input"
-              placeholder="Ex: Indicação, Instagram, WhatsApp, Google"
-              maxLength={100}
-            />
+            <select name="origemContato" className="form-input form-select" defaultValue="">
+              <option value="">Não informada</option>
+              {ORIGENS_CONTATO.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* RG e Data de Nascimento */}
+          <div className="form-row" style={{ marginTop: 18 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">RG</label>
+              <input
+                name="rg"
+                type="text"
+                className="form-input"
+                placeholder="00.000.000-0"
+                maxLength={20}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Data de Nascimento</label>
+              <input
+                name="dataNascimento"
+                type="date"
+                className="form-input"
+              />
+            </div>
           </div>
 
           {/* Dados de identificação */}

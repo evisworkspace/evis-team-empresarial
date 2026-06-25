@@ -24,6 +24,31 @@ export default async function ClientesPage({
 
   return (
     <div>
+      {/* Tab nav Contatos */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid var(--clr-border)" }}>
+        {[
+          { href: "/dashboard/clientes", label: "Clientes", active: true },
+          { href: "/dashboard/fornecedores", label: "Fornecedores", active: false },
+        ].map((tab) => (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            style={{
+              padding: "10px 20px",
+              fontSize: 14,
+              fontWeight: tab.active ? 700 : 400,
+              color: tab.active ? "var(--clr-primary)" : "var(--clr-text-muted)",
+              textDecoration: "none",
+              borderBottom: tab.active ? "2px solid var(--clr-primary)" : "2px solid transparent",
+              marginBottom: "-2px",
+              transition: "all 0.12s",
+            }}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="page-header">
         <div className="page-header-row">
           <div>

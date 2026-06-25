@@ -7,6 +7,7 @@ import { getClienteByEmpresa } from "@/data/cliente";
 import { editarCliente } from "@/actions/cliente";
 import { EditIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
+import { ORIGENS_CONTATO } from "@/lib/origens";
 
 export const metadata: Metadata = { title: "Editar Cliente" };
 
@@ -74,14 +75,36 @@ export default async function EditarClientePage({
           {/* Origem */}
           <div className="form-group">
             <label className="form-label">Origem do contato</label>
-            <input
-              name="origemContato"
-              type="text"
-              className="form-input"
-              defaultValue={cliente.origemContato ?? ""}
-              placeholder="Ex: Indicação, Instagram, WhatsApp"
-              maxLength={100}
-            />
+            <select name="origemContato" className="form-input form-select" defaultValue={cliente.origemContato ?? ""}>
+              <option value="">Não informada</option>
+              {ORIGENS_CONTATO.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* RG e Data de Nascimento */}
+          <div className="form-row" style={{ marginTop: 18 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">RG</label>
+              <input
+                name="rg"
+                type="text"
+                className="form-input"
+                defaultValue={cliente.rg ?? ""}
+                placeholder="00.000.000-0"
+                maxLength={20}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Data de Nascimento</label>
+              <input
+                name="dataNascimento"
+                type="date"
+                className="form-input"
+                defaultValue={cliente.dataNascimento ? new Date(cliente.dataNascimento).toISOString().split("T")[0] : ""}
+              />
+            </div>
           </div>
 
           {/* Dados de identificação */}
