@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listLancamentosByEmpresa, sumLancamentosByEmpresa } from "@/data/financeiro";
+import { listCategoriasByEmpresa } from "@/data/categoriaFinanceira";
 import { FinanceIcon, ArrowRightIcon, CalendarIcon } from "@/components/Icons";
 import { marcarLancamentoPago } from "@/actions/financeiro";
 
@@ -34,15 +35,16 @@ function statusLabel(status: string) {
 export default async function FinanceiroPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string }>;
+  searchParams: Promise<{ tipo?: string; categoriaId?: string }>;
 }) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
-  const { tipo: tipoFilter } = await searchParams;
+  const { tipo: tipoFilter, categoriaId } = await searchParams;
 
-  const [lancamentos, totais] = await Promise.all([
-    listLancamentosByEmpresa(empresaId, { tipo: tipoFilter }),
+  const [lancamentos, totais, categorias] = await Promise.all([
+    listLancamentosByEmpresa(empresaId, { tipo: tipoFilter, categoriaId }),
     sumLancamentosByEmpresa(empresaId),
+    listCategoriasByEmpresa(empresaId, { take: 100 }),
   ]);
 
   return (
@@ -95,18 +97,29 @@ export default async function FinanceiroPage({
         </div>
       </div>
 
-      {/* Filtros */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        <Link href="/dashboard/financeiro" className={`btn btn-sm ${!tipoFilter ? "btn-primary" : "btn-secondary"}`}>
-          Todos
-        </Link>
-        <Link href="/dashboard/financeiro?tipo=entrada" className={`btn btn-sm ${tipoFilter === "entrada" ? "btn-primary" : "btn-secondary"}`}>
-          Entradas
-        </Link>
-        <Link href="/dashboard/financeiro?tipo=saida" className={`btn btn-sm ${tipoFilter === "saida" ? "btn-primary" : "btn-secondary"}`}>
-          Saídas
-        </Link>
-      </div>
+      <form method="GET" action="/dashboard/financeiro" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        <select name="tipo" className="form-input form-select" defaultValue={tipoFilter ?? ""} style={{ width: 150 }}>
+          <option value="">Todos os tipos</option>
+          <option value="entrada">Entradas</option>
+          <option value="saida">Saídas</option>
+        </select>
+        <select name="categoriaId" className="form-input form-select" defaultValue={categoriaId ?? ""} style={{ minWidth: 220 }}>
+          <option value="">Todas as categorias</option>
+          {categorias.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nome}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="btn btn-primary btn-sm">
+          Aplicar
+        </button>
+        {(tipoFilter || categoriaId) && (
+          <Link href="/dashboard/financeiro" className="btn btn-secondary btn-sm">
+            Limpar
+          </Link>
+        )}
+      </form>
 
       {/* Lista */}
       {lancamentos.length === 0 ? (
@@ -133,6 +146,7 @@ export default async function FinanceiroPage({
                 <tr>
                   <th>Descrição</th>
                   <th>Obra</th>
+                  <th>Categoria</th>
                   <th>Tipo</th>
                   <th>Valor</th>
                   <th>Vencimento</th>
@@ -155,6 +169,9 @@ export default async function FinanceiroPage({
                           {l.projeto.titulo}
                         </Link>
                       ) : "—"}
+                    </td>
+                    <td style={{ color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                      {l.categoriaFinanceira?.nome ?? "—"}
                     </td>
                     <td>
                       <span

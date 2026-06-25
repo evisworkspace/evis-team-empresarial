@@ -212,6 +212,11 @@ export function getProjetoWithDetails(empresaId: string, projetoId: string) {
       },
       lancamentos: {
         where: { deletedAt: null },
+        include: {
+          categoriaFinanceira: { select: { id: true, nome: true } },
+          centroDeCusto: { select: { id: true, nome: true } },
+          fornecedor: { select: { id: true, nome: true } },
+        },
         orderBy: { dataVencimento: "asc" },
         take: 20,
       },

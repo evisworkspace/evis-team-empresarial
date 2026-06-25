@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma"
 
 export function listCategoriasFinanceirasByEmpresa(
   empresaId: string,
-  opts?: { tipo?: string },
+  opts?: { tipo?: string; take?: number },
 ) {
   return prisma.categoriaFinanceira.findMany({
     where: {
@@ -11,12 +11,14 @@ export function listCategoriasFinanceirasByEmpresa(
       ...(opts?.tipo ? { tipo: opts.tipo } : {}),
     },
     orderBy: [{ numero: "asc" }, { nome: "asc" }],
-    take: 200,
+    take: opts?.take ?? 200,
     include: {
       parent: { select: { id: true, nome: true, numero: true } },
     },
   })
 }
+
+export const listCategoriasByEmpresa = listCategoriasFinanceirasByEmpresa
 
 export function createCategoriaFinanceira(
   empresaId: string,

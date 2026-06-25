@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma"
 
-export function listCentrosByEmpresa(empresaId: string) {
+export function listCentrosByEmpresa(empresaId: string, opts?: { take?: number }) {
   return prisma.centroDeCusto.findMany({
     where: { empresaId, deletedAt: null },
     orderBy: { nome: "asc" },
-    take: 200,
+    take: opts?.take ?? 200,
   })
 }
+
+export const listCentrosCustoByEmpresa = listCentrosByEmpresa
 
 export function createCentroDeCusto(empresaId: string, data: { nome: string }) {
   return prisma.centroDeCusto.create({ data: { empresaId, ...data } })

@@ -7,6 +7,9 @@ import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { getProjetoWithDetails } from "@/data/projeto";
 import { sumLancamentosByProjeto } from "@/data/financeiro";
+import { listCategoriasByEmpresa } from "@/data/categoriaFinanceira";
+import { listCentrosCustoByEmpresa } from "@/data/centroDeCusto";
+import { listFornecedoresByEmpresa } from "@/data/fornecedor";
 import { criarTarefa, toggleTarefaStatus } from "@/actions/tarefa";
 import { criarLancamento, marcarLancamentoPago } from "@/actions/financeiro";
 import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade } from "@/actions/projeto";
@@ -14,6 +17,7 @@ import { listItensOrcamentoByProjeto, sumOrcamentoByProjeto } from "@/data/proje
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
 import { listItensByEmpresa } from "@/data/itemBiblioteca";
 import { OrcamentoTab } from "@/components/orcamento/OrcamentoTab";
+import { LancamentoFinanceiroForm } from "@/components/financeiro/LancamentoFinanceiroForm";
 import {
   BuildingIcon,
   CalendarIcon,
@@ -172,6 +176,11 @@ function eventoLabel(tipo: string, conteudo?: unknown) {
 type ProjetoDetalhes = NonNullable<Awaited<ReturnType<typeof getProjetoWithDetails>>>;
 type Financeiro = { totalEntrada: number; totalSaida: number; saldo: number };
 type OrcamentoProps = React.ComponentProps<typeof OrcamentoTab>;
+type FinanceiroFormLists = {
+  categorias: { id: string; nome: string; tipo: string }[];
+  centrosCusto: { id: string; nome: string }[];
+  fornecedores: { id: string; nome: string }[];
+};
 
 // Função utilitária compartilhada entre as duas views
 function isOverdue(t: ProjetoDetalhes["tarefas"][0], now: Date) {
@@ -180,7 +189,17 @@ function isOverdue(t: ProjetoDetalhes["tarefas"][0], now: Date) {
 
 // ─── Visão de Oportunidade ────────────────────────────────────────────────────
 
-function OportunidadeView({ projeto, financeiro, orcamento }: { projeto: ProjetoDetalhes; financeiro: Financeiro; orcamento: OrcamentoProps }) {
+function OportunidadeView({
+  projeto,
+  financeiro,
+  orcamento,
+  financeiroFormLists,
+}: {
+  projeto: ProjetoDetalhes;
+  financeiro: Financeiro;
+  orcamento: OrcamentoProps;
+  financeiroFormLists: FinanceiroFormLists;
+}) {
   const isPerdida = projeto.statusInterno === "perdido";
   const isGanho = projeto.statusInterno === "ganho";
   const currentIdx = getFunilIndex(projeto.statusInterno);
@@ -621,6 +640,16 @@ function OportunidadeView({ projeto, financeiro, orcamento }: { projeto: Projeto
                       <span style={{ flex: 1, color: "var(--clr-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {l.descricao ?? (l.tipo === "entrada" ? "Entrada" : "Saída")}
                       </span>
+                      {l.categoriaFinanceira && (
+                        <span style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>
+                          {l.categoriaFinanceira.nome}
+                        </span>
+                      )}
+                      {l.totalParcelas && l.totalParcelas > 1 && (
+                        <span style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>
+                          {l.numeroParcela}/{l.totalParcelas}
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>{new Date(l.dataVencimento).toLocaleDateString("pt-BR")}</span>
                       <span style={{ fontWeight: 600, color: l.tipo === "entrada" ? "var(--clr-success)" : "var(--clr-danger)", flexShrink: 0 }}>
                         {l.tipo === "saida" ? "−" : "+"}
@@ -633,19 +662,13 @@ function OportunidadeView({ projeto, financeiro, orcamento }: { projeto: Projeto
                   ))}
                 </div>
               )}
-              <form action={criarLancamento} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <input type="hidden" name="projetoId" value={projeto.id} />
-                <select name="tipo" className="form-input form-select" style={{ width: 110, flexShrink: 0 }} required>
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                </select>
-                <input name="valor" type="number" step="0.01" min="0.01" className="form-input" placeholder="Valor (R$)" required style={{ width: 130, flexShrink: 0 }} />
-                <input name="descricao" type="text" className="form-input" placeholder="Ex: Pré-visita, sinal..." maxLength={200} style={{ flex: 1, minWidth: 140 }} />
-                <input name="dataVencimento" type="date" className="form-input" required style={{ width: 155, flexShrink: 0 }} />
-                <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>
-                  <PlusIcon size={14} /> Lançar
-                </button>
-              </form>
+              <LancamentoFinanceiroForm
+                action={criarLancamento}
+                projetoId={projeto.id}
+                categorias={financeiroFormLists.categorias}
+                centrosCusto={financeiroFormLists.centrosCusto}
+                fornecedores={financeiroFormLists.fornecedores}
+              />
             </div>
           </div>
 
@@ -736,7 +759,17 @@ function OportunidadeView({ projeto, financeiro, orcamento }: { projeto: Projeto
 
 // ─── Visão de Obra (Central da Obra) ─────────────────────────────────────────
 
-function CentralDaObraView({ projeto, financeiro, orcamento }: { projeto: ProjetoDetalhes; financeiro: Financeiro; orcamento: OrcamentoProps }) {
+function CentralDaObraView({
+  projeto,
+  financeiro,
+  orcamento,
+  financeiroFormLists,
+}: {
+  projeto: ProjetoDetalhes;
+  financeiro: Financeiro;
+  orcamento: OrcamentoProps;
+  financeiroFormLists: FinanceiroFormLists;
+}) {
   const now = new Date();
   const tarefasAbertas = projeto.tarefas.filter((t) => t.status === "aberta" || t.status === "em_andamento");
   const tarefasConcluidas = projeto.tarefas.filter((t) => t.status === "concluida");
@@ -1039,6 +1072,16 @@ function CentralDaObraView({ projeto, financeiro, orcamento }: { projeto: Projet
                       <span style={{ flex: 1, color: "var(--clr-text)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {l.descricao ?? (l.tipo === "entrada" ? "Entrada" : "Saída")}
                       </span>
+                      {l.categoriaFinanceira && (
+                        <span style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>
+                          {l.categoriaFinanceira.nome}
+                        </span>
+                      )}
+                      {l.totalParcelas && l.totalParcelas > 1 && (
+                        <span style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>
+                          {l.numeroParcela}/{l.totalParcelas}
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>{new Date(l.dataVencimento).toLocaleDateString("pt-BR")}</span>
                       <span style={{ fontWeight: 600, color: l.tipo === "entrada" ? "var(--clr-success)" : "var(--clr-danger)", flexShrink: 0 }}>
                         {l.tipo === "saida" ? "-" : "+"}
@@ -1061,19 +1104,13 @@ function CentralDaObraView({ projeto, financeiro, orcamento }: { projeto: Projet
                   ))}
                 </div>
               )}
-              <form action={criarLancamento} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <input type="hidden" name="projetoId" value={projeto.id} />
-                <select name="tipo" className="form-input form-select" style={{ width: 110, flexShrink: 0 }} required>
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                </select>
-                <input name="valor" type="number" step="0.01" min="0.01" className="form-input" placeholder="Valor (R$)" required style={{ width: 130, flexShrink: 0 }} />
-                <input name="descricao" type="text" className="form-input" placeholder="Descricao (opcional)" maxLength={200} style={{ flex: 1, minWidth: 140 }} />
-                <input name="dataVencimento" type="date" className="form-input" required style={{ width: 155, flexShrink: 0 }} />
-                <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>
-                  <PlusIcon size={14} /> Lancar
-                </button>
-              </form>
+              <LancamentoFinanceiroForm
+                action={criarLancamento}
+                projetoId={projeto.id}
+                categorias={financeiroFormLists.categorias}
+                centrosCusto={financeiroFormLists.centrosCusto}
+                fornecedores={financeiroFormLists.fornecedores}
+              />
             </div>
           </div>
 
@@ -1213,10 +1250,13 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamento, bibliotecaItens] = await Promise.all([
+  const [financeiro, itensOrcamento, bibliotecaItens, categorias, centrosCusto, fornecedores] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
+    listCategoriasByEmpresa(empresaId, { take: 100 }),
+    listCentrosCustoByEmpresa(empresaId, { take: 50 }),
+    listFornecedoresByEmpresa(empresaId, { take: 100 }),
   ]);
 
   const orcamentoProps = {
@@ -1242,9 +1282,29 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     },
   };
 
+  const financeiroFormLists = {
+    categorias: categorias.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo })),
+    centrosCusto: centrosCusto.map((c) => ({ id: c.id, nome: c.nome })),
+    fornecedores: fornecedores.map((f) => ({ id: f.id, nome: f.nome })),
+  };
+
   if (projeto.stage === "oportunidade") {
-    return <OportunidadeView projeto={projeto} financeiro={financeiro} orcamento={orcamentoProps} />;
+    return (
+      <OportunidadeView
+        projeto={projeto}
+        financeiro={financeiro}
+        orcamento={orcamentoProps}
+        financeiroFormLists={financeiroFormLists}
+      />
+    );
   }
 
-  return <CentralDaObraView projeto={projeto} financeiro={financeiro} orcamento={orcamentoProps} />;
+  return (
+    <CentralDaObraView
+      projeto={projeto}
+      financeiro={financeiro}
+      orcamento={orcamentoProps}
+      financeiroFormLists={financeiroFormLists}
+    />
+  );
 }

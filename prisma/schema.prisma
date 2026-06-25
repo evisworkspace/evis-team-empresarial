@@ -368,6 +368,7 @@ model CategoriaFinanceira {
   empresa Empresa              @relation(fields: [empresaId], references: [id])
   parent  CategoriaFinanceira? @relation("SubCategorias", fields: [parentId], references: [id])
   filhos  CategoriaFinanceira[] @relation("SubCategorias")
+  lancamentos LancamentoFinanceiro[]
 
   @@index([empresaId])
   @@index([parentId])
@@ -384,6 +385,7 @@ model CentroDeCusto {
   deletedAt DateTime? @map("deleted_at")
 
   empresa Empresa @relation(fields: [empresaId], references: [id])
+  lancamentos LancamentoFinanceiro[]
 
   @@index([empresaId])
   @@map("centro_de_custo")
@@ -426,23 +428,38 @@ model LancamentoFinanceiro {
   empresaId      String    @map("empresa_id") @db.Uuid
   projetoId      String    @map("projeto_id") @db.Uuid
   fornecedorId   String?   @map("fornecedor_id") @db.Uuid
+  categoriaFinanceiraId String?  @map("categoria_financeira_id") @db.Uuid
+  centroDeCustoId       String?  @map("centro_de_custo_id") @db.Uuid
   tipo           String // domínio: entrada | saida
   valor          Decimal   @db.Decimal(15, 2) // precisão provisória — docs/06 §12 adiado
   dataVencimento DateTime  @map("data_vencimento") @db.Date
   dataRealizacao DateTime? @map("data_realizacao") @db.Date // só quando status = realizado
   descricao      String?
   status         String // domínio: previsto | realizado | cancelado
+  contaBancaria  String?   @map("conta_bancaria") @db.VarChar(100)
+  formaPagamento String?   @map("forma_pagamento") @db.VarChar(50)
+  numeroParcela  Int?      @map("numero_parcela")
+  totalParcelas  Int?      @map("total_parcelas")
+  valorTotal     Decimal?  @map("valor_total") @db.Decimal(15, 2)
+  notaFiscal     String?   @map("nota_fiscal") @db.VarChar(200)
+  juros          Decimal?  @db.Decimal(15, 2)
+  multa          Decimal?  @db.Decimal(15, 2)
+  desconto       Decimal?  @db.Decimal(15, 2)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
 
-  empresa    Empresa     @relation(fields: [empresaId], references: [id])
-  projeto    Projeto     @relation(fields: [projetoId], references: [id])
-  fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id])
+  empresa              Empresa              @relation(fields: [empresaId], references: [id])
+  projeto              Projeto              @relation(fields: [projetoId], references: [id])
+  fornecedor           Fornecedor?          @relation(fields: [fornecedorId], references: [id])
+  categoriaFinanceira  CategoriaFinanceira? @relation(fields: [categoriaFinanceiraId], references: [id])
+  centroDeCusto        CentroDeCusto?       @relation(fields: [centroDeCustoId], references: [id])
 
   @@index([projetoId, status])
   @@index([empresaId])
   @@index([fornecedorId])
+  @@index([categoriaFinanceiraId])
+  @@index([centroDeCustoId])
   @@map("lancamento_financeiro")
 }
 
