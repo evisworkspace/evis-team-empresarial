@@ -133,10 +133,17 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
             <div className="sidebar-sub-nav">
               <Link
                 href="/dashboard/financeiro"
-                className={`sidebar-link ${isActive("/dashboard/financeiro") ? "active" : ""}`}
+                className={`sidebar-link ${pathname === "/dashboard/financeiro" ? "active" : ""}`}
               >
                 <FinanceIcon className="sidebar-link-icon" />
                 Financeiro
+              </Link>
+              <Link
+                href="/dashboard/financeiro/config"
+                className={`sidebar-link ${isActive("/dashboard/financeiro/config") ? "active" : ""}`}
+              >
+                <SettingsIcon className="sidebar-link-icon" />
+                Config. Financeiro
               </Link>
             </div>
           )}
@@ -158,6 +165,13 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
           >
             <TruckIcon className="sidebar-link-icon" />
             Fornecedores
+          </Link>
+          <Link
+            href="/dashboard/catalogo"
+            className={`sidebar-link ${isActive("/dashboard/catalogo") ? "active" : ""}`}
+          >
+            <BuildingIcon className="sidebar-link-icon" />
+            Catálogo
           </Link>
         </div>
 
