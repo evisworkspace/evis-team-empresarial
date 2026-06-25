@@ -67,11 +67,11 @@ const TH: React.CSSProperties = {
 export default async function ProjetosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; incluirPerdidas?: string; q?: string; view?: string; statusFiltro?: string }>;
+  searchParams: Promise<{ stage?: string; incluirPerdidas?: string; showFechadas?: string; q?: string; view?: string; statusFiltro?: string }>;
 }) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
-  const { stage: stageFilter, incluirPerdidas, q, view, statusFiltro } = await searchParams;
+  const { stage: stageFilter, incluirPerdidas, showFechadas: showFechadasParam, q, view, statusFiltro } = await searchParams;
   const busca = q?.trim() || undefined;
   const viewMode = view === "lista" ? "lista" : (stageFilter === "oportunidade" || stageFilter === "obra") ? "kanban" : "lista";
   const statusFiltroAtivos = statusFiltro ? statusFiltro.split(",").filter(Boolean) : [];
@@ -79,6 +79,18 @@ export default async function ProjetosPage({
   const showPerdidas = incluirPerdidas === "1";
   const excludePerdidas =
     stageFilter === "oportunidade" && !showPerdidas ? "perdido" : undefined;
+
+  // Pre-fetch obras statuses to derive fechadas slugs (needed before Promise.all)
+  const preObraStatuses =
+    stageFilter === "obra" || !stageFilter
+      ? await getOrSeedStatuses(empresaId, "obra")
+      : [];
+  const obrasFechadasSlugs = preObraStatuses.filter((s) => !s.ativo).map((s) => s.slug);
+  const showFechadas = showFechadasParam === "1";
+  const excludeObrasFechadas =
+    stageFilter === "obra" && !showFechadas && obrasFechadasSlugs.length > 0
+      ? obrasFechadasSlugs
+      : undefined;
 
   const isOportunidadeKanban = stageFilter === "oportunidade" && viewMode === "kanban";
   const isObraKanban = stageFilter === "obra" && viewMode === "kanban";
@@ -88,10 +100,11 @@ export default async function ProjetosPage({
 
   const filtroStage = (stageFilter === "oportunidade" || stageFilter === "obra") ? stageFilter : undefined;
 
-  const [projetos, projetosKanban, statusKanban, todasColunasFiltro, obrasCount, opCount, opPerdidasCount, totalValor] = await Promise.all([
+  const [projetos, projetosKanban, statusKanban, todasColunasFiltro, obrasAtivasCount, obrasFechadasCount, opCount, opPerdidasCount, totalValor] = await Promise.all([
     listProjetosByEmpresaWithCliente(empresaId, {
       stage: stageFilter,
       excludeStatusInterno: excludePerdidas,
+      excludeStatusInternoList: excludeObrasFechadas,
       statusInternoIn: statusFiltroAtivos.length > 0 ? statusFiltroAtivos : undefined,
       q: busca,
     }),
@@ -100,9 +113,12 @@ export default async function ProjetosPage({
       : isObraKanban
       ? listProjetosByEmpresaWithCliente(empresaId, { stage: "obra", take: 200 })
       : Promise.resolve([]),
-    kanbanStage ? getOrSeedStatuses(empresaId, kanbanStage) : Promise.resolve([]),
-    filtroStage ? getOrSeedStatuses(empresaId, filtroStage) : Promise.resolve([]),
-    countProjetosByEmpresa(empresaId, "obra"),
+    isObraKanban ? Promise.resolve(preObraStatuses) : (kanbanStage ? getOrSeedStatuses(empresaId, kanbanStage) : Promise.resolve([])),
+    stageFilter === "obra" ? Promise.resolve(preObraStatuses) : (filtroStage ? getOrSeedStatuses(empresaId, filtroStage) : Promise.resolve([])),
+    countProjetosByEmpresa(empresaId, "obra", obrasFechadasSlugs.length > 0 ? { excludeStatusInternoList: obrasFechadasSlugs } : undefined),
+    obrasFechadasSlugs.length > 0
+      ? countProjetosByEmpresa(empresaId, "obra", { statusInternoIn: obrasFechadasSlugs })
+      : Promise.resolve(0),
     countProjetosByEmpresa(empresaId, "oportunidade", { excludeStatusInterno: "perdido" }),
     countProjetosByEmpresa(empresaId, "oportunidade"),
     stageFilter === "oportunidade" && !showPerdidas
@@ -118,6 +134,7 @@ export default async function ProjetosPage({
     const merged: Record<string, string | undefined> = {
       stage: stageFilter,
       incluirPerdidas: showPerdidas ? "1" : undefined,
+      showFechadas: showFechadas ? "1" : undefined,
       view: viewMode === "kanban" ? "kanban" : undefined,
       q: busca,
       ...overrides,
@@ -139,10 +156,10 @@ export default async function ProjetosPage({
 
   const pageLabel = isObraView ? "Obras" : isOportunidadeView ? "Oportunidades" : "Projetos e Obras";
   const pageDesc = isObraView
-    ? `${obrasCount} obra${obrasCount !== 1 ? "s" : ""} ativa${obrasCount !== 1 ? "s" : ""}`
+    ? `${obrasAtivasCount} obra${obrasAtivasCount !== 1 ? "s" : ""} ativa${obrasAtivasCount !== 1 ? "s" : ""}`
     : isOportunidadeView
     ? `${opCount} oportunidade${opCount !== 1 ? "s" : ""} ativa${opCount !== 1 ? "s" : ""}`
-    : `${obrasCount} obra${obrasCount !== 1 ? "s" : ""} · ${opCount} oportunidade${opCount !== 1 ? "s" : ""} ativa${opCount !== 1 ? "s" : ""}`;
+    : `${obrasAtivasCount} obra${obrasAtivasCount !== 1 ? "s" : ""} · ${opCount} oportunidade${opCount !== 1 ? "s" : ""} ativa${opCount !== 1 ? "s" : ""}`;
 
   return (
     <div>
@@ -171,6 +188,11 @@ export default async function ProjetosPage({
               {!stageFilter && opPerdidasCount - opCount > 0 && (
                 <span style={{ color: "var(--clr-text-muted)" }}>
                   {" "}· {opPerdidasCount - opCount} perdida{opPerdidasCount - opCount !== 1 ? "s" : ""}
+                </span>
+              )}
+              {isObraView && obrasFechadasCount > 0 && !showFechadas && (
+                <span style={{ color: "var(--clr-text-muted)" }}>
+                  {" "}· {obrasFechadasCount} fechada{obrasFechadasCount !== 1 ? "s" : ""}
                 </span>
               )}
             </p>
@@ -224,14 +246,21 @@ export default async function ProjetosPage({
         <div style={{ display: "flex", gap: 3, background: "#fff", border: "1px solid #e2e8f0", borderRadius: "var(--r-xl)", padding: 4 }}>
           {(
             [
-              { href: "/dashboard/projetos", label: `Todos (${obrasCount + opCount})`, active: !stageFilter },
-              { href: "/dashboard/projetos?stage=obra", label: `Obras (${obrasCount})`, active: isObraView },
+              { href: "/dashboard/projetos", label: `Todos (${obrasAtivasCount + opCount})`, active: !stageFilter },
+              { href: "/dashboard/projetos?stage=obra", label: `Obras (${obrasAtivasCount})`, active: isObraView && !showFechadas },
               { href: "/dashboard/projetos?stage=oportunidade", label: `CRM (${opCount})`, active: isOportunidadeView && !showPerdidas },
               ...(opPerdidasCount - opCount > 0
                 ? [{
                     href: showPerdidas ? "/dashboard/projetos?stage=oportunidade" : "/dashboard/projetos?stage=oportunidade&incluirPerdidas=1",
                     label: `Perdidas (${opPerdidasCount - opCount})`,
                     active: showPerdidas,
+                  }]
+                : []),
+              ...(obrasFechadasCount > 0
+                ? [{
+                    href: showFechadas ? "/dashboard/projetos?stage=obra" : "/dashboard/projetos?stage=obra&showFechadas=1",
+                    label: `Fechadas (${obrasFechadasCount})`,
+                    active: isObraView && showFechadas,
                   }]
                 : []),
             ] as { href: string; label: string; active: boolean }[]
@@ -303,6 +332,7 @@ export default async function ProjetosPage({
         <form method="GET" action="/dashboard/projetos" style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
           {stageFilter && <input type="hidden" name="stage" value={stageFilter} />}
           {showPerdidas && <input type="hidden" name="incluirPerdidas" value="1" />}
+          {showFechadas && <input type="hidden" name="showFechadas" value="1" />}
           {viewMode === "kanban" && <input type="hidden" name="view" value="kanban" />}
           <input
             name="q"

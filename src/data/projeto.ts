@@ -33,14 +33,18 @@ export function getProjetoByEmpresa(empresaId: string, projetoId: string) {
 export function countProjetosByEmpresa(
   empresaId: string,
   stage?: string,
-  opts?: { excludeStatusInterno?: string },
+  opts?: { excludeStatusInterno?: string; excludeStatusInternoList?: string[]; statusInternoIn?: string[] },
 ) {
   return prisma.projeto.count({
     where: {
       empresaId,
       deletedAt: null,
       ...(stage ? { stage } : {}),
-      ...(opts?.excludeStatusInterno
+      ...(opts?.statusInternoIn && opts.statusInternoIn.length > 0
+        ? { statusInterno: { in: opts.statusInternoIn } }
+        : opts?.excludeStatusInternoList && opts.excludeStatusInternoList.length > 0
+        ? { statusInterno: { notIn: opts.excludeStatusInternoList } }
+        : opts?.excludeStatusInterno
         ? { statusInterno: { not: opts.excludeStatusInterno } }
         : {}),
     },
@@ -49,18 +53,19 @@ export function countProjetosByEmpresa(
 
 export function listProjetosByEmpresaWithCliente(
   empresaId: string,
-  opts?: { stage?: string; take?: number; skip?: number; excludeStatusInterno?: string; statusInternoIn?: string[]; q?: string },
+  opts?: { stage?: string; take?: number; skip?: number; excludeStatusInterno?: string; excludeStatusInternoList?: string[]; statusInternoIn?: string[]; q?: string },
 ) {
   return prisma.projeto.findMany({
     where: {
       empresaId,
       deletedAt: null,
       ...(opts?.stage ? { stage: opts.stage } : {}),
-      ...(opts?.excludeStatusInterno
-        ? { statusInterno: { not: opts.excludeStatusInterno } }
-        : {}),
       ...(opts?.statusInternoIn && opts.statusInternoIn.length > 0
         ? { statusInterno: { in: opts.statusInternoIn } }
+        : opts?.excludeStatusInternoList && opts.excludeStatusInternoList.length > 0
+        ? { statusInterno: { notIn: opts.excludeStatusInternoList } }
+        : opts?.excludeStatusInterno
+        ? { statusInterno: { not: opts.excludeStatusInterno } }
         : {}),
       ...(opts?.q
         ? {
