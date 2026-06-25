@@ -2,12 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { UsersIcon, BuildingIcon, SettingsIcon } from "@/components/Icons"
+import { UsersIcon, BuildingIcon, SettingsIcon, TasksIcon } from "@/components/Icons"
 
 const itens = [
-  { href: "/dashboard/configuracoes/perfil", label: "Perfil", Icon: SettingsIcon },
-  { href: "/dashboard/configuracoes/empresa", label: "Empresa", Icon: BuildingIcon },
-  { href: "/dashboard/configuracoes/equipe", label: "Equipe", Icon: UsersIcon },
+  { href: "/dashboard/configuracoes/perfil",  label: "Perfil",   Icon: SettingsIcon },
+  { href: "/dashboard/configuracoes/empresa", label: "Empresa",  Icon: BuildingIcon },
+  { href: "/dashboard/configuracoes/equipe",  label: "Equipe",   Icon: UsersIcon },
+  { href: "/dashboard/configuracoes/status",  label: "Status",   Icon: TasksIcon },
 ]
 
 export function ConfiguracoesNav() {

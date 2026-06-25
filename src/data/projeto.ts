@@ -182,6 +182,13 @@ export async function sumValorEstimadoByEmpresa(
   return Number(result._sum.valorEstimado ?? 0);
 }
 
+export async function softDeleteProjeto(empresaId: string, projetoId: string) {
+  return prisma.projeto.updateMany({
+    where: { id: projetoId, empresaId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  })
+}
+
 export function getProjetoWithDetails(empresaId: string, projetoId: string) {
   return prisma.projeto.findFirst({
     where: { id: projetoId, empresaId, deletedAt: null },

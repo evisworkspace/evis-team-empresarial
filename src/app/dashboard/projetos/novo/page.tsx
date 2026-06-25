@@ -6,6 +6,7 @@ import { listClientesByEmpresa } from "@/data/cliente";
 import { criarProjeto } from "@/actions/projeto";
 import { PlusIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
+import { STATUS_OPORTUNIDADE, STATUS_OBRA } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Nova Oportunidade" };
 
@@ -35,7 +36,8 @@ const PRIORIDADES = [
   { value: "urgente", label: "Urgente" },
 ];
 
-const STATUS_FUNIL_VALIDOS = ["novo", "fila_espera", "em_andamento", "proposta_enviada", "em_negociacao", "ganho", "perdido"];
+const STATUS_FUNIL_VALIDOS = Object.keys(STATUS_OPORTUNIDADE);
+const STATUS_OBRA_VALIDOS  = Object.keys(STATUS_OBRA);
 
 export default async function NovaOportunidade({
   searchParams,
@@ -45,11 +47,13 @@ export default async function NovaOportunidade({
   const session = await auth();
   const empresaId = getEmpresaId(session!);
   const { stage: defaultStage, clienteId: preSelectedClienteId, status: statusParam } = await searchParams;
-  const statusInicial = statusParam && STATUS_FUNIL_VALIDOS.includes(statusParam) ? statusParam : undefined;
+  const isObra = defaultStage === "obra";
+  const statusValidos = isObra ? STATUS_OBRA_VALIDOS : STATUS_FUNIL_VALIDOS;
+  const statusInicial = statusParam && statusValidos.includes(statusParam) ? statusParam : undefined;
+  const statusMap = isObra ? STATUS_OBRA : STATUS_OPORTUNIDADE;
 
   const clientes = await listClientesByEmpresa(empresaId, { take: 100 });
   const semClientes = clientes.length === 0;
-  const isObra = defaultStage === "obra";
 
   return (
     <div>
@@ -139,9 +143,18 @@ export default async function NovaOportunidade({
                   </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Início estimado</label>
-                  <input name="dataInicioEstimada" type="date" className="form-input" />
+                  <label className="form-label">Status inicial</label>
+                  <select name="statusInicial" className="form-input form-select" defaultValue={statusInicial ?? Object.keys(statusMap)[0]}>
+                    {Object.entries(statusMap).map(([slug, cfg]) => (
+                      <option key={slug} value={slug}>{cfg.label}</option>
+                    ))}
+                  </select>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Início estimado</label>
+                <input name="dataInicioEstimada" type="date" className="form-input" />
               </div>
 
               <div className="form-row">

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
-import { createProjeto, listProjetosByEmpresa, updateProjeto } from "@/data/projeto";
+import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto } from "@/data/projeto";
 import { createCliente, updateCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
 import { createAtividade } from "@/data/projetoAtividade";
@@ -73,12 +73,11 @@ export async function criarProjeto(formData: FormData) {
   const dataInicioEstimada = dataInicioEstimadaStr ? new Date(dataInicioEstimadaStr) : undefined;
 
   const STATUS_FUNIL = ["novo", "fila_espera", "em_andamento", "proposta_enviada", "em_negociacao", "ganho", "perdido"];
+  const STATUS_OBRA_LISTA = ["abertura", "planejamento", "em_andamento", "pausada", "concluida", "entregue", "encerrada"];
   const statusInterno =
     stage === "obra"
-      ? "em_andamento"
-      : statusInicialParam && STATUS_FUNIL.includes(statusInicialParam)
-      ? statusInicialParam
-      : "novo";
+      ? (statusInicialParam && STATUS_OBRA_LISTA.includes(statusInicialParam) ? statusInicialParam : "abertura")
+      : (statusInicialParam && STATUS_FUNIL.includes(statusInicialParam) ? statusInicialParam : "novo");
 
   const projeto = await createProjeto(empresaId, {
     clienteId,
@@ -386,6 +385,94 @@ export async function moverStatusObra(projetoId: string, novoStatus: string) {
     entidadeTipo: "projeto",
     entidadeId: projetoId,
     conteudoPersistido: { novoStatus },
+  });
+
+  revalidatePath("/dashboard/projetos");
+}
+
+export async function atualizarStatusProjeto(projetoId: string, novoStatus: string) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  if (!projetoId || !novoStatus) throw new Error("Dados inválidos.");
+
+  await updateProjeto(empresaId, projetoId, { statusInterno: novoStatus });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus },
+  });
+
+  revalidatePath("/dashboard/projetos");
+}
+
+export async function finalizarProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+  const stage = formData.get("stage") as string;
+
+  if (!projetoId) throw new Error("ID obrigatório.");
+
+  const statusFinal = stage === "oportunidade" ? "ganho" : "concluida";
+  await updateProjeto(empresaId, projetoId, { statusInterno: statusFinal });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus: statusFinal, acao: "finalizar" },
+  });
+
+  revalidatePath("/dashboard/projetos");
+}
+
+export async function cancelarProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+  const stage = formData.get("stage") as string;
+
+  if (!projetoId) throw new Error("ID obrigatório.");
+
+  const statusCancelado = stage === "oportunidade" ? "perdido" : "encerrada";
+  await updateProjeto(empresaId, projetoId, { statusInterno: statusCancelado });
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "alteracao_status",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { novoStatus: statusCancelado, acao: "cancelar" },
+  });
+
+  revalidatePath("/dashboard/projetos");
+}
+
+export async function excluirProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+
+  if (!projetoId) throw new Error("ID obrigatório.");
+
+  const result = await softDeleteProjeto(empresaId, projetoId);
+  if (result.count === 0) throw new Error("Projeto não encontrado.");
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "edicao",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { acao: "excluir" },
   });
 
   revalidatePath("/dashboard/projetos");

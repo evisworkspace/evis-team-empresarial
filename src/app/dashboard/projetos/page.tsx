@@ -10,51 +10,12 @@ import ProjetosKanban from "@/components/ProjetosKanban";
 import AcoesDropdown from "@/components/AcoesDropdown";
 import { GerenciarStatusBotao } from "@/components/GerenciarStatusPanel";
 import { getOrSeedStatuses } from "@/data/statusProjeto";
+import StatusDropdown from "@/components/StatusDropdown";
+import ProjetoAcoes from "@/components/ProjetoAcoes";
+import { getStatusConfig } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Projetos e Obras" };
 
-function statusLabel(status: string) {
-  const map: Record<string, string> = {
-    novo: "Agendar Visita",
-    fila_espera: "Fila Espera",
-    em_negociacao: "Em negociação",
-    proposta_enviada: "Proposta enviada",
-    ganho: "Ganho",
-    perdido: "Arquivado",
-    abertura: "Abertura",
-    planejamento: "Planejamento",
-    em_andamento: "Em andamento",
-    pausada: "Pausada",
-    concluida: "Concluída",
-    entregue: "Entregue",
-    encerrada: "Encerrada",
-  };
-  return map[status] ?? status;
-}
-
-function statusStyle(status: string, stage: string): React.CSSProperties {
-  if (stage === "obra") {
-    const obraColors: Record<string, React.CSSProperties> = {
-      em_andamento: { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" },
-      planejamento: { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
-      pausada:      { background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047" },
-      concluida:    { background: "#f0fdf4", color: "#166534", border: "1px solid #86efac" },
-      entregue:     { background: "#f0fdf4", color: "#15803d", border: "1px solid #4ade80" },
-      encerrada:    { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" },
-    };
-    return obraColors[status] ?? { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" };
-  }
-  const funilColors: Record<string, React.CSSProperties> = {
-    novo:             { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
-    fila_espera:      { background: "#ede9fe", color: "#5b21b6", border: "1px solid #c4b5fd" },
-    em_andamento:     { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
-    em_negociacao:    { background: "#fef9c3", color: "#854d0e", border: "1px solid #fde047" },
-    proposta_enviada: { background: "#fed7aa", color: "#9a3412", border: "1px solid #fb923c" },
-    ganho:            { background: "#dcfce7", color: "#166534", border: "1px solid #86efac" },
-    perdido:          { background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" },
-  };
-  return funilColors[status] ?? { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1" };
-}
 
 function prioridadeStyle(p: string | null): React.CSSProperties {
   if (!p) return {};
@@ -396,17 +357,7 @@ export default async function ProjetosPage({
                         {p.cliente?.nome ?? "—"}
                       </td>
                       <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                        <span style={{
-                          ...statusStyle(p.statusInterno, p.stage),
-                          display: "inline-block",
-                          padding: "3px 9px",
-                          borderRadius: "var(--r-full)",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                        }}>
-                          {statusLabel(p.statusInterno)}
-                        </span>
+                        <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
                       </td>
                       <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, ...prioridadeStyle(pr.prioridade ?? null) }}>
                         {prioridadeLabel(pr.prioridade ?? null)}
@@ -427,9 +378,12 @@ export default async function ProjetosPage({
                         {formatDate(p.createdAt)}
                       </td>
                       <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                        <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)", transition: "color 0.12s" }}>
-                          <ChevronRightIcon size={16} />
-                        </Link>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)", transition: "color 0.12s" }}>
+                            <ChevronRightIcon size={16} />
+                          </Link>
+                          <ProjetoAcoes projetoId={p.id} stage={p.stage} titulo={p.titulo} />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -478,24 +432,18 @@ export default async function ProjetosPage({
                       </span>
                     </td>
                     <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                      <span style={{
-                        ...statusStyle(p.statusInterno, p.stage),
-                        display: "inline-block",
-                        padding: "3px 9px",
-                        borderRadius: "var(--r-full)",
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}>
-                        {statusLabel(p.statusInterno)}
-                      </span>
+                      <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
                     </td>
                     <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
                       {formatDate(p.dataInicioEstimada)}
                     </td>
                     <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                      <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)" }}>
-                        <ChevronRightIcon size={16} />
-                      </Link>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)" }}>
+                          <ChevronRightIcon size={16} />
+                        </Link>
+                        <ProjetoAcoes projetoId={p.id} stage={p.stage} titulo={p.titulo} />
+                      </div>
                     </td>
                   </tr>
                 ))}
