@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
-import { createCliente, updateCliente } from "@/data/cliente";
+import { createCliente, updateCliente, deleteCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
 
 export async function criarCliente(formData: FormData) {
@@ -87,4 +87,25 @@ export async function editarCliente(formData: FormData) {
   });
 
   redirect(`/dashboard/clientes/${clienteId}`);
+}
+
+export async function excluirCliente(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const clienteId = formData.get("clienteId") as string;
+
+  if (!clienteId) throw new Error("ID do cliente obrigatório.");
+
+  const result = await deleteCliente(empresaId, clienteId);
+  if (result.count === 0) throw new Error("Cliente não encontrado.");
+
+  await createAuditEntry({
+    empresaId,
+    eventoTipo: "edicao",
+    entidadeTipo: "cliente",
+    entidadeId: clienteId,
+    conteudoPersistido: { acao: "exclusao_soft" },
+  });
+
+  redirect("/dashboard/clientes");
 }

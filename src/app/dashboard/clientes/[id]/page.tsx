@@ -92,6 +92,13 @@ export default async function ClienteDetalhe({
             Editar
           </Link>
           <Link
+            href={`/dashboard/clientes/${cliente.id}/excluir`}
+            className="btn btn-secondary btn-sm"
+            style={{ color: "var(--clr-danger)", borderColor: "currentColor" }}
+          >
+            Excluir
+          </Link>
+          <Link
             href={`/dashboard/projetos/novo?clienteId=${cliente.id}`}
             className="btn btn-primary btn-sm"
           >

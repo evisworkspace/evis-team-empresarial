@@ -61,6 +61,13 @@ export async function updateCliente(
   });
 }
 
+export function deleteCliente(empresaId: string, clienteId: string) {
+  return prisma.cliente.updateMany({
+    where: { id: clienteId, empresaId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+}
+
 export function createCliente(
   empresaId: string,
   data: {
