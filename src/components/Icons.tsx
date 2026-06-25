@@ -284,3 +284,19 @@ export function CloseIcon({ size = 18, className }: IconProps) {
     </svg>
   );
 }
+
+export function CollapseIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4l-5 5 5 5M4 4v10" />
+    </svg>
+  );
+}
+
+export function ExpandIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 4l5 5-5 5M14 4v10" />
+    </svg>
+  );
+}

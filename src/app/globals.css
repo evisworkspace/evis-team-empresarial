@@ -2512,6 +2512,80 @@ table.evis-table {
   color: #94a3b8;
 }
 
+/* --- DESKTOP COLLAPSED SIDEBAR --- */
+.sidebar {
+  transition: width 0.3s ease-in-out;
+  position: relative;
+}
+
+.desktop-collapse-btn {
+  position: absolute;
+  top: 24px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  background: var(--clr-sidebar-bg);
+  border: 1px solid var(--clr-sidebar-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-sidebar-text);
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.desktop-collapse-btn:hover {
+  color: var(--clr-text);
+  background: var(--clr-sidebar-item-hover);
+}
+
+.sidebar.sidebar-collapsed {
+  width: 72px;
+}
+
+.sidebar.sidebar-collapsed .sidebar-logo-text-block,
+.sidebar.sidebar-collapsed .sidebar-section-label,
+.sidebar.sidebar-collapsed .sidebar-section-label-mono,
+.sidebar.sidebar-collapsed .sidebar-link-badge,
+.sidebar.sidebar-collapsed .sidebar-collapsible-chevron,
+.sidebar.sidebar-collapsed .sidebar-user-info {
+  display: none;
+}
+
+.sidebar.sidebar-collapsed .sidebar-link,
+.sidebar.sidebar-collapsed .sidebar-collapsible-btn {
+  font-size: 0;
+  gap: 0;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sidebar.sidebar-collapsed .sidebar-logo {
+  padding: 20px 0 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar.sidebar-collapsed .sidebar-logo-row {
+  justify-content: center !important;
+}
+
+.sidebar.sidebar-collapsed .sidebar-logo-badge {
+  margin: 0;
+}
+
+.sidebar.sidebar-collapsed .sidebar-user {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.sidebar-collapsed .sidebar-signout-btn {
+  display: none;
+}
+
 /* --- MOBILE RESPONSIVE (max-width: 768px) --- */
 .mobile-menu-btn {
   display: none;
@@ -2550,6 +2624,10 @@ table.evis-table {
     z-index: 1000;
     transition: left 0.3s ease-in-out;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .desktop-collapse-btn {
+    display: none;
   }
 
   .sidebar.sidebar-open {

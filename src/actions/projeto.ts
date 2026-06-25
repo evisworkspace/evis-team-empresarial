@@ -317,6 +317,33 @@ export async function atualizarStatusObra(formData: FormData) {
   revalidatePath(`/dashboard/projetos/${projetoId}`);
 }
 
+export async function reverterParaOportunidade(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+  const projetoId = formData.get("projetoId") as string;
+
+  if (!projetoId) throw new Error("ID obrigatório.");
+
+  const result = await updateProjeto(empresaId, projetoId, {
+    stage: "oportunidade",
+    statusInterno: "ganho",
+    numeroObra: null,
+  });
+
+  if (result.count === 0) throw new Error("Obra não encontrada.");
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "conversao_stage",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { de: "obra", para: "oportunidade", motivo: "reversao_manual" },
+  });
+
+  redirect(`/dashboard/projetos/${projetoId}`);
+}
+
 export async function criarAtividadeProjeto(formData: FormData) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);

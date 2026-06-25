@@ -15,6 +15,8 @@ import {
   SettingsIcon,
   CloseIcon,
   ActivityIcon,
+  CollapseIcon,
+  ExpandIcon,
 } from "@/components/Icons";
 import { handleSignOut } from "@/actions/auth";
 
@@ -38,6 +40,7 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [financeiroOpen, setFinanceiroOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   function isActive(href: string) {
     const [path, query] = href.split("?");
@@ -53,7 +56,16 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
   }
 
   return (
-    <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
+    <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""} ${isCollapsed ? "sidebar-collapsed" : ""}`}>
+      {/* Botão de Collapse/Expand para Desktop */}
+      <button 
+        className="desktop-collapse-btn" 
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        aria-label={isCollapsed ? "Expandir menu" : "Recolher menu"}
+      >
+        {isCollapsed ? <ExpandIcon size={16} /> : <CollapseIcon size={16} />}
+      </button>
+
       {/* Logo v2 — AiStudio */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
