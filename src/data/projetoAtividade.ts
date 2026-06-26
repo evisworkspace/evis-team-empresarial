@@ -38,3 +38,14 @@ export function deleteAtividade(empresaId: string, atividadeId: string) {
     where: { id: atividadeId, empresaId },
   });
 }
+
+export function listAtividadesGlobais(empresaId: string, take = 100) {
+  return prisma.projetoAtividade.findMany({
+    where: { empresaId },
+    include: {
+      projeto: { select: { id: true, titulo: true, stage: true, codigoSequencial: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+  });
+}

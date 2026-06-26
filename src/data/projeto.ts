@@ -83,7 +83,20 @@ export function listProjetosByEmpresaWithCliente(
   });
 }
 
-export function createProjeto(
+export async function nextCodigoSequencial(empresaId: string): Promise<string> {
+  const ano = new Date().getFullYear();
+  const ultimo = await prisma.projeto.findFirst({
+    where: { empresaId, codigoSequencial: { startsWith: `${ano}-` } },
+    orderBy: { codigoSequencial: "desc" },
+    select: { codigoSequencial: true },
+  });
+  const seq = ultimo
+    ? String(Number(ultimo.codigoSequencial!.split("-")[1]) + 1).padStart(3, "0")
+    : "001";
+  return `${ano}-${seq}`;
+}
+
+export async function createProjeto(
   empresaId: string,
   data: {
     clienteId: string;
@@ -110,9 +123,11 @@ export function createProjeto(
     estadoObra?: string;
   },
 ) {
+  const codigoSequencial = await nextCodigoSequencial(empresaId);
   return prisma.projeto.create({
     data: {
       empresaId,
+      codigoSequencial,
       clienteId: data.clienteId,
       titulo: data.titulo,
       descricao: data.descricao,

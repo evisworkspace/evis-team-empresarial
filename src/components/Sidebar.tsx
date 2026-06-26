@@ -126,6 +126,13 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
             <TasksIcon className="sidebar-link-icon" />
             Tarefas
           </Link>
+          <Link
+            href="/dashboard/diario"
+            className={`sidebar-link ${isActive("/dashboard/diario") ? "active" : ""}`}
+          >
+            <ActivityIcon className="sidebar-link-icon" />
+            Diário
+          </Link>
         </div>
 
         {/* Financeiro Obra (collapsible) */}

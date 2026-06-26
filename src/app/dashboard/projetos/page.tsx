@@ -423,9 +423,9 @@ export default async function ProjetosPage({
                   const pr = p as typeof p & { prioridade?: string | null; tipoObra?: string | null; valorEstimado?: number | null; metragemEstimada?: number | null };
                   return (
                     <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", width: 48 }}>
+                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", width: 64 }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", fontWeight: 600 }}>
-                          #{String(rowIdx + 1).padStart(3, "0")}
+                          {p.codigoSequencial ?? `#${String(rowIdx + 1).padStart(3, "0")}`}
                         </span>
                       </td>
                       <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
@@ -503,8 +503,11 @@ export default async function ProjetosPage({
                     <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
                       <Link href={`/dashboard/projetos/${p.id}`} style={{ textDecoration: "none" }}>
                         <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
+                        {p.codigoSequencial && (
+                          <div style={{ fontSize: 11, color: "var(--clr-primary)", fontFamily: "var(--font-mono)", fontWeight: 600, marginTop: 2 }}>{p.codigoSequencial}</div>
+                        )}
                         {p.numeroObra && (
-                          <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>#{p.numeroObra}</div>
+                          <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>Nr. {p.numeroObra}</div>
                         )}
                       </Link>
                     </td>

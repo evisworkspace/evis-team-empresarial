@@ -232,6 +232,9 @@ function OportunidadeView({
         <div className="obra-title-block">
           <div className="obra-meta">
             <span className="badge badge-oportunidade">Oportunidade</span>
+            {projeto.codigoSequencial && (
+              <span className="tipo-tag" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{projeto.codigoSequencial}</span>
+            )}
             {isPerdida && (
               <span className="badge" style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}>
                 Perdida
@@ -890,7 +893,10 @@ function CentralDaObraView({
         <div className="obra-title-block">
           <div className="obra-meta">
             <span className="badge badge-obra">Obra</span>
-            {projeto.numeroObra && <span className="tipo-tag">#{projeto.numeroObra}</span>}
+            {projeto.codigoSequencial && (
+              <span className="tipo-tag" style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{projeto.codigoSequencial}</span>
+            )}
+            {projeto.numeroObra && <span className="tipo-tag">Nr. {projeto.numeroObra}</span>}
             {tarefasAtrasadas > 0 && (
               <span className="badge" style={{ background: "rgba(239,68,68,.1)", color: "var(--clr-danger)", border: "1px solid rgba(239,68,68,.25)" }}>
                 ⚠ {tarefasAtrasadas} atrasada{tarefasAtrasadas !== 1 ? "s" : ""}

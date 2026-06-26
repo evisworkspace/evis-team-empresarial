@@ -187,6 +187,7 @@ model Projeto {
   medicoes    Medicao[]
   diariosObra DiarioDeObra[]
 
+  @@unique([empresaId, codigoSequencial])
   @@unique([empresaId, numeroObra])
   @@index([empresaId, stage, statusInterno])
   @@index([clienteId])
