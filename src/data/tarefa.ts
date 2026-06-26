@@ -10,6 +10,7 @@ export function listTarefasByEmpresa(
     where: {
       empresaId,
       deletedAt: null,
+      projeto: { deletedAt: null },
       ...(opts?.status ? { status: opts.status } : {}),
     },
     include: {

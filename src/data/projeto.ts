@@ -207,10 +207,30 @@ export async function sumValorEstimadoByEmpresa(
 }
 
 export async function softDeleteProjeto(empresaId: string, projetoId: string) {
-  return prisma.projeto.updateMany({
-    where: { id: projetoId, empresaId, deletedAt: null },
-    data: { deletedAt: new Date() },
-  })
+  const now = new Date();
+  const results = await prisma.$transaction([
+    prisma.tarefa.updateMany({
+      where: { projetoId, empresaId, deletedAt: null },
+      data: { deletedAt: now },
+    }),
+    prisma.lancamentoFinanceiro.updateMany({
+      where: { projetoId, empresaId, deletedAt: null },
+      data: { deletedAt: now },
+    }),
+    prisma.anotacao.updateMany({
+      where: { projetoId, empresaId, deletedAt: null },
+      data: { deletedAt: now },
+    }),
+    prisma.projetoItemOrcamento.updateMany({
+      where: { projetoId, empresaId, deletedAt: null },
+      data: { deletedAt: now },
+    }),
+    prisma.projeto.updateMany({
+      where: { id: projetoId, empresaId, deletedAt: null },
+      data: { deletedAt: now },
+    }),
+  ]);
+  return results[results.length - 1];
 }
 
 export async function hardDeleteProjeto(empresaId: string, projetoId: string) {

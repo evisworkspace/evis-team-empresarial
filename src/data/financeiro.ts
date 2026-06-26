@@ -26,6 +26,7 @@ export function listLancamentosByEmpresa(
     where: {
       empresaId,
       deletedAt: null,
+      projeto: { deletedAt: null },
       ...(opts?.tipo ? { tipo: opts.tipo } : {}),
       ...(opts?.categoriaId ? { categoriaFinanceiraId: opts.categoriaId } : {}),
     },
@@ -43,7 +44,7 @@ export function listLancamentosByEmpresa(
 
 export async function sumLancamentosByEmpresa(empresaId: string) {
   const lancamentos = await prisma.lancamentoFinanceiro.findMany({
-    where: { empresaId, deletedAt: null, status: { not: "cancelado" } },
+    where: { empresaId, deletedAt: null, projeto: { deletedAt: null }, status: { not: "cancelado" } },
     select: { tipo: true, valor: true },
   });
 
