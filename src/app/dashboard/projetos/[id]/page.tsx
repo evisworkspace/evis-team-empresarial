@@ -631,6 +631,11 @@ function OportunidadeView({
                         </div>
                       )}
                       <span className={`badge badge-${t.status}`} style={{ fontSize: 10 }}>{t.status.replace("_", " ")}</span>
+                      {t.origem === "sugerida_ia" && (
+                        <span className="badge" style={{ fontSize: 10, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}>
+                          IA
+                        </span>
+                      )}
                       <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
                         <form action={deletarTarefa}>
                           <input type="hidden" name="tarefaId" value={t.id} />
@@ -1212,6 +1217,11 @@ function CentralDaObraView({
                         </div>
                       )}
                       <span className={`badge badge-${t.status}`} style={{ fontSize: 10 }}>{t.status.replace("_", " ")}</span>
+                      {t.origem === "sugerida_ia" && (
+                        <span className="badge" style={{ fontSize: 10, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}>
+                          IA
+                        </span>
+                      )}
                       <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
                         <form action={deletarTarefa}>
                           <input type="hidden" name="tarefaId" value={t.id} />

@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listAtividadesGlobais } from "@/data/projetoAtividade";
+import { listProjetosByEmpresa } from "@/data/projeto";
+import { processarEntradaLia } from "@/actions/ai/liaDispatch";
 import { ActivityIcon } from "@/components/Icons";
+import CapturaOperacionalPanel from "@/components/CapturaOperacionalPanel";
+import LiaHitlPanel from "@/components/LiaHitlPanel";
 
 export const metadata: Metadata = { title: "Diário" };
 
@@ -25,10 +30,55 @@ const TIPO_LABEL: Record<string, string> = {
   outro: "Outro",
 };
 
-export default async function DiarioPage() {
+function FeedbackBanner({ type, children }: { type: "erro" | "aviso" | "sucesso"; children: ReactNode }) {
+  const styles = {
+    erro: { background: "#fef2f2", border: "#fca5a5", color: "#991b1b" },
+    aviso: { background: "#fffbeb", border: "#fcd34d", color: "#92400e" },
+    sucesso: { background: "#f0fdf4", border: "#86efac", color: "#166534" },
+  }[type];
+
+  return (
+    <div style={{
+      background: styles.background,
+      border: `1px solid ${styles.border}`,
+      borderRadius: "var(--r-md)",
+      color: styles.color,
+      fontSize: 13,
+      fontWeight: 500,
+      marginBottom: 14,
+      padding: "10px 14px",
+    }}>
+      {children}
+    </div>
+  );
+}
+
+export default async function DiarioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    proposicoes?: string;
+    total?: string;
+    totalOriginal?: string;
+    confirmados?: string;
+    erro?: string;
+    aviso?: string;
+    confirmado?: string;
+  }>;
+}) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
-  const atividades = await listAtividadesGlobais(empresaId, 200);
+  const { proposicoes, total, totalOriginal, confirmados, erro, aviso, confirmado } = await searchParams;
+  const [atividades, oportunidades, obras] = await Promise.all([
+    listAtividadesGlobais(empresaId, 200),
+    listProjetosByEmpresa(empresaId, { stage: "oportunidade", take: 100 }),
+    listProjetosByEmpresa(empresaId, { stage: "obra", take: 100 }),
+  ]);
+  const projetos = [...oportunidades, ...obras].map((projeto) => ({
+    id: projeto.id,
+    titulo: projeto.titulo,
+    codigoSequencial: projeto.codigoSequencial,
+  }));
 
   // Agrupar por dia (YYYY-MM-DD no fuso local do servidor)
   const grupos = new Map<string, typeof atividades>();
@@ -59,6 +109,29 @@ export default async function DiarioPage() {
           </div>
         </div>
       </div>
+
+      {erro && <FeedbackBanner type="erro">{erro}</FeedbackBanner>}
+      {aviso && <FeedbackBanner type="aviso">{aviso}</FeedbackBanner>}
+      {confirmado === "1" && (
+        <FeedbackBanner type="sucesso">
+          Item confirmado pela Lia.
+        </FeedbackBanner>
+      )}
+
+      {proposicoes && (
+        <LiaHitlPanel
+          proposicoesEncoded={proposicoes}
+          total={total}
+          totalOriginal={totalOriginal}
+          confirmados={confirmados}
+          projetos={projetos}
+        />
+      )}
+
+      <CapturaOperacionalPanel
+        action={processarEntradaLia}
+        description="Cole uma conversa de WhatsApp, relato de visita, lista de tarefas ou qualquer dado operacional. A Lia lê, classifica e propõe o que fazer — você aprova cada item antes de salvar."
+      />
 
       {atividades.length === 0 ? (
         <div className="card" style={{ padding: "48px 24px", textAlign: "center" }}>

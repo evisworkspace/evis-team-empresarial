@@ -126,6 +126,12 @@ export default async function NovaOportunidade({
       <form action={criarProjeto}>
         <input type="hidden" name="stage" value={defaultStage ?? "oportunidade"} />
         {statusInicial && <input type="hidden" name="statusInicial" value={statusInicial} />}
+        {agenteFilled === "1" && aTarefas && (
+          <input type="hidden" name="tarefasSugeridas" value={aTarefas} />
+        )}
+        {agenteFilled === "1" && aPendencias && (
+          <input type="hidden" name="pendenciasAgente" value={aPendencias} />
+        )}
 
         {/* Nota de cliente detectado pelo agente */}
         {aClienteNome && (

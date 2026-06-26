@@ -155,6 +155,11 @@ export default async function TarefasPage({
                         <div className={t.status === "concluida" ? "task-desc--done" : ""} style={{ color: "var(--clr-text)" }}>
                           {t.descricao}
                         </div>
+                        {t.origem === "sugerida_ia" && (
+                          <span className="badge" style={{ fontSize: 10, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}>
+                            IA
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td style={{ color: "var(--clr-text-secondary)", fontSize: 13 }}>
