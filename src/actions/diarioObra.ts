@@ -9,7 +9,7 @@ import {
   updateDiarioStatus,
   updateItemHITLStatus,
 } from "@/data/diarioObra";
-import { processarDiarioCanteiro } from "@/actions/ai/canteiro";
+import { processarDiarioCanteiro, type ContextoObra } from "@/actions/ai/canteiro";
 import { createTarefa } from "@/data/tarefa";
 import { prisma } from "@/lib/prisma";
 
@@ -43,7 +43,34 @@ export async function criarDiario(formData: FormData) {
   // Processar com Canteiro IA (não bloqueia se falhar)
   try {
     await updateDiarioStatus(empresaId, diario.id, "processando");
-    const itens = await processarDiarioCanteiro(descricao, dataReferencia);
+
+    // Montar contexto da obra para melhorar qualidade da extração
+    const projeto = await prisma.projeto.findFirst({
+      where: { id: projetoId, empresaId },
+      select: {
+        titulo: true,
+        stage: true,
+        tipoObra: true,
+        itensOrcamento: {
+          select: { nome: true, grupo: true },
+          take: 20,
+        },
+      },
+    });
+
+    const contextoObra: ContextoObra | undefined = projeto
+      ? {
+          nomeObra: projeto.titulo,
+          stage: projeto.stage as "oportunidade" | "obra",
+          tipoObra: projeto.tipoObra,
+          itensOrcamento: projeto.itensOrcamento.map((i) => ({
+            nome: i.nome,
+            categoria: i.grupo ?? null,
+          })),
+        }
+      : undefined;
+
+    const itens = await processarDiarioCanteiro(descricao, dataReferencia, contextoObra);
     if (itens.length > 0) {
       await createItensHITL(
         diario.id,

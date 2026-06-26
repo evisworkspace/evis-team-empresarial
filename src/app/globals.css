@@ -1558,23 +1558,25 @@ table.evis-table {
 
 .obra-tab-panel { display: none; }
 
-/* Ordem: Geral(1) · Tarefas(2) · Financeiro(3) · Histórico(4) · Orçamento(5) · Planejamento(6) · Compras(7) · Anotações(8) · Diário(9) · Agentes(10) */
+/* Ordem: Geral(1) · Atividades(2) · Tarefas(3) · Financeiro(4) · Histórico(5) · Orçamento(6) · Planejamento(7) · Compras(8) · Anotações(9) · Diário(10) · Agentes(11) */
 #tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
-#tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
-#tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
-#tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(4),
-#tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
-#tab-planejamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
-#tab-compras:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
-#tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
-#tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
-#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10) {
+#tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
+#tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
+#tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(4),
+#tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
+#tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
+#tab-planejamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
+#tab-compras:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
+#tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
+#tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10),
+#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(11) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
 }
 
 #tab-geral:checked ~ .obra-tabs-panels .panel-geral { display: block; }
+#tab-atividades:checked ~ .obra-tabs-panels .panel-atividades { display: block; }
 #tab-tarefas:checked ~ .obra-tabs-panels .panel-tarefas { display: block; }
 #tab-financeiro:checked ~ .obra-tabs-panels .panel-financeiro { display: block; }
 #tab-historico:checked ~ .obra-tabs-panels .panel-historico { display: block; }
@@ -1930,7 +1932,7 @@ table.evis-table {
 #cm-novo:checked ~ .cm-section-novo { display: block; }
 
 /* ── Tabs da oportunidade (workspace comercial) ───────────── */
-/* Ordem: Geral(1) · Cliente(2) · Atividades(3) · Tarefas(4) · Financeiro(5) · Histórico(6) · Orçamento(7) · Propostas(8) · Anotações(9) · Agentes(10) */
+/* Ordem: Geral(1) · Cliente(2) · Atividades(3) · Tarefas(4) · Financeiro(5) · Histórico(6) · Orçamento(7) · Propostas(8) · Anotações(9) · Diário(10) · Agentes(11) */
 #op-tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
 #op-tab-cliente:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
 #op-tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
@@ -1940,7 +1942,8 @@ table.evis-table {
 #op-tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
 #op-tab-propostas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
 #op-tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
-#op-tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10) {
+#op-tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10),
+#op-tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(11) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
@@ -1955,6 +1958,7 @@ table.evis-table {
 #op-tab-orcamento:checked ~ .obra-tabs-panels .op-panel-orcamento { display: block; }
 #op-tab-propostas:checked ~ .obra-tabs-panels .op-panel-propostas { display: block; }
 #op-tab-anotacoes:checked ~ .obra-tabs-panels .op-panel-anotacoes { display: block; }
+#op-tab-diario:checked ~ .obra-tabs-panels .op-panel-diario { display: block; }
 #op-tab-agentes:checked ~ .obra-tabs-panels .op-panel-agentes { display: block; }
 
 /* ============================================================

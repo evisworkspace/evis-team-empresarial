@@ -206,12 +206,14 @@ function OportunidadeView({
   orcamento,
   financeiroFormLists,
   clientes,
+  diariosObra,
 }: {
   projeto: ProjetoDetalhes;
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
   clientes: { id: string; nome: string }[];
+  diariosObra: React.ComponentProps<typeof DiarioTab>["diarios"];
 }) {
   const isPerdida = projeto.statusInterno === "perdido";
   const isGanho = projeto.statusInterno === "ganho";
@@ -338,6 +340,7 @@ function OportunidadeView({
         <input type="radio" name="op-tab" id="op-tab-orcamento" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-propostas" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-anotacoes" className="obra-tab-radio" />
+        <input type="radio" name="op-tab" id="op-tab-diario" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-agentes" className="obra-tab-radio" />
 
         <div className="obra-tabs-nav">
@@ -356,6 +359,7 @@ function OportunidadeView({
           <label htmlFor="op-tab-anotacoes" className="obra-tab-label">
             Anotações{projeto.anotacoes.length > 0 ? ` (${projeto.anotacoes.length})` : ""}
           </label>
+          <label htmlFor="op-tab-diario" className="obra-tab-label">Diário</label>
           <label htmlFor="op-tab-agentes" className="obra-tab-label">Agentes</label>
         </div>
 
@@ -845,6 +849,15 @@ function OportunidadeView({
             </div>
           </div>
 
+          {/* ── Diário ────────────────────────────────────────────── */}
+          <div className="obra-tab-panel op-panel-diario">
+            <DiarioTab
+              projetoId={projeto.id}
+              diarios={diariosObra}
+              actions={{ criarDiario, aprovarItem: aprovarItemHITL, rejeitarItem: rejeitarItemHITL }}
+            />
+          </div>
+
           {/* ── Agentes ───────────────────────────────────────────── */}
           <div className="obra-tab-panel op-panel-agentes">
             <div className="obra-card obra-card--full">
@@ -954,6 +967,7 @@ function CentralDaObraView({
       {/* Tabs CSS-only — Lote 10E */}
       <div className="obra-tabs">
         <input type="radio" name="obra-tab" id="tab-geral" className="obra-tab-radio" defaultChecked />
+        <input type="radio" name="obra-tab" id="tab-atividades" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-tarefas" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-financeiro" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-historico" className="obra-tab-radio" />
@@ -966,6 +980,9 @@ function CentralDaObraView({
 
         <div className="obra-tabs-nav">
           <label htmlFor="tab-geral" className="obra-tab-label">Visão Geral</label>
+          <label htmlFor="tab-atividades" className="obra-tab-label">
+            Atividades{projeto.atividades.length > 0 ? ` (${projeto.atividades.length})` : ""}
+          </label>
           <label htmlFor="tab-tarefas" className="obra-tab-label">Tarefas{totalTarefas > 0 ? ` (${totalTarefas})` : ""}</label>
           <label htmlFor="tab-financeiro" className="obra-tab-label">Financeiro</label>
           <label htmlFor="tab-historico" className="obra-tab-label">Histórico</label>
@@ -1155,6 +1172,94 @@ function CentralDaObraView({
                   </form>
                 </div>
               </details>
+            </div>
+          </div>
+
+          {/* Atividades */}
+          <div className="obra-tab-panel panel-atividades">
+            <div className="obra-card obra-card--full">
+              <div className="obra-card-header">
+                <span className="obra-card-label"><ActivityIcon size={13} /> Atividades comerciais</span>
+                <span style={{ fontSize: 12, color: "var(--clr-text-muted)" }}>
+                  {projeto.atividades.length} registro{projeto.atividades.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              {/* Form de nova atividade */}
+              <form action={criarAtividadeProjeto} style={{ marginBottom: 20, padding: "14px 16px", background: "var(--clr-surface)", borderRadius: "var(--r-md)", border: "1px solid var(--clr-border)" }}>
+                <input type="hidden" name="projetoId" value={projeto.id} />
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--clr-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
+                  Registrar nova atividade
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+                  <select name="tipo" className="form-input form-select" required style={{ width: 140, flexShrink: 0 }}>
+                    <option value="">Tipo...</option>
+                    <option value="ligacao">Ligação</option>
+                    <option value="visita">Visita</option>
+                    <option value="email">E-mail</option>
+                    <option value="reuniao">Reunião</option>
+                    <option value="nota">Nota</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                  <textarea
+                    name="descricao"
+                    className="form-input"
+                    placeholder="Descreva o contato, próximo passo ou observação relevante..."
+                    required
+                    minLength={2}
+                    maxLength={1000}
+                    rows={2}
+                    style={{ flex: 1, minWidth: 200, resize: "vertical" }}
+                  />
+                  <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0, alignSelf: "flex-end" }}>
+                    <PlusIcon size={13} /> Salvar
+                  </button>
+                </div>
+              </form>
+
+              {/* Lista de atividades */}
+              {projeto.atividades.length === 0 ? (
+                <div className="placeholder-block">Nenhuma atividade registrada. Use o campo acima para registrar ligações, visitas e notas.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  {projeto.atividades.map((a) => (
+                    <div key={a.id} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--clr-border-light)", flexWrap: "wrap" }}>
+                      <div style={{
+                        flexShrink: 0,
+                        width: 70,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--clr-primary)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        paddingTop: 2,
+                      }}>
+                        {atividadeTipoLabel(a.tipo)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "var(--clr-text)", lineHeight: 1.6 }}>{a.descricao}</div>
+                        <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 3 }}>
+                          {new Date(a.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                        <details style={{ marginTop: 6 }}>
+                          <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                          <form action={editarAtividade} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                            <input type="hidden" name="atividadeId" value={a.id} />
+                            <input type="hidden" name="projetoId" value={projeto.id} />
+                            <textarea name="descricao" className="form-input" defaultValue={a.descricao} required minLength={2} maxLength={1000} rows={2} style={{ flex: 1, minWidth: 200, resize: "vertical" }} />
+                            <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0, alignSelf: "flex-end" }}>Salvar</button>
+                          </form>
+                        </details>
+                      </div>
+                      <form action={deletarAtividade} style={{ flexShrink: 0 }}>
+                        <input type="hidden" name="atividadeId" value={a.id} />
+                        <input type="hidden" name="projetoId" value={projeto.id} />
+                        <button type="submit" title="Excluir" style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--clr-text-muted)", fontSize: 13, lineHeight: 1 }}>✕</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1555,6 +1660,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
         clientes={todosClientes.map((c) => ({ id: c.id, nome: c.nome }))}
+        diariosObra={projeto.diariosObra}
       />
     );
   }

@@ -72,6 +72,10 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const [editing, setEditing] = useState<Record<string, { titulo: string; descricao: string } | null>>({});
+  const [confirmedEdits, setConfirmedEdits] = useState<Record<string, { titulo: string; descricao: string }>>({});
+  const [expandedRdo, setExpandedRdo] = useState<string | null>(null);
+
   const pendentes = diarios.flatMap((d) =>
     d.itensHITL.filter((i) => i.status === "pendente").map((i) => ({ ...i, diarioNumero: d.numero, diarioData: d.data }))
   );
@@ -90,12 +94,13 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
   }
 
   function handleAprovar(item: typeof pendentes[0]) {
+    const edits = confirmedEdits[item.id];
     const fd = new FormData();
     fd.set("itemId", item.id);
     fd.set("projetoId", projetoId);
     fd.set("tipo", item.tipo);
-    fd.set("titulo", item.titulo);
-    fd.set("descricao", item.descricao ?? item.titulo);
+    fd.set("titulo", edits?.titulo ?? item.titulo);
+    fd.set("descricao", edits?.descricao ?? (item.descricao ?? item.titulo));
     fd.set("prioridade", item.prioridade ?? "media");
     if (item.dataSugerida) fd.set("dataSugerida", formatIso(item.dataSugerida));
     startTransition(() => actions.aprovarItem(fd));
@@ -191,6 +196,11 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
               const cor = TIPO_COLORS[item.tipo] ?? "#64748b";
               const label = TIPO_LABELS[item.tipo] ?? item.tipo;
               const pct = Math.round(Number(item.confianca) * 100);
+              const isEditing = !!editing[item.id];
+              const edits = confirmedEdits[item.id];
+              const displayTitulo = edits?.titulo ?? item.titulo;
+              const displayDescricao = edits?.descricao ?? (item.descricao ?? item.titulo);
+
               return (
                 <div key={item.id} style={{
                   border: `1px solid ${cor}33`,
@@ -223,55 +233,139 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
                           {pct}% confiança
                         </span>
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--clr-text)", marginBottom: 4 }}>
-                        {item.titulo}
-                      </div>
-                      {item.descricao && item.descricao !== item.titulo && (
-                        <div style={{ fontSize: 13, color: "var(--clr-text-secondary)", marginBottom: 6 }}>
-                          {item.descricao}
+                      
+                      {isEditing ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={editing[item.id]!.titulo}
+                            onChange={(e) => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id]!, titulo: e.target.value } }))}
+                            placeholder="Título"
+                            style={{ fontSize: 13, fontWeight: 600 }}
+                          />
+                          <textarea
+                            className="form-input"
+                            value={editing[item.id]!.descricao}
+                            onChange={(e) => setEditing(prev => ({ ...prev, [item.id]: { ...prev[item.id]!, descricao: e.target.value } }))}
+                            placeholder="Descrição"
+                            rows={2}
+                            style={{ fontSize: 13, resize: "vertical" }}
+                          />
                         </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--clr-text)", marginBottom: 4 }}>
+                            {displayTitulo}
+                          </div>
+                          {displayDescricao && displayDescricao !== displayTitulo && (
+                            <div style={{ fontSize: 13, color: "var(--clr-text-secondary)", marginBottom: 6 }}>
+                              {displayDescricao}
+                            </div>
+                          )}
+                        </>
                       )}
+
                       {item.motivoDeteccao && (
                         <div style={{ fontSize: 11, color: "var(--clr-text-muted)", fontStyle: "italic" }}>
                           RDO #{item.diarioNumero} · {formatDate(item.diarioData)} · {item.motivoDeteccao}
                         </div>
                       )}
                     </div>
+                    
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => handleAprovar(item)}
-                        style={{
-                          padding: "6px 14px",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          borderRadius: "var(--r-sm)",
-                          border: "1px solid var(--clr-success)",
-                          background: "var(--clr-success)",
-                          color: "#fff",
-                          cursor: pending ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        Aprovar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => handleRejeitar(item.id)}
-                        style={{
-                          padding: "6px 12px",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          borderRadius: "var(--r-sm)",
-                          border: "1px solid var(--clr-border)",
-                          background: "transparent",
-                          color: "var(--clr-text-secondary)",
-                          cursor: pending ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        Rejeitar
-                      </button>
+                      {isEditing ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmedEdits(prev => ({ ...prev, [item.id]: editing[item.id]! }));
+                              setEditing(prev => ({ ...prev, [item.id]: null }));
+                            }}
+                            style={{
+                              padding: "6px 14px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              borderRadius: "var(--r-sm)",
+                              border: "1px solid var(--clr-primary)",
+                              background: "var(--clr-primary)",
+                              color: "#fff",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditing(prev => ({ ...prev, [item.id]: null }))}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              borderRadius: "var(--r-sm)",
+                              border: "1px solid var(--clr-border)",
+                              background: "transparent",
+                              color: "var(--clr-text-secondary)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setEditing(prev => ({ ...prev, [item.id]: { titulo: displayTitulo, descricao: displayDescricao } }))}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              borderRadius: "var(--r-sm)",
+                              border: "1px solid var(--clr-border)",
+                              background: "transparent",
+                              color: "var(--clr-text-secondary)",
+                              cursor: pending ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => handleAprovar(item)}
+                            style={{
+                              padding: "6px 14px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              borderRadius: "var(--r-sm)",
+                              border: "1px solid var(--clr-success)",
+                              background: "var(--clr-success)",
+                              color: "#fff",
+                              cursor: pending ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            Aprovar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => handleRejeitar(item.id)}
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              borderRadius: "var(--r-sm)",
+                              border: "1px solid var(--clr-border)",
+                              background: "transparent",
+                              color: "var(--clr-text-secondary)",
+                              cursor: pending ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            Rejeitar
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -304,6 +398,7 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
             {diarios.map((d) => {
               const aprovados = d.itensHITL.filter((i) => i.status === "aprovado").length;
               const rejeitados = d.itensHITL.filter((i) => i.status === "rejeitado").length;
+              const isExpanded = expandedRdo === d.id;
               return (
                 <div key={d.id} style={{
                   border: "1px solid var(--clr-border)",
@@ -312,8 +407,24 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--clr-text)" }}>
-                        RDO #{d.numero} · {formatDate(d.data)}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--clr-text)" }}>
+                          RDO #{d.numero} · {formatDate(d.data)}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRdo(isExpanded ? null : d.id)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            fontSize: 12,
+                            color: "var(--clr-primary)",
+                            cursor: "pointer",
+                            padding: "0 4px",
+                          }}
+                        >
+                          {isExpanded ? "Ocultar itens" : "Ver itens"}
+                        </button>
                       </div>
                       <div style={{ fontSize: 12, color: "var(--clr-text-secondary)", marginTop: 4, whiteSpace: "pre-wrap" }}>
                         {d.descricao.length > 180 ? d.descricao.substring(0, 180) + "..." : d.descricao}
@@ -331,6 +442,44 @@ export function DiarioTab({ projetoId, diarios, actions }: Props) {
                       </div>
                     </div>
                   </div>
+                  
+                  {isExpanded && d.itensHITL.length > 0 && (
+                    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--clr-border-light)", display: "flex", flexDirection: "column", gap: 8 }}>
+                      {d.itensHITL.map(item => {
+                        const cor = TIPO_COLORS[item.tipo] ?? "#64748b";
+                        const label = TIPO_LABELS[item.tipo] ?? item.tipo;
+                        return (
+                          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              color: cor,
+                              background: `${cor}18`,
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                            }}>
+                              {label}
+                            </span>
+                            <span style={{ color: "var(--clr-text)", fontWeight: 500 }}>{item.titulo}</span>
+                            <span style={{
+                              marginLeft: "auto",
+                              fontSize: 11,
+                              color: item.status === "aprovado" ? "var(--clr-success)" : item.status === "rejeitado" ? "var(--clr-danger)" : "var(--clr-text-muted)",
+                            }}>
+                              {item.status}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {isExpanded && d.itensHITL.length === 0 && (
+                    <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--clr-border-light)", fontSize: 12, color: "var(--clr-text-muted)" }}>
+                      Nenhum item detectado neste RDO.
+                    </div>
+                  )}
                 </div>
               );
             })}
