@@ -52,6 +52,55 @@ interface ExtracaoOportunidade {
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const GEMINI_MODEL_PRIMARY =
+  process.env.GEMINI_MODEL_CAPTURA?.trim() ||
+  process.env.GEMINI_MODEL?.trim() ||
+  "gemini-2.5-flash";
+const GEMINI_MODEL_FALLBACK = "gemini-2.0-flash";
+
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    titulo: { type: "string" },
+    descricao: { type: "string" },
+    tipoObra: { type: "string" },
+    origem: { type: "string" },
+    prioridade: { type: "string" },
+    statusInicial: { type: "string" },
+    dataInicioEstimada: { type: "string" },
+    metragemEstimada: { type: "number" },
+    valorEstimado: { type: "number" },
+    valorGanhoEstimativa: { type: "number" },
+    cepObra: { type: "string" },
+    logradouroObra: { type: "string" },
+    numeroEnderecoObra: { type: "string" },
+    complementoObra: { type: "string" },
+    bairroObra: { type: "string" },
+    cidadeObra: { type: "string" },
+    estadoObra: { type: "string" },
+    clienteNome: { type: "string" },
+    clienteTelefone: { type: "string" },
+    pendencias: { type: "array", items: { type: "string" } },
+    tarefasSugeridas: { type: "array", items: { type: "string" } },
+    itensSemDestino: { type: "array", items: { type: "string" } },
+  },
+  required: [
+    "titulo", "descricao", "tipoObra", "origem", "prioridade",
+    "statusInicial", "dataInicioEstimada", "metragemEstimada", "valorEstimado",
+    "valorGanhoEstimativa", "cepObra", "logradouroObra", "numeroEnderecoObra",
+    "complementoObra", "bairroObra", "cidadeObra", "estadoObra",
+    "clienteNome", "clienteTelefone", "pendencias", "tarefasSugeridas", "itensSemDestino",
+  ],
+  propertyOrdering: [
+    "titulo", "clienteNome", "clienteTelefone",
+    "tipoObra", "origem", "prioridade", "statusInicial",
+    "dataInicioEstimada", "metragemEstimada", "valorEstimado",
+    "valorGanhoEstimativa", "descricao",
+    "cepObra", "logradouroObra", "numeroEnderecoObra",
+    "complementoObra", "bairroObra", "cidadeObra", "estadoObra",
+    "pendencias", "tarefasSugeridas", "itensSemDestino",
+  ],
+};
 
 function setIf(params: URLSearchParams, key: string, value: string | number | undefined) {
   if (typeof value === "number") {
@@ -61,6 +110,65 @@ function setIf(params: URLSearchParams, key: string, value: string | number | un
 
   const clean = value?.trim();
   if (clean) params.set(key, clean);
+}
+
+function getGeminiErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("RESOURCE_EXHAUSTED") || message.includes("429") || /quota/i.test(message)) {
+    return "Limite da API Gemini atingido. Tente novamente em instantes ou verifique o plano/chave da API.";
+  }
+
+  if (
+    message.includes("PERMISSION_DENIED") ||
+    message.includes("UNAUTHENTICATED") ||
+    /api key/i.test(message)
+  ) {
+    return "Falha de autenticação no Gemini. Verifique a GEMINI_API_KEY.";
+  }
+
+  if (message.includes("UNAVAILABLE") || message.includes("503")) {
+    return "Gemini indisponível no momento. Tente novamente em instantes.";
+  }
+
+  if (/empty response|json/i.test(message)) {
+    return "O Gemini não retornou uma estrutura válida. Tente novamente com mais contexto.";
+  }
+
+  return "Erro na análise do Gemini. Tente novamente.";
+}
+
+function isUnavailableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("503") || message.includes("UNAVAILABLE");
+}
+
+async function chamarGemini(ai: GoogleGenAI, parts: Part[], model: string) {
+  return ai.models.generateContent({
+    model,
+    contents: [{ role: "user", parts }],
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      thinkingConfig: { thinkingBudget: 0 },
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+    },
+  });
+}
+
+async function chamarGeminiComFallback(ai: GoogleGenAI, parts: Part[]) {
+  try {
+    return await chamarGemini(ai, parts, GEMINI_MODEL_PRIMARY);
+  } catch (primaryError) {
+    if (isUnavailableError(primaryError) && GEMINI_MODEL_PRIMARY !== GEMINI_MODEL_FALLBACK) {
+      console.warn(
+        `[Captura Operacional] Modelo ${GEMINI_MODEL_PRIMARY} indisponível, tentando ${GEMINI_MODEL_FALLBACK}`,
+      );
+      return chamarGemini(ai, parts, GEMINI_MODEL_FALLBACK);
+    }
+
+    throw primaryError;
+  }
 }
 
 export async function preencherOportunidadeComAgente(formData: FormData) {
@@ -104,50 +212,14 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
       parts.push(createPartFromBase64(bytes.toString("base64"), imagemFile.type));
     }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts }],
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            titulo: { type: "string" },
-            descricao: { type: "string" },
-            tipoObra: { type: "string" },
-            origem: { type: "string" },
-            prioridade: { type: "string" },
-            statusInicial: { type: "string" },
-            dataInicioEstimada: { type: "string" },
-            metragemEstimada: { type: "number" },
-            valorEstimado: { type: "number" },
-            valorGanhoEstimativa: { type: "number" },
-            cepObra: { type: "string" },
-            logradouroObra: { type: "string" },
-            numeroEnderecoObra: { type: "string" },
-            complementoObra: { type: "string" },
-            bairroObra: { type: "string" },
-            cidadeObra: { type: "string" },
-            estadoObra: { type: "string" },
-            clienteNome: { type: "string" },
-            clienteTelefone: { type: "string" },
-            pendencias: { type: "array", items: { type: "string" } },
-            tarefasSugeridas: { type: "array", items: { type: "string" } },
-            itensSemDestino: { type: "array", items: { type: "string" } },
-          },
-          required: [
-            "titulo", "descricao", "tipoObra", "origem", "prioridade",
-            "statusInicial", "dataInicioEstimada", "metragemEstimada", "valorEstimado",
-            "valorGanhoEstimativa", "cepObra", "logradouroObra", "numeroEnderecoObra",
-            "complementoObra", "bairroObra", "cidadeObra", "estadoObra",
-            "clienteNome", "clienteTelefone", "pendencias", "tarefasSugeridas", "itensSemDestino",
-          ],
-        },
-      },
-    });
+    const response = await chamarGeminiComFallback(ai, parts);
 
-    const data = JSON.parse(response.text ?? "{}") as ExtracaoOportunidade;
+    const rawResponse = response.text?.trim();
+    if (!rawResponse) {
+      throw new Error("Gemini returned empty response");
+    }
+
+    const data = JSON.parse(rawResponse) as ExtracaoOportunidade;
 
     const p = new URLSearchParams();
     p.set("stage", stage);
@@ -176,8 +248,9 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
     if (data.itensSemDestino?.length > 0) p.set("semDestino", data.itensSemDestino.join(" · "));
 
     redirectTo = `/dashboard/projetos/novo?${p.toString()}`;
-  } catch {
-    redirect(`${base}&erro=${encodeURIComponent("Erro na análise. Tente novamente.")}`);
+  } catch (error) {
+    console.error("[Captura Operacional] Falha ao analisar entrada com Gemini", error);
+    redirect(`${base}&erro=${encodeURIComponent(getGeminiErrorMessage(error))}`);
   }
 
   redirect(redirectTo);
