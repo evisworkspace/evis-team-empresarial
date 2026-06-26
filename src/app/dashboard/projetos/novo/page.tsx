@@ -4,7 +4,8 @@ import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listClientesByEmpresa } from "@/data/cliente";
 import { criarProjeto } from "@/actions/projeto";
-import { PlusIcon } from "@/components/Icons";
+import { preencherOportunidadeComAgente } from "@/actions/ai/preencherOportunidade";
+import { PlusIcon, AgentsIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
 import { STATUS_OPORTUNIDADE, STATUS_OBRA } from "@/lib/status";
 import { ORIGENS_LEAD } from "@/lib/origens";
@@ -33,11 +34,24 @@ const STATUS_OBRA_VALIDOS  = Object.keys(STATUS_OBRA);
 export default async function NovaOportunidade({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; clienteId?: string; status?: string }>;
+  searchParams: Promise<{
+    stage?: string; clienteId?: string; status?: string;
+    agenteFilled?: string; erro?: string;
+    titulo?: string; descricao?: string; tipoObra?: string; origem?: string;
+    prioridade?: string; metragem?: string; valor?: string;
+    clienteNome?: string; clienteTel?: string; pendencias?: string;
+  }>;
 }) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
-  const { stage: defaultStage, clienteId: preSelectedClienteId, status: statusParam } = await searchParams;
+  const {
+    stage: defaultStage, clienteId: preSelectedClienteId, status: statusParam,
+    agenteFilled, erro,
+    titulo: aTitulo, descricao: aDescricao, tipoObra: aTipoObra, origem: aOrigem,
+    prioridade: aPrioridade, metragem: aMetragem, valor: aValor,
+    clienteNome: aClienteNome, clienteTel: aClienteTel, pendencias: aPendencias,
+  } = await searchParams;
+
   const isObra = defaultStage === "obra";
   const statusValidos = isObra ? STATUS_OBRA_VALIDOS : STATUS_FUNIL_VALIDOS;
   const statusInicial = statusParam && statusValidos.includes(statusParam) ? statusParam : undefined;
@@ -45,6 +59,15 @@ export default async function NovaOportunidade({
 
   const clientes = await listClientesByEmpresa(empresaId, { take: 100 });
   const semClientes = clientes.length === 0;
+
+  const tiposObraValidos: string[] = TIPOS_OBRA.map((t) => t.value);
+  const origensValidas: string[] = ORIGENS_LEAD.map((o) => o.value);
+  const prioridadesValidas: string[] = PRIORIDADES.map((p) => p.value);
+
+  // Sanitize agent values against allowed enums
+  const defaultTipoObra = aTipoObra && tiposObraValidos.includes(aTipoObra) ? aTipoObra : "";
+  const defaultOrigem   = aOrigem   && origensValidas.includes(aOrigem)     ? aOrigem   : (agenteFilled ? "" : "indicacao");
+  const defaultPrioridade = aPrioridade && prioridadesValidas.includes(aPrioridade) ? aPrioridade : (agenteFilled ? "" : "media");
 
   return (
     <div>
@@ -66,12 +89,89 @@ export default async function NovaOportunidade({
         </p>
       </div>
 
+      {/* ── Painel de Captura Operacional ── */}
+      {!isObra && (
+        <div style={{
+          background: "var(--clr-surface)",
+          border: "1px solid var(--clr-border)",
+          borderRadius: "var(--r-lg)",
+          padding: "20px 24px",
+          marginBottom: 24,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <AgentsIcon size={15} style={{ color: "var(--clr-primary)" }} />
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700,
+              textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--clr-primary)",
+            }}>
+              Captura Operacional
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--clr-text-muted)", marginBottom: 16 }}>
+            Cole uma conversa, mensagem ou relato. O agente preenche os campos automaticamente — você revisa antes de salvar.
+          </p>
+
+          {/* Banners de resultado */}
+          {erro && (
+            <div style={{
+              background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "var(--r-md)",
+              padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#991b1b",
+            }}>
+              {decodeURIComponent(erro)}
+            </div>
+          )}
+
+          {agenteFilled === "1" && !erro && (
+            <div style={{
+              background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "var(--r-md)",
+              padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#166534",
+            }}>
+              Campos preenchidos pelo agente. Revise, edite se necessário e salve.
+              {aPendencias && (
+                <div style={{ marginTop: 6, color: "#854d0e", fontWeight: 500 }}>
+                  Pendências: {aPendencias}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mini-form de captura — separado do form principal */}
+          <form action={preencherOportunidadeComAgente}>
+            <input type="hidden" name="stage" value={defaultStage ?? "oportunidade"} />
+            <textarea
+              name="texto_captura"
+              className="form-input form-textarea"
+              placeholder="Cole aqui uma conversa de WhatsApp, mensagem, relato de visita ou qualquer texto com informações do lead..."
+              rows={4}
+              style={{ marginBottom: 10, resize: "vertical" }}
+            />
+            <button type="submit" className="btn btn-secondary btn-sm" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <AgentsIcon size={13} />
+              Preencher campos com agente
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ── Formulário principal ── */}
       <form action={criarProjeto}>
         <input type="hidden" name="stage" value={defaultStage ?? "oportunidade"} />
         {statusInicial && <input type="hidden" name="statusInicial" value={statusInicial} />}
 
+        {/* Nota de cliente detectado pelo agente */}
+        {aClienteNome && (
+          <div style={{
+            background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "var(--r-md)",
+            padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#92400e",
+          }}>
+            Cliente detectado pelo agente: <strong>{aClienteNome}</strong>
+            {aClienteTel ? ` — ${aClienteTel}` : ""}
+            {" "}— busque ou crie manualmente no painel ao lado.
+          </div>
+        )}
+
         <div className="novo-op-layout">
-          {/* ── Coluna principal: dados da oportunidade ── */}
+          {/* ── Coluna principal ── */}
           <div className="novo-op-main">
             <div className="form-card" style={{ marginBottom: 0 }}>
               <div className="form-card-title">Dados da {isObra ? "obra" : "oportunidade"}</div>
@@ -83,6 +183,7 @@ export default async function NovaOportunidade({
                   type="text"
                   className="form-input"
                   placeholder={isObra ? "Ex: Residência Silva — Construção" : "Ex: Reforma Apartamento Pedro"}
+                  defaultValue={aTitulo ?? ""}
                   required
                   minLength={2}
                   maxLength={200}
@@ -96,6 +197,7 @@ export default async function NovaOportunidade({
                   name="descricao"
                   className="form-input form-textarea"
                   placeholder="Descreva o que o cliente pediu — mensagem recebida, áudio transcrito, escopo, localização..."
+                  defaultValue={aDescricao ?? ""}
                   maxLength={2000}
                   rows={4}
                 />
@@ -105,7 +207,7 @@ export default async function NovaOportunidade({
               <div className="form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Origem do lead</label>
-                  <select name="origem" className="form-input form-select" defaultValue="indicacao">
+                  <select name="origem" className="form-input form-select" defaultValue={defaultOrigem}>
                     <option value="">Não informada</option>
                     {ORIGENS_LEAD.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
@@ -114,7 +216,7 @@ export default async function NovaOportunidade({
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Tipo de obra</label>
-                  <select name="tipoObra" className="form-input form-select" defaultValue="">
+                  <select name="tipoObra" className="form-input form-select" defaultValue={defaultTipoObra}>
                     <option value="">Não informado</option>
                     {TIPOS_OBRA.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -126,7 +228,7 @@ export default async function NovaOportunidade({
               <div className="form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Prioridade</label>
-                  <select name="prioridade" className="form-input form-select" defaultValue="media">
+                  <select name="prioridade" className="form-input form-select" defaultValue={defaultPrioridade}>
                     <option value="">Não definida</option>
                     {PRIORIDADES.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
@@ -158,6 +260,7 @@ export default async function NovaOportunidade({
                     step="0.01"
                     className="form-input"
                     placeholder="Ex: 120"
+                    defaultValue={aMetragem ?? ""}
                   />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
@@ -169,6 +272,7 @@ export default async function NovaOportunidade({
                     step="0.01"
                     className="form-input"
                     placeholder="Ex: 250000"
+                    defaultValue={aValor ?? ""}
                   />
                 </div>
               </div>
