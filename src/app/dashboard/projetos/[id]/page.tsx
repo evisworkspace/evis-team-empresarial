@@ -1660,7 +1660,14 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
         clientes={todosClientes.map((c) => ({ id: c.id, nome: c.nome }))}
-        diariosObra={projeto.diariosObra}
+        diariosObra={(projeto.diariosObra ?? []).map((d) => ({
+          ...d,
+          itensHITL: d.itensHITL.map((i) => ({
+            ...i,
+            percentual: i.percentual !== null ? Number(i.percentual) : null,
+            confianca: Number(i.confianca),
+          })),
+        }))}
       />
     );
   }
