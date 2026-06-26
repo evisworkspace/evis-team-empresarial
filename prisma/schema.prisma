@@ -61,6 +61,8 @@ model Empresa {
   centrosDeCusto        CentroDeCusto[]
   itensBiblioteca       ItemBiblioteca[]
   medicoes              Medicao[]
+  diariosObra           DiarioDeObra[]
+  diariosItemHITL       DiarioItemHITL[]
 
   @@map("empresa")
 }
@@ -182,6 +184,7 @@ model Projeto {
   atividades  ProjetoAtividade[]
   anotacoes   Anotacao[]
   medicoes    Medicao[]
+  diariosObra DiarioDeObra[]
 
   @@unique([empresaId, numeroObra])
   @@index([empresaId, stage, statusInterno])
@@ -528,6 +531,54 @@ model MedicaoItem {
   @@index([medicaoId])
   @@index([itemOrcamentoId])
   @@map("medicao_item")
+}
+
+/// Registro diário de obra (RDO) — fonte do Canteiro IA.
+model DiarioDeObra {
+  id          String    @id @default(uuid()) @db.Uuid
+  empresaId   String    @map("empresa_id") @db.Uuid
+  projetoId   String    @map("projeto_id") @db.Uuid
+  numero      Int
+  data        DateTime  @db.Date
+  status      String    @default("rascunho") @db.VarChar(30) // rascunho | processando | concluido
+  descricao   String    @db.Text
+  processado  Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  empresa     Empresa        @relation(fields: [empresaId], references: [id])
+  projeto     Projeto        @relation(fields: [projetoId], references: [id])
+  itensHITL   DiarioItemHITL[]
+
+  @@unique([projetoId, numero])
+  @@index([projetoId, data])
+  @@index([empresaId])
+  @@map("diario_de_obra")
+}
+
+/// Itens categorizados pelo Canteiro IA — aguardam HITL.
+model DiarioItemHITL {
+  id             String    @id @default(uuid()) @db.Uuid
+  empresaId      String    @map("empresa_id") @db.Uuid
+  diarioId       String    @map("diario_id") @db.Uuid
+  tipo           String    @db.VarChar(50) // visita | tarefa | atividade | proxima_demanda | registro_execucao | observacao | problema_obra
+  titulo         String    @db.VarChar(300)
+  descricao      String?   @db.Text
+  prioridade     String?   @db.VarChar(30) // urgente | alta | media | baixa
+  percentual     Decimal?  @db.Decimal(7, 4)
+  dataSugerida   DateTime? @map("data_sugerida") @db.Date
+  confianca      Decimal   @default(0.80) @db.Decimal(3, 2)
+  motivoDeteccao String?   @map("motivo_deteccao") @db.VarChar(500)
+  status         String    @default("pendente") @db.VarChar(20) // pendente | aprovado | rejeitado
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  empresa Empresa      @relation(fields: [empresaId], references: [id])
+  diario  DiarioDeObra @relation(fields: [diarioId], references: [id])
+
+  @@index([diarioId])
+  @@index([empresaId, status])
+  @@map("diario_item_hitl")
 }
 
 /// Camada de auditoria transversal — APPEND-ONLY, imutável.

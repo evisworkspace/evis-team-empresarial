@@ -10,9 +10,10 @@ import { sumLancamentosByProjeto } from "@/data/financeiro";
 import { listCategoriasByEmpresa } from "@/data/categoriaFinanceira";
 import { listCentrosCustoByEmpresa } from "@/data/centroDeCusto";
 import { listFornecedoresByEmpresa } from "@/data/fornecedor";
+import { listClientesByEmpresa } from "@/data/cliente";
 import { criarTarefa, toggleTarefaStatus, editarTarefa, deletarTarefa } from "@/actions/tarefa";
 import { criarLancamento, marcarLancamentoPago } from "@/actions/financeiro";
-import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade, editarAtividade, deletarAtividade } from "@/actions/projeto";
+import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade, editarAtividade, deletarAtividade, deletarProjeto, trocarClienteProjeto } from "@/actions/projeto";
 import { criarAnotacao, excluirAnotacao } from "@/actions/anotacao";
 import { listItensOrcamentoByProjeto, sumOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
@@ -23,7 +24,9 @@ import { PlanejamentoTab } from "@/components/obra/PlanejamentoTab";
 import { MedicoesTab } from "@/components/obra/MedicoesTab";
 import { FisicoFinanceiroTab } from "@/components/obra/FisicoFinanceiroTab";
 import { CurvaSTab } from "@/components/obra/CurvaSTab";
+import { DiarioTab } from "@/components/obra/DiarioTab";
 import { salvarPlanejamentoItem } from "@/actions/planejamento";
+import { criarDiario, aprovarItemHITL, rejeitarItemHITL } from "@/actions/diarioObra";
 import { criarMedicao } from "@/actions/medicao";
 import { LancamentoFinanceiroForm } from "@/components/financeiro/LancamentoFinanceiroForm";
 import {
@@ -202,11 +205,13 @@ function OportunidadeView({
   financeiro,
   orcamento,
   financeiroFormLists,
+  clientes,
 }: {
   projeto: ProjetoDetalhes;
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
+  clientes: { id: string; nome: string }[];
 }) {
   const isPerdida = projeto.statusInterno === "perdido";
   const isGanho = projeto.statusInterno === "ganho";
@@ -411,39 +416,56 @@ function OportunidadeView({
                 </div>
               </div>
 
-              {!isPerdida ? (
-                <div className="obra-card" style={{ border: "1px solid #fee2e2" }}>
-                  <div className="obra-card-header">
-                    <span className="obra-card-label" style={{ color: "var(--clr-danger)" }}>Arquivar oportunidade</span>
-                  </div>
-                  <p style={{ fontSize: 13, color: "var(--clr-text-secondary)", marginBottom: 12 }}>
-                    Marque como perdida se a oportunidade não avançou.
-                  </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, justifyContent: "flex-end", padding: "4px 8px" }}>
+                {!isPerdida ? (
+                  <>
+                    <form action={atualizarStatusFunil}>
+                      <input type="hidden" name="projetoId" value={projeto.id} />
+                      <button type="submit" name="statusInterno" value="perdido" className="btn btn-sm" style={{ background: "transparent", border: "none", color: "var(--clr-text-muted)" }}>
+                        Arquivar oportunidade
+                      </button>
+                    </form>
+                    {!isGanho && (
+                      <form action={atualizarStatusFunil}>
+                        <input type="hidden" name="projetoId" value={projeto.id} />
+                        <button type="submit" name="statusInterno" value="ganho" className="btn btn-secondary btn-sm" style={{ borderColor: "#86efac", color: "#166534", background: "#f0fdf4" }}>
+                          Aprovar oportunidade ✓
+                        </button>
+                      </form>
+                    )}
+                  </>
+                ) : (
                   <form action={atualizarStatusFunil}>
                     <input type="hidden" name="projetoId" value={projeto.id} />
-                    <button type="submit" name="statusInterno" value="perdido" className="btn btn-secondary" style={{ color: "var(--clr-danger)", borderColor: "#fca5a5", fontSize: 13 }}>
-                      Marcar como perdida
+                    <button type="submit" name="statusInterno" value="novo" className="btn btn-secondary btn-sm">
+                      Restaurar oportunidade
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+
+            {/* ── Zona de Perigo ─────────────────────────────────── */}
+            <div style={{ border: "1px solid #fca5a5", background: "#fef2f2", borderRadius: "var(--r-md)", padding: "14px 16px", marginTop: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#991b1b", marginBottom: 8 }}>
+                Zona de Perigo
+              </div>
+              <details>
+                <summary style={{ fontSize: 13, color: "#b91c1c", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>
+                  Excluir permanentemente este projeto
+                </summary>
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 14, lineHeight: 1.6 }}>
+                    Ação irreversível. Serão excluídos: orçamento, tarefas, lançamentos financeiros, medições, atividades e histórico de auditoria.
+                  </p>
+                  <form action={deletarProjeto}>
+                    <input type="hidden" name="projetoId" value={projeto.id} />
+                    <button type="submit" style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "var(--r-sm)", padding: "6px 14px", fontSize: 13, cursor: "pointer" }}>
+                      Excluir projeto permanentemente
                     </button>
                   </form>
                 </div>
-              ) : (
-                <div className="obra-card obra-card--full" style={{ border: "1px solid #fee2e2" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--clr-danger)" }}>Oportunidade arquivada</div>
-                      <div style={{ fontSize: 13, color: "var(--clr-text-muted)", marginTop: 4 }}>
-                        Restaure para continuar o acompanhamento.
-                      </div>
-                    </div>
-                    <form action={atualizarStatusFunil}>
-                      <input type="hidden" name="projetoId" value={projeto.id} />
-                      <button type="submit" name="statusInterno" value="novo" className="btn btn-secondary" style={{ flexShrink: 0 }}>
-                        Restaurar
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              )}
+              </details>
             </div>
           </div>
 
@@ -497,6 +519,27 @@ function OportunidadeView({
             ) : (
               <div className="callout callout--info">Nenhum cliente vinculado.</div>
             )}
+
+            {/* Trocar cliente vinculado */}
+            <div style={{ marginTop: 16 }}>
+              <details>
+                <summary style={{ fontSize: 13, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>
+                  Trocar cliente vinculado
+                </summary>
+                <form action={trocarClienteProjeto} style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <input type="hidden" name="projetoId" value={projeto.id} />
+                  <select name="clienteId" className="form-input form-select" required defaultValue={projeto.cliente?.id ?? ""} style={{ flex: 1, minWidth: 200 }}>
+                    <option value="" disabled>Selecione o cliente correto...</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
+                    ))}
+                  </select>
+                  <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>
+                    Atualizar
+                  </button>
+                </form>
+              </details>
+            </div>
           </div>
 
           {/* ── Atividades ────────────────────────────────────────── */}
@@ -848,6 +891,7 @@ function CentralDaObraView({
   financeiroFormLists,
   itensOrcamento,
   medicoes,
+  diariosObra,
 }: {
   projeto: ProjetoDetalhes;
   financeiro: Financeiro;
@@ -855,6 +899,7 @@ function CentralDaObraView({
   financeiroFormLists: FinanceiroFormLists;
   itensOrcamento: React.ComponentProps<typeof PlanejamentoTab>["itens"];
   medicoes: React.ComponentProps<typeof MedicoesTab>["medicoes"];
+  diariosObra: React.ComponentProps<typeof DiarioTab>["diarios"];
 }) {
   const now = new Date();
   const tarefasAbertas = projeto.tarefas.filter((t) => t.status === "aberta" || t.status === "em_andamento");
@@ -916,6 +961,7 @@ function CentralDaObraView({
         <input type="radio" name="obra-tab" id="tab-planejamento" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-compras" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-anotacoes" className="obra-tab-radio" />
+        <input type="radio" name="obra-tab" id="tab-diario" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-agentes" className="obra-tab-radio" />
 
         <div className="obra-tabs-nav">
@@ -929,6 +975,7 @@ function CentralDaObraView({
           <label htmlFor="tab-anotacoes" className="obra-tab-label">
             Anotações{projeto.anotacoes.length > 0 ? ` (${projeto.anotacoes.length})` : ""}
           </label>
+          <label htmlFor="tab-diario" className="obra-tab-label">Diário</label>
           <label htmlFor="tab-agentes" className="obra-tab-label">Agentes</label>
         </div>
 
@@ -1085,6 +1132,29 @@ function CentralDaObraView({
                   Reverter para Oportunidade
                 </button>
               </form>
+            </div>
+
+            {/* ── Zona de Perigo ─────────────────────────────────── */}
+            <div style={{ border: "1px solid #fca5a5", background: "#fef2f2", borderRadius: "var(--r-md)", padding: "14px 16px", marginTop: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#991b1b", marginBottom: 8 }}>
+                Zona de Perigo
+              </div>
+              <details>
+                <summary style={{ fontSize: 13, color: "#b91c1c", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>
+                  Excluir permanentemente esta obra
+                </summary>
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 14, lineHeight: 1.6 }}>
+                    Ação irreversível. Serão excluídos: orçamento, tarefas, lançamentos financeiros, medições, atividades e histórico de auditoria.
+                  </p>
+                  <form action={deletarProjeto}>
+                    <input type="hidden" name="projetoId" value={projeto.id} />
+                    <button type="submit" style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "var(--r-sm)", padding: "6px 14px", fontSize: 13, cursor: "pointer" }}>
+                      Excluir obra permanentemente
+                    </button>
+                  </form>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -1335,6 +1405,15 @@ function CentralDaObraView({
             </div>
           </div>
 
+          {/* Diário de Obra */}
+          <div className="obra-tab-panel panel-diario">
+            <DiarioTab
+              projetoId={projeto.id}
+              diarios={diariosObra}
+              actions={{ criarDiario, aprovarItem: aprovarItemHITL, rejeitarItem: rejeitarItemHITL }}
+            />
+          </div>
+
           {/* Agentes — Lote 10E */}
           <div className="obra-tab-panel panel-agentes">
             <div className="obra-card obra-card--full">
@@ -1403,7 +1482,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes] = await Promise.all([
+  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, todosClientes] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
@@ -1411,6 +1490,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     listCentrosCustoByEmpresa(empresaId, { take: 50 }),
     listFornecedoresByEmpresa(empresaId, { take: 100 }),
     listMedicoesByProjeto(empresaId, id),
+    listClientesByEmpresa(empresaId, { take: 200 }),
   ]);
 
   const itensOrcamento = itensOrcamentoRaw.map((i) => ({
@@ -1474,6 +1554,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         financeiro={financeiro}
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
+        clientes={todosClientes.map((c) => ({ id: c.id, nome: c.nome }))}
       />
     );
   }
@@ -1486,6 +1567,14 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       financeiroFormLists={financeiroFormLists}
       itensOrcamento={itensOrcamento}
       medicoes={medicoesFormatadas}
+      diariosObra={(projeto.diariosObra ?? []).map((d) => ({
+        ...d,
+        itensHITL: d.itensHITL.map((i) => ({
+          ...i,
+          percentual: i.percentual !== null ? Number(i.percentual) : null,
+          confianca: Number(i.confianca),
+        })),
+      }))}
     />
   );
 }

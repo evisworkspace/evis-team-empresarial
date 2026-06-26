@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
-import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto } from "@/data/projeto";
+import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto, hardDeleteProjeto } from "@/data/projeto";
 import { createCliente, updateCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
 import { createAtividade, editAtividade, deleteAtividade } from "@/data/projetoAtividade";
@@ -572,4 +572,31 @@ export async function provaFluxoListarProjetos() {
   });
 
   return { total: projetos.length };
+}
+
+export async function trocarClienteProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const projetoId = formData.get("projetoId") as string;
+  const clienteId = formData.get("clienteId") as string;
+
+  if (!projetoId || !clienteId) throw new Error("Dados obrigatórios.");
+
+  const result = await updateProjeto(empresaId, projetoId, { clienteId });
+  if (result.count === 0) throw new Error("Projeto não encontrado.");
+
+  revalidatePath(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function deletarProjeto(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const projetoId = formData.get("projetoId") as string;
+  if (!projetoId) throw new Error("projetoId obrigatório.");
+
+  await hardDeleteProjeto(empresaId, projetoId);
+
+  redirect("/dashboard/projetos");
 }

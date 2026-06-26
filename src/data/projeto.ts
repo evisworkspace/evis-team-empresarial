@@ -143,6 +143,7 @@ export async function updateProjeto(
   empresaId: string,
   projetoId: string,
   data: {
+    clienteId?: string;
     stage?: string;
     statusInterno?: string;
     titulo?: string;
@@ -197,6 +198,28 @@ export async function softDeleteProjeto(empresaId: string, projetoId: string) {
   })
 }
 
+export async function hardDeleteProjeto(empresaId: string, projetoId: string) {
+  return prisma.$transaction([
+    // MedicaoItem referencia Medicao e ProjetoItemOrcamento — deletar primeiro
+    prisma.medicaoItem.deleteMany({
+      where: { medicao: { projetoId, empresaId } },
+    }),
+    prisma.medicao.deleteMany({ where: { projetoId, empresaId } }),
+    // Quebrar auto-referência parent/child antes de deletar
+    prisma.projetoItemOrcamento.updateMany({
+      where: { projetoId, empresaId },
+      data: { parentId: null },
+    }),
+    prisma.projetoItemOrcamento.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.lancamentoFinanceiro.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.tarefa.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.projetoAtividade.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.anotacao.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.rastreioAuditoria.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.projeto.deleteMany({ where: { id: projetoId, empresaId } }),
+  ]);
+}
+
 export function getProjetoWithDetails(empresaId: string, projetoId: string) {
   return prisma.projeto.findFirst({
     where: { id: projetoId, empresaId, deletedAt: null },
@@ -232,6 +255,15 @@ export function getProjetoWithDetails(empresaId: string, projetoId: string) {
         where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
         take: 50,
+      },
+      diariosObra: {
+        orderBy: { data: "desc" },
+        take: 10,
+        include: {
+          itensHITL: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
       },
     },
   });

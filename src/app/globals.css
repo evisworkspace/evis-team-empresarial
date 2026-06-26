@@ -1558,7 +1558,7 @@ table.evis-table {
 
 .obra-tab-panel { display: none; }
 
-/* Ordem: Geral(1) · Tarefas(2) · Financeiro(3) · Histórico(4) · Orçamento(5) · Planejamento(6) · Compras(7) · Anotações(8) · Agentes(9) */
+/* Ordem: Geral(1) · Tarefas(2) · Financeiro(3) · Histórico(4) · Orçamento(5) · Planejamento(6) · Compras(7) · Anotações(8) · Diário(9) · Agentes(10) */
 #tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
 #tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
 #tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
@@ -1567,7 +1567,8 @@ table.evis-table {
 #tab-planejamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
 #tab-compras:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
 #tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
-#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9) {
+#tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
+#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
@@ -1581,6 +1582,7 @@ table.evis-table {
 #tab-planejamento:checked ~ .obra-tabs-panels .panel-planejamento { display: block; }
 #tab-compras:checked ~ .obra-tabs-panels .panel-compras { display: block; }
 #tab-anotacoes:checked ~ .obra-tabs-panels .panel-anotacoes { display: block; }
+#tab-diario:checked ~ .obra-tabs-panels .panel-diario { display: block; }
 #tab-agentes:checked ~ .obra-tabs-panels .panel-agentes { display: block; }
 
 /* ============================================================
