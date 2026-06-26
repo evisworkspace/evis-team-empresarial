@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { getProjetoByEmpresa } from "@/data/projeto";
-import { editarProjeto } from "@/actions/projeto";
+import { listClientesByEmpresa } from "@/data/cliente";
+import { editarProjeto, deletarProjeto, reverterParaOportunidade, trocarClienteProjeto } from "@/actions/projeto";
 import { EditIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
 
@@ -42,6 +43,8 @@ export default async function EditarProjetoPage({
   const projeto = await getProjetoByEmpresa(empresaId, id);
   if (!projeto) notFound();
 
+  const clientes = await listClientesByEmpresa(empresaId);
+
   const isOportunidade = projeto.stage === "oportunidade";
 
   return (
@@ -53,7 +56,7 @@ export default async function EditarProjetoPage({
       <div className="form-card">
         <div className="form-card-title">Editar {isOportunidade ? "oportunidade" : "obra"}</div>
         <p className="form-card-sub">
-          Altere os dados principais. Cliente não pode ser alterado aqui.
+          Altere os dados principais da {isOportunidade ? "oportunidade" : "obra"}.
         </p>
 
         <form action={editarProjeto}>
@@ -219,6 +222,59 @@ export default async function EditarProjetoPage({
             </Link>
           </div>
         </form>
+      </div>
+
+      <div className="form-card" style={{ marginTop: 24 }}>
+        <div className="form-card-title">Cliente vinculado</div>
+        <form action={trocarClienteProjeto} style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+          <input type="hidden" name="projetoId" value={projeto.id} />
+          <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+            <label className="form-label">Selecionar cliente</label>
+            <select name="clienteId" className="form-input form-select" required defaultValue={projeto.cliente?.id ?? ""}>
+              <option value="" disabled>Selecione o cliente correto...</option>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className="btn btn-secondary">Atualizar cliente</button>
+        </form>
+      </div>
+
+      {!isOportunidade && (
+        <div className="form-card" style={{ marginTop: 24, border: "1px solid #fde68a", background: "#fffbeb" }}>
+          <div className="form-card-title" style={{ color: "#92400e" }}>⚠ Reverter para Oportunidade</div>
+          <p className="form-card-sub" style={{ color: "#78350f" }}>
+            Use apenas se a conversão foi feita por engano. O projeto voltará para o funil de oportunidades com status <strong>Ganho</strong>.
+            Todas as tarefas, lançamentos e histórico serão preservados.
+          </p>
+          <form action={reverterParaOportunidade} style={{ marginTop: 14 }}>
+            <input type="hidden" name="projetoId" value={projeto.id} />
+            <button type="submit" className="btn btn-secondary btn-sm" style={{ color: "#92400e", borderColor: "#fcd34d" }}>
+              Reverter para Oportunidade
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div className="form-card" style={{ marginTop: 24, border: "1px solid #fca5a5", background: "#fef2f2" }}>
+        <div className="form-card-title" style={{ color: "#991b1b" }}>Zona de Perigo</div>
+        <details>
+          <summary style={{ fontSize: 13, color: "#b91c1c", cursor: "pointer", listStyle: "none", padding: "2px 0", fontWeight: 600 }}>
+            Excluir permanentemente est{isOportunidade ? "a oportunidade" : "a obra"}
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 14, lineHeight: 1.6 }}>
+              Ação irreversível. Serão excluídos: orçamento, tarefas, lançamentos financeiros, medições, atividades e histórico de auditoria.
+            </p>
+            <form action={deletarProjeto}>
+              <input type="hidden" name="projetoId" value={projeto.id} />
+              <button type="submit" style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "var(--r-sm)", padding: "6px 14px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
+                Excluir permanentemente
+              </button>
+            </form>
+          </div>
+        </details>
       </div>
     </div>
   );

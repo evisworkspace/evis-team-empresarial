@@ -150,7 +150,8 @@ model Projeto {
   id                 String    @id @default(uuid()) @db.Uuid
   empresaId          String    @map("empresa_id") @db.Uuid
   clienteId          String    @map("cliente_id") @db.Uuid
-  numeroObra         String?   @map("numero_obra") // UNIQUE por empresa quando não nulo
+  codigoSequencial   String?   @map("codigo_sequencial") @db.VarChar(20) // gerado pelo sistema: YYYY-NNN
+  numeroObra         String?   @map("numero_obra") // UNIQUE por empresa quando não nulo — atribuído manualmente pelo usuário
   titulo             String
   descricao          String?
   stage              String // domínio: oportunidade | obra

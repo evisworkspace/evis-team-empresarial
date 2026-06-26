@@ -449,28 +449,7 @@ function OportunidadeView({
               </div>
             </div>
 
-            {/* ── Zona de Perigo ─────────────────────────────────── */}
-            <div style={{ border: "1px solid #fca5a5", background: "#fef2f2", borderRadius: "var(--r-md)", padding: "14px 16px", marginTop: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#991b1b", marginBottom: 8 }}>
-                Zona de Perigo
-              </div>
-              <details>
-                <summary style={{ fontSize: 13, color: "#b91c1c", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>
-                  Excluir permanentemente este projeto
-                </summary>
-                <div style={{ marginTop: 12 }}>
-                  <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 14, lineHeight: 1.6 }}>
-                    Ação irreversível. Serão excluídos: orçamento, tarefas, lançamentos financeiros, medições, atividades e histórico de auditoria.
-                  </p>
-                  <form action={deletarProjeto}>
-                    <input type="hidden" name="projetoId" value={projeto.id} />
-                    <button type="submit" style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "var(--r-sm)", padding: "6px 14px", fontSize: 13, cursor: "pointer" }}>
-                      Excluir projeto permanentemente
-                    </button>
-                  </form>
-                </div>
-              </details>
-            </div>
+
           </div>
 
           {/* ── Cliente ───────────────────────────────────────────── */}
@@ -524,26 +503,6 @@ function OportunidadeView({
               <div className="callout callout--info">Nenhum cliente vinculado.</div>
             )}
 
-            {/* Trocar cliente vinculado */}
-            <div style={{ marginTop: 16 }}>
-              <details>
-                <summary style={{ fontSize: 13, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>
-                  Trocar cliente vinculado
-                </summary>
-                <form action={trocarClienteProjeto} style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                  <input type="hidden" name="projetoId" value={projeto.id} />
-                  <select name="clienteId" className="form-input form-select" required defaultValue={projeto.cliente?.id ?? ""} style={{ flex: 1, minWidth: 200 }}>
-                    <option value="" disabled>Selecione o cliente correto...</option>
-                    {clientes.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
-                  <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>
-                    Atualizar
-                  </button>
-                </form>
-              </details>
-            </div>
           </div>
 
           {/* ── Atividades ────────────────────────────────────────── */}
@@ -1130,49 +1089,7 @@ function CentralDaObraView({
               </div>
             </div>
 
-            {/* Card — Reverter para Oportunidade */}
-            <div className="obra-card obra-card--full" style={{ border: "1px solid #fde68a", background: "#fffbeb", marginTop: 20 }}>
-              <div className="obra-card-header">
-                <span className="obra-card-label" style={{ color: "#92400e" }}>⚠ Reverter para Oportunidade</span>
-              </div>
-              <p style={{ fontSize: 13, color: "#78350f", marginBottom: 14, lineHeight: 1.6 }}>
-                Use apenas se a conversão foi feita por engano. O projeto voltará para o funil de oportunidades com status <strong>Ganho</strong>.
-                Todas as tarefas, lançamentos e histórico serão preservados.
-              </p>
-              <form action={reverterParaOportunidade}>
-                <input type="hidden" name="projetoId" value={projeto.id} />
-                <button
-                  type="submit"
-                  className="btn btn-secondary btn-sm"
-                  style={{ color: "#92400e", borderColor: "#fcd34d", fontSize: 13 }}
-                >
-                  Reverter para Oportunidade
-                </button>
-              </form>
-            </div>
 
-            {/* ── Zona de Perigo ─────────────────────────────────── */}
-            <div style={{ border: "1px solid #fca5a5", background: "#fef2f2", borderRadius: "var(--r-md)", padding: "14px 16px", marginTop: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#991b1b", marginBottom: 8 }}>
-                Zona de Perigo
-              </div>
-              <details>
-                <summary style={{ fontSize: 13, color: "#b91c1c", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>
-                  Excluir permanentemente esta obra
-                </summary>
-                <div style={{ marginTop: 12 }}>
-                  <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 14, lineHeight: 1.6 }}>
-                    Ação irreversível. Serão excluídos: orçamento, tarefas, lançamentos financeiros, medições, atividades e histórico de auditoria.
-                  </p>
-                  <form action={deletarProjeto}>
-                    <input type="hidden" name="projetoId" value={projeto.id} />
-                    <button type="submit" style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "var(--r-sm)", padding: "6px 14px", fontSize: 13, cursor: "pointer" }}>
-                      Excluir obra permanentemente
-                    </button>
-                  </form>
-                </div>
-              </details>
-            </div>
           </div>
 
           {/* Atividades */}
