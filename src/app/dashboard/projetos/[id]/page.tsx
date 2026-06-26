@@ -1455,6 +1455,18 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     fornecedores: fornecedores.map((f) => ({ id: f.id, nome: f.nome })),
   };
 
+  const medicoesFormatadas = medicoes.map((m) => ({
+    id: m.id,
+    numero: m.numero,
+    dataReferencia: m.dataReferencia,
+    observacao: m.observacao,
+    itens: m.itens.map((item) => ({
+      itemId: item.itemOrcamentoId,
+      percentual: item.percentualMedido !== null ? Number(item.percentualMedido) : null,
+      valorMedido: item.valorMedido !== null ? Number(item.valorMedido) : null,
+    })),
+  }));
+
   if (projeto.stage === "oportunidade") {
     return (
       <OportunidadeView
@@ -1473,7 +1485,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       orcamento={orcamentoProps}
       financeiroFormLists={financeiroFormLists}
       itensOrcamento={itensOrcamento}
-      medicoes={medicoes}
+      medicoes={medicoesFormatadas}
     />
   );
 }
