@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 import { salvarEmpresa } from "@/actions/configuracoes"
 import { BuildingIcon } from "@/components/Icons"
+import CnpjInput, { type CnpjData } from "@/components/CnpjInput"
 
 type Props = {
   nome: string
@@ -34,6 +35,17 @@ export function EmpresaForm({
   const [tipoEmp, setTipoEmp] = useState(tipoEmpresa ?? "")
   const [logoPreview, setLogoPreview] = useState<string | null>(logoUrl)
   const logoRef = useRef<HTMLInputElement>(null)
+  const [nomeVal, setNomeVal] = useState(nome)
+  const [razaoSocialVal, setRazaoSocialVal] = useState(razaoSocial ?? "")
+  const [emailVal, setEmailVal] = useState(email ?? "")
+  const [celularVal, setCelularVal] = useState(celular ?? "")
+
+  function onCnpjLoaded(data: CnpjData) {
+    if (!nomeVal) setNomeVal(data.nome_fantasia || data.razao_social || "")
+    if (!razaoSocialVal) setRazaoSocialVal(data.razao_social || "")
+    if (!emailVal) setEmailVal(data.email || "")
+    if (!celularVal) setCelularVal(data.ddd_telefone_1 || "")
+  }
 
   function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -117,7 +129,8 @@ export function EmpresaForm({
           name="nome"
           type="text"
           className="form-input"
-          defaultValue={nome}
+          value={nomeVal}
+          onChange={(e) => setNomeVal(e.target.value)}
           required
           minLength={2}
           maxLength={200}
@@ -132,7 +145,8 @@ export function EmpresaForm({
             name="razaoSocial"
             type="text"
             className="form-input"
-            defaultValue={razaoSocial ?? ""}
+            value={razaoSocialVal}
+            onChange={(e) => setRazaoSocialVal(e.target.value)}
             placeholder="Nome empresarial conforme CNPJ"
             maxLength={200}
           />
@@ -142,14 +156,22 @@ export function EmpresaForm({
       {/* CPF / CNPJ */}
       <div className="form-group">
         <label className="form-label">{tipo === "PJ" ? "CNPJ" : "CPF"}</label>
-        <input
-          name="documento"
-          type="text"
-          className="form-input"
-          defaultValue={documento ?? ""}
-          placeholder={tipo === "PJ" ? "00.000.000/0001-00" : "000.000.000-00"}
-          maxLength={20}
-        />
+        {tipo === "PJ" ? (
+          <CnpjInput
+            name="documento"
+            defaultValue={documento ?? ""}
+            onLoaded={onCnpjLoaded}
+          />
+        ) : (
+          <input
+            name="documento"
+            type="text"
+            className="form-input"
+            defaultValue={documento ?? ""}
+            placeholder="000.000.000-00"
+            maxLength={20}
+          />
+        )}
       </div>
 
       {/* Email + Celular */}
@@ -160,7 +182,8 @@ export function EmpresaForm({
             name="email"
             type="email"
             className="form-input"
-            defaultValue={email ?? ""}
+            value={emailVal}
+            onChange={(e) => setEmailVal(e.target.value)}
             placeholder="contato@empresa.com"
             maxLength={200}
           />
@@ -171,7 +194,8 @@ export function EmpresaForm({
             name="celular"
             type="tel"
             className="form-input"
-            defaultValue={celular ?? ""}
+            value={celularVal}
+            onChange={(e) => setCelularVal(e.target.value)}
             placeholder="(11) 99999-9999"
             maxLength={20}
           />

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listClientesByEmpresa } from "@/data/cliente";
 import { criarProjeto } from "@/actions/projeto";
+import { preencherOportunidadeComAgente } from "@/actions/ai/preencherOportunidade";
 import { PlusIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
 import CapturaOperacionalPanel from "@/components/CapturaOperacionalPanel";
@@ -111,7 +112,8 @@ export default async function NovaOportunidade({
       {/* ── Painel de Captura Operacional ── */}
       {!isObra && (
         <CapturaOperacionalPanel
-          stage={defaultStage ?? "oportunidade"}
+          action={preencherOportunidadeComAgente}
+          extraFields={{ stage: defaultStage ?? "oportunidade" }}
           agenteFilled={agenteFilled}
           erro={erro}
           pendencias={aPendencias}

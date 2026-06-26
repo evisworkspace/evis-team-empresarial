@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { preencherOportunidadeComAgente } from "@/actions/ai/preencherOportunidade";
 import { AgentsIcon } from "@/components/Icons";
 
 const MAX_FILES = 5;
@@ -9,7 +8,10 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPT = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 interface Props {
-  stage: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  action: (formData: FormData) => Promise<any>;
+  extraFields?: Record<string, string>;
+  description?: string;
   agenteFilled?: string;
   erro?: string;
   pendencias?: string;
@@ -18,7 +20,7 @@ interface Props {
 }
 
 export default function CapturaOperacionalPanel({
-  stage, agenteFilled, erro, pendencias, tarefas, semDestino,
+  action, extraFields, description, agenteFilled, erro, pendencias, tarefas, semDestino,
 }: Props) {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -64,7 +66,7 @@ export default function CapturaOperacionalPanel({
         </span>
       </div>
       <p style={{ fontSize: 13, color: "var(--clr-text-muted)", marginBottom: 16 }}>
-        Cole uma conversa, mensagem ou relato, ou arraste/cole imagens. O agente preenche os campos — você revisa antes de salvar.
+        {description ?? "Cole uma conversa, mensagem ou relato, ou arraste/cole imagens. O agente preenche os campos — você revisa antes de salvar."}
       </p>
 
       {/* Banner de erro */}
@@ -102,8 +104,10 @@ export default function CapturaOperacionalPanel({
         </div>
       )}
 
-      <form action={preencherOportunidadeComAgente} encType="multipart/form-data">
-        <input type="hidden" name="stage" value={stage} />
+      <form action={action} encType="multipart/form-data">
+        {extraFields && Object.entries(extraFields).map(([k, v]) => (
+          <input key={k} type="hidden" name={k} value={v} />
+        ))}
 
         <textarea
           name="texto_captura"
