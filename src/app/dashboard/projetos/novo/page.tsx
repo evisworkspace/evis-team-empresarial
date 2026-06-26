@@ -4,9 +4,9 @@ import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listClientesByEmpresa } from "@/data/cliente";
 import { criarProjeto } from "@/actions/projeto";
-import { preencherOportunidadeComAgente } from "@/actions/ai/preencherOportunidade";
-import { PlusIcon, AgentsIcon } from "@/components/Icons";
+import { PlusIcon } from "@/components/Icons";
 import EnderecoFields from "@/components/EnderecoFields";
+import CapturaOperacionalPanel from "@/components/CapturaOperacionalPanel";
 import { STATUS_OPORTUNIDADE, STATUS_OBRA } from "@/lib/status";
 import { ORIGENS_LEAD } from "@/lib/origens";
 import ClienteSelectorPanel from "@/components/ClienteSelectorPanel";
@@ -110,86 +110,14 @@ export default async function NovaOportunidade({
 
       {/* ── Painel de Captura Operacional ── */}
       {!isObra && (
-        <div style={{
-          background: "var(--clr-surface)",
-          border: "1px solid var(--clr-border)",
-          borderRadius: "var(--r-lg)",
-          padding: "20px 24px",
-          marginBottom: 24,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <AgentsIcon size={15} style={{ color: "var(--clr-primary)" }} />
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700,
-              textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--clr-primary)",
-            }}>
-              Captura Operacional
-            </span>
-          </div>
-          <p style={{ fontSize: 13, color: "var(--clr-text-muted)", marginBottom: 16 }}>
-            Cole uma conversa, mensagem ou relato, ou anexe um print. O agente preenche os campos automaticamente — você revisa antes de salvar.
-          </p>
-
-          {/* Banners de resultado */}
-          {erro && (
-            <div style={{
-              background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "var(--r-md)",
-              padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#991b1b",
-            }}>
-              {decodeURIComponent(erro)}
-            </div>
-          )}
-
-          {agenteFilled === "1" && !erro && (
-            <div style={{
-              background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "var(--r-md)",
-              padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#166534",
-            }}>
-              Campos preenchidos pelo agente. Revise, edite se necessário e salve.
-              {aPendencias && (
-                <div style={{ marginTop: 6, color: "#854d0e", fontWeight: 500 }}>
-                  Pendências: {aPendencias}
-                </div>
-              )}
-              {aTarefas && (
-                <div style={{ marginTop: 6, color: "#14532d", fontWeight: 500 }}>
-                  Ações sugeridas: {aTarefas}
-                </div>
-              )}
-              {aSemDestino && (
-                <div style={{ marginTop: 6, color: "#475569", fontWeight: 500 }}>
-                  Sem destino estruturado atual: {aSemDestino}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Mini-form de captura — separado do form principal */}
-          <form action={preencherOportunidadeComAgente} encType="multipart/form-data">
-            <input type="hidden" name="stage" value={defaultStage ?? "oportunidade"} />
-            <textarea
-              name="texto_captura"
-              className="form-input form-textarea"
-              placeholder="Cole aqui uma conversa de WhatsApp, mensagem, relato de visita ou qualquer texto com informações do lead..."
-              rows={4}
-              style={{ marginBottom: 10, resize: "vertical" }}
-            />
-            <div className="form-group" style={{ marginBottom: 10 }}>
-              <label className="form-label">Print ou imagem da entrada</label>
-              <input
-                name="imagem_captura"
-                type="file"
-                className="form-input"
-                accept="image/png,image/jpeg,image/webp"
-              />
-              <span className="form-hint">Opcional. Use PNG, JPG ou WebP com até 5 MB.</span>
-            </div>
-            <button type="submit" className="btn btn-secondary btn-sm" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <AgentsIcon size={13} />
-              Preencher campos com agente
-            </button>
-          </form>
-        </div>
+        <CapturaOperacionalPanel
+          stage={defaultStage ?? "oportunidade"}
+          agenteFilled={agenteFilled}
+          erro={erro}
+          pendencias={aPendencias}
+          tarefas={aTarefas}
+          semDestino={aSemDestino}
+        />
       )}
 
       {/* ── Formulário principal ── */}

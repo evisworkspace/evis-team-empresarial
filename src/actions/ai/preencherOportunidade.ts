@@ -173,21 +173,23 @@ async function chamarGeminiComFallback(ai: GoogleGenAI, parts: Part[]) {
 
 export async function preencherOportunidadeComAgente(formData: FormData) {
   const texto = ((formData.get("texto_captura") as string) ?? "").trim();
-  const imagem = formData.get("imagem_captura");
-  const imagemFile = imagem instanceof File && imagem.size > 0 ? imagem : null;
+  const imagemFiles = (formData.getAll("imagem_captura") as File[]).filter(
+    (f) => f instanceof File && f.size > 0,
+  );
   const stage = (formData.get("stage") as string) || "oportunidade";
   const base = `/dashboard/projetos/novo?stage=${stage}`;
 
-  if ((!texto || texto.length < 10) && !imagemFile) {
+  if ((!texto || texto.length < 10) && imagemFiles.length === 0) {
     redirect(`${base}&erro=${encodeURIComponent("Informe um texto ou anexe uma imagem para análise.")}`);
   }
 
-  if (imagemFile && !IMAGE_MIME_TYPES.has(imagemFile.type)) {
-    redirect(`${base}&erro=${encodeURIComponent("Formato de imagem não suportado. Use PNG, JPG ou WebP.")}`);
-  }
-
-  if (imagemFile && imagemFile.size > IMAGE_MAX_BYTES) {
-    redirect(`${base}&erro=${encodeURIComponent("Imagem muito grande. Envie um arquivo de até 5 MB.")}`);
+  for (const f of imagemFiles) {
+    if (!IMAGE_MIME_TYPES.has(f.type)) {
+      redirect(`${base}&erro=${encodeURIComponent("Formato de imagem não suportado. Use PNG, JPG ou WebP.")}`);
+    }
+    if (f.size > IMAGE_MAX_BYTES) {
+      redirect(`${base}&erro=${encodeURIComponent("Imagem muito grande. Envie arquivos de até 5 MB cada.")}`);
+    }
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -207,9 +209,9 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
       });
     }
 
-    if (imagemFile) {
-      const bytes = Buffer.from(await imagemFile.arrayBuffer());
-      parts.push(createPartFromBase64(bytes.toString("base64"), imagemFile.type));
+    for (const imgFile of imagemFiles) {
+      const bytes = Buffer.from(await imgFile.arrayBuffer());
+      parts.push(createPartFromBase64(bytes.toString("base64"), imgFile.type));
     }
 
     const response = await chamarGeminiComFallback(ai, parts);
