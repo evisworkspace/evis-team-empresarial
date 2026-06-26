@@ -1558,6 +1558,7 @@ table.evis-table {
 
 .obra-tab-panel { display: none; }
 
+/* Ordem: Geral(1) · Tarefas(2) · Financeiro(3) · Histórico(4) · Orçamento(5) · Planejamento(6) · Compras(7) · Anotações(8) · Agentes(9) */
 #tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
 #tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
 #tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
@@ -1565,7 +1566,8 @@ table.evis-table {
 #tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
 #tab-planejamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
 #tab-compras:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
-#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8) {
+#tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
+#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
@@ -1578,6 +1580,7 @@ table.evis-table {
 #tab-orcamento:checked ~ .obra-tabs-panels .panel-orcamento { display: block; }
 #tab-planejamento:checked ~ .obra-tabs-panels .panel-planejamento { display: block; }
 #tab-compras:checked ~ .obra-tabs-panels .panel-compras { display: block; }
+#tab-anotacoes:checked ~ .obra-tabs-panels .panel-anotacoes { display: block; }
 #tab-agentes:checked ~ .obra-tabs-panels .panel-agentes { display: block; }
 
 /* ============================================================
@@ -1925,7 +1928,7 @@ table.evis-table {
 #cm-novo:checked ~ .cm-section-novo { display: block; }
 
 /* ── Tabs da oportunidade (workspace comercial) ───────────── */
-/* Ordem: Geral(1) · Cliente(2) · Atividades(3) · Tarefas(4) · Financeiro(5) · Histórico(6) · Orçamento(7) · Propostas(8) · Agentes(9) */
+/* Ordem: Geral(1) · Cliente(2) · Atividades(3) · Tarefas(4) · Financeiro(5) · Histórico(6) · Orçamento(7) · Propostas(8) · Anotações(9) · Agentes(10) */
 #op-tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
 #op-tab-cliente:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
 #op-tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
@@ -1934,7 +1937,8 @@ table.evis-table {
 #op-tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
 #op-tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
 #op-tab-propostas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
-#op-tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9) {
+#op-tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
+#op-tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
@@ -1948,6 +1952,7 @@ table.evis-table {
 #op-tab-historico:checked ~ .obra-tabs-panels .op-panel-historico { display: block; }
 #op-tab-orcamento:checked ~ .obra-tabs-panels .op-panel-orcamento { display: block; }
 #op-tab-propostas:checked ~ .obra-tabs-panels .op-panel-propostas { display: block; }
+#op-tab-anotacoes:checked ~ .obra-tabs-panels .op-panel-anotacoes { display: block; }
 #op-tab-agentes:checked ~ .obra-tabs-panels .op-panel-agentes { display: block; }
 
 /* ============================================================
@@ -2667,6 +2672,41 @@ table.evis-table {
   .page-content {
     padding: 16px;
   }
+}
+
+/* ── Sub-tabs Obra (Planejamento / Medições / Físico-Financeiro / Curva S) ── */
+.obra-sub-radio { display: none; }
+.obra-sub-panel { display: none; }
+
+.obra-sub-nav {
+  display: flex;
+  border-bottom: 1px solid var(--clr-border);
+  margin-bottom: 16px;
+  gap: 0;
+}
+.obra-sub-label {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.1s;
+}
+
+#sub-plan:checked ~ .obra-sub-panels .sub-panel-plan { display: block; }
+#sub-med:checked ~ .obra-sub-panels .sub-panel-med { display: block; }
+#sub-ff:checked ~ .obra-sub-panels .sub-panel-ff { display: block; }
+#sub-cs:checked ~ .obra-sub-panels .sub-panel-cs { display: block; }
+
+#sub-plan:checked ~ .obra-sub-nav label[for="sub-plan"],
+#sub-med:checked ~ .obra-sub-nav label[for="sub-med"],
+#sub-ff:checked ~ .obra-sub-nav label[for="sub-ff"],
+#sub-cs:checked ~ .obra-sub-nav label[for="sub-cs"] {
+  color: var(--clr-primary);
+  border-bottom-color: var(--clr-primary);
+  font-weight: 600;
 }
 
 @keyframes fadeIn {

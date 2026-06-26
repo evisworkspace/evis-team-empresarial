@@ -77,6 +77,7 @@ export function createTarefa(
     descricao: string;
     dataPrevista?: Date;
     status?: string;
+    origem?: string;
   },
 ) {
   return prisma.tarefa.create({
@@ -86,7 +87,25 @@ export function createTarefa(
       descricao: data.descricao,
       dataPrevista: data.dataPrevista,
       status: data.status ?? "aberta",
-      origem: "manual",
+      origem: data.origem ?? "manual",
     },
+  });
+}
+
+export function editTarefa(
+  empresaId: string,
+  tarefaId: string,
+  data: { descricao: string; dataPrevista?: Date | null },
+) {
+  return prisma.tarefa.updateMany({
+    where: { id: tarefaId, empresaId, deletedAt: null },
+    data,
+  });
+}
+
+export function deleteTarefa(empresaId: string, tarefaId: string) {
+  return prisma.tarefa.updateMany({
+    where: { id: tarefaId, empresaId, deletedAt: null },
+    data: { deletedAt: new Date() },
   });
 }

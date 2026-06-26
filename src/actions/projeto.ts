@@ -6,7 +6,8 @@ import { getEmpresaId } from "@/lib/tenant";
 import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto } from "@/data/projeto";
 import { createCliente, updateCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
-import { createAtividade } from "@/data/projetoAtividade";
+import { createAtividade, editAtividade, deleteAtividade } from "@/data/projetoAtividade";
+import { createTarefa } from "@/data/tarefa";
 
 export async function criarProjeto(formData: FormData) {
   const session = await auth();
@@ -112,6 +113,21 @@ export async function criarProjeto(formData: FormData) {
     entidadeId: projeto.id,
     conteudoPersistido: { titulo, stage, clienteId },
   });
+
+  if (stage === "oportunidade") {
+    await Promise.all([
+      createTarefa(empresaId, {
+        projetoId: projeto.id,
+        descricao: "Agendar reunião ou visita com o cliente",
+        origem: "sugerida_ia",
+      }),
+      createTarefa(empresaId, {
+        projetoId: projeto.id,
+        descricao: "Analisar documentação recebida e definir próximo passo",
+        origem: "sugerida_ia",
+      }),
+    ]);
+  }
 
   redirect(`/dashboard/projetos/${projeto.id}`);
 }
@@ -367,6 +383,37 @@ export async function criarAtividadeProjeto(formData: FormData) {
     entidadeId: projetoId,
     conteudoPersistido: { acao: "atividade_registrada", tipo },
   });
+
+  revalidatePath(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function editarAtividade(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const atividadeId = formData.get("atividadeId") as string;
+  const projetoId = formData.get("projetoId") as string;
+  const descricao = (formData.get("descricao") as string)?.trim();
+
+  if (!atividadeId || !projetoId || !descricao || descricao.length < 2) {
+    throw new Error("Descrição é obrigatória.");
+  }
+
+  await editAtividade(empresaId, atividadeId, { descricao });
+
+  revalidatePath(`/dashboard/projetos/${projetoId}`);
+}
+
+export async function deletarAtividade(formData: FormData) {
+  const session = await auth();
+  const empresaId = getEmpresaId(session!);
+
+  const atividadeId = formData.get("atividadeId") as string;
+  const projetoId = formData.get("projetoId") as string;
+
+  if (!atividadeId || !projetoId) throw new Error("Dados obrigatórios.");
+
+  await deleteAtividade(empresaId, atividadeId);
 
   revalidatePath(`/dashboard/projetos/${projetoId}`);
 }

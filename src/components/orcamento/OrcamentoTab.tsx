@@ -1,5 +1,7 @@
 "use client"
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
+import { SugestaoCard } from "@/components/triagem/SugestaoCard"
+import { sugerirTarefasOrcamento, criarTarefasSugeridas } from "@/actions/tarefa"
 
 type Item = {
   id: string
@@ -370,6 +372,43 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
   const [showAddNivel, setShowAddNivel] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
+  // D4: Motor Semântico de Tarefas
+  const [sugestaoTarefas, setSugestaoTarefas] = useState<{ nome: string; telefone: string; narrativa: string } | null>(null)
+  const [criandoTarefas, setCriandoTarefas] = useState(false)
+
+  useEffect(() => {
+    // Exibe sugestões quando há apenas 1 item e a flag de recusa ainda não existe no localStorage
+    if (items.length === 1) {
+      const dismissKey = `evis_cache_v2_tarefas_sugeridas_${projetoId}`
+      if (!localStorage.getItem(dismissKey)) {
+        sugerirTarefasOrcamento(projetoId).then((tarefas) => {
+          setSugestaoTarefas({
+            nome: "Tarefas de Orçamento",
+            telefone: "",
+            narrativa: tarefas.join("\n"),
+          })
+        })
+      }
+    }
+  }, [items.length, projetoId])
+
+  async function handleAprovarTarefas() {
+    if (!sugestaoTarefas) return
+    setCriandoTarefas(true)
+    const titulos = sugestaoTarefas.narrativa.split("\n").map((t) => t.trim()).filter(Boolean)
+    if (titulos.length > 0) {
+      await criarTarefasSugeridas(projetoId, titulos)
+    }
+    localStorage.setItem(`evis_cache_v2_tarefas_sugeridas_${projetoId}`, "true")
+    setSugestaoTarefas(null)
+    setCriandoTarefas(false)
+  }
+
+  function handleCancelarTarefas() {
+    localStorage.setItem(`evis_cache_v2_tarefas_sugeridas_${projetoId}`, "true")
+    setSugestaoTarefas(null)
+  }
+
   function byParent(parentId: string | null) {
     return items
       .filter((i) => i.parentId === parentId)
@@ -468,6 +507,18 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
       {roots.length === 0 && !showAddNivel && (
         <div className="placeholder-block">
           Nenhum item de orçamento. Clique em &quot;+ Grupo&quot; para criar o primeiro nível.
+        </div>
+      )}
+
+      {sugestaoTarefas && (
+        <div style={{ marginBottom: 16 }}>
+          <SugestaoCard
+            sugestao={sugestaoTarefas}
+            onChange={setSugestaoTarefas}
+            onAprovar={handleAprovarTarefas}
+            onCancelar={handleCancelarTarefas}
+            criando={criandoTarefas}
+          />
         </div>
       )}
 

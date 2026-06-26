@@ -50,6 +50,7 @@ model Empresa {
   lancamentos LancamentoFinanceiro[]
   rastreios  RastreioAuditoria[]
   atividades ProjetoAtividade[]
+  anotacoes  Anotacao[]
   statusProjetos StatusProjeto[]
   users      User[] // Auth.js — vínculo tenant do usuário autenticado
   convites   ConviteEquipe[]
@@ -59,6 +60,7 @@ model Empresa {
   categoriasFinanceiras CategoriaFinanceira[]
   centrosDeCusto        CentroDeCusto[]
   itensBiblioteca       ItemBiblioteca[]
+  medicoes              Medicao[]
 
   @@map("empresa")
 }
@@ -178,11 +180,33 @@ model Projeto {
   lancamentos LancamentoFinanceiro[]
   rastreios   RastreioAuditoria[]
   atividades  ProjetoAtividade[]
+  anotacoes   Anotacao[]
+  medicoes    Medicao[]
 
   @@unique([empresaId, numeroObra])
   @@index([empresaId, stage, statusInterno])
   @@index([clienteId])
   @@map("projeto")
+}
+
+/// Anotações editáveis vinculadas a oportunidade ou obra.
+model Anotacao {
+  id             String    @id @default(uuid()) @db.Uuid
+  empresaId      String    @map("empresa_id") @db.Uuid
+  projetoId      String    @map("projeto_id") @db.Uuid
+  titulo         String?   @db.VarChar(200)
+  conteudo       String    @db.Text
+  visivelCliente Boolean   @default(false) @map("visivel_cliente")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  projeto Projeto @relation(fields: [projetoId], references: [id])
+
+  @@index([projetoId, createdAt])
+  @@index([empresaId])
+  @@map("anotacao")
 }
 
 /// Registro manual de atividades comerciais — ligações, visitas, notas, e-mails.
@@ -224,6 +248,11 @@ model ProjetoItemOrcamento {
   produtos      Decimal? @db.Decimal(15, 4)
   servicos      Decimal? @db.Decimal(15, 4) // calculado: (custoServicos + produtos) × (1 + bdi/100)
 
+  dataInicioPlano DateTime? @map("data_inicio_plano") @db.Date
+  dataFimPlano    DateTime? @map("data_fim_plano") @db.Date
+  diasDuracao     Int?      @map("dias_duracao")
+  responsavel     String?   @db.VarChar(150)
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -233,6 +262,7 @@ model ProjetoItemOrcamento {
   itemBiblioteca ItemBiblioteca?        @relation(fields: [itemBibliotecaId], references: [id])
   parent         ProjetoItemOrcamento?  @relation("SubItens", fields: [parentId], references: [id])
   children       ProjetoItemOrcamento[] @relation("SubItens")
+  medicaoItens   MedicaoItem[]
 
   @@index([projetoId])
   @@index([empresaId])
@@ -461,6 +491,43 @@ model LancamentoFinanceiro {
   @@index([categoriaFinanceiraId])
   @@index([centroDeCustoId])
   @@map("lancamento_financeiro")
+}
+
+model Medicao {
+  id             String   @id @default(uuid()) @db.Uuid
+  empresaId      String   @map("empresa_id") @db.Uuid
+  projetoId      String   @map("projeto_id") @db.Uuid
+  numero         Int
+  dataReferencia DateTime @map("data_referencia") @db.Date
+  observacao     String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  empresa  Empresa       @relation(fields: [empresaId], references: [id])
+  projeto  Projeto       @relation(fields: [projetoId], references: [id])
+  itens    MedicaoItem[]
+
+  @@unique([projetoId, numero])
+  @@index([projetoId])
+  @@index([empresaId])
+  @@map("medicao")
+}
+
+model MedicaoItem {
+  id               String   @id @default(uuid()) @db.Uuid
+  medicaoId        String   @map("medicao_id") @db.Uuid
+  itemOrcamentoId  String   @map("item_orcamento_id") @db.Uuid
+  valorMedido      Decimal? @map("valor_medido") @db.Decimal(15, 2)
+  quantidadeMedida Decimal? @map("quantidade_medida") @db.Decimal(15, 4)
+  percentualMedido Decimal? @map("percentual_medido") @db.Decimal(7, 4)
+
+  medicao       Medicao              @relation(fields: [medicaoId], references: [id])
+  itemOrcamento ProjetoItemOrcamento @relation(fields: [itemOrcamentoId], references: [id])
+
+  @@unique([medicaoId, itemOrcamentoId])
+  @@index([medicaoId])
+  @@index([itemOrcamentoId])
+  @@map("medicao_item")
 }
 
 /// Camada de auditoria transversal — APPEND-ONLY, imutável.

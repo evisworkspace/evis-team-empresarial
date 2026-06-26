@@ -21,3 +21,20 @@ export function listAtividadesByProjeto(empresaId: string, projetoId: string) {
     take: 50,
   });
 }
+
+export function editAtividade(
+  empresaId: string,
+  atividadeId: string,
+  data: { descricao: string },
+) {
+  return prisma.projetoAtividade.updateMany({
+    where: { id: atividadeId, empresaId },
+    data,
+  });
+}
+
+export function deleteAtividade(empresaId: string, atividadeId: string) {
+  return prisma.projetoAtividade.deleteMany({
+    where: { id: atividadeId, empresaId },
+  });
+}

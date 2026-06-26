@@ -228,6 +228,11 @@ export function getProjetoWithDetails(empresaId: string, projetoId: string) {
         orderBy: { createdAt: "desc" },
         take: 50,
       },
+      anotacoes: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
     },
   });
 }

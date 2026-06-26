@@ -10,13 +10,21 @@ import { sumLancamentosByProjeto } from "@/data/financeiro";
 import { listCategoriasByEmpresa } from "@/data/categoriaFinanceira";
 import { listCentrosCustoByEmpresa } from "@/data/centroDeCusto";
 import { listFornecedoresByEmpresa } from "@/data/fornecedor";
-import { criarTarefa, toggleTarefaStatus } from "@/actions/tarefa";
+import { criarTarefa, toggleTarefaStatus, editarTarefa, deletarTarefa } from "@/actions/tarefa";
 import { criarLancamento, marcarLancamentoPago } from "@/actions/financeiro";
-import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade } from "@/actions/projeto";
+import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade, editarAtividade, deletarAtividade } from "@/actions/projeto";
+import { criarAnotacao, excluirAnotacao } from "@/actions/anotacao";
 import { listItensOrcamentoByProjeto, sumOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
 import { listItensByEmpresa } from "@/data/itemBiblioteca";
 import { OrcamentoTab } from "@/components/orcamento/OrcamentoTab";
+import { listMedicoesByProjeto } from "@/data/medicao";
+import { PlanejamentoTab } from "@/components/obra/PlanejamentoTab";
+import { MedicoesTab } from "@/components/obra/MedicoesTab";
+import { FisicoFinanceiroTab } from "@/components/obra/FisicoFinanceiroTab";
+import { CurvaSTab } from "@/components/obra/CurvaSTab";
+import { salvarPlanejamentoItem } from "@/actions/planejamento";
+import { criarMedicao } from "@/actions/medicao";
 import { LancamentoFinanceiroForm } from "@/components/financeiro/LancamentoFinanceiroForm";
 import {
   BuildingIcon,
@@ -324,6 +332,7 @@ function OportunidadeView({
         <input type="radio" name="op-tab" id="op-tab-historico" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-orcamento" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-propostas" className="obra-tab-radio" />
+        <input type="radio" name="op-tab" id="op-tab-anotacoes" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-agentes" className="obra-tab-radio" />
 
         <div className="obra-tabs-nav">
@@ -339,6 +348,9 @@ function OportunidadeView({
           <label htmlFor="op-tab-historico" className="obra-tab-label">Histórico</label>
           <label htmlFor="op-tab-orcamento" className="obra-tab-label">Orçamento</label>
           <label htmlFor="op-tab-propostas" className="obra-tab-label">Propostas</label>
+          <label htmlFor="op-tab-anotacoes" className="obra-tab-label">
+            Anotações{projeto.anotacoes.length > 0 ? ` (${projeto.anotacoes.length})` : ""}
+          </label>
           <label htmlFor="op-tab-agentes" className="obra-tab-label">Agentes</label>
         </div>
 
@@ -535,7 +547,7 @@ function OportunidadeView({
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   {projeto.atividades.map((a) => (
-                    <div key={a.id} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--clr-border-light)" }}>
+                    <div key={a.id} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--clr-border-light)", flexWrap: "wrap" }}>
                       <div style={{
                         flexShrink: 0,
                         width: 70,
@@ -548,12 +560,26 @@ function OportunidadeView({
                       }}>
                         {atividadeTipoLabel(a.tipo)}
                       </div>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, color: "var(--clr-text)", lineHeight: 1.6 }}>{a.descricao}</div>
                         <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 3 }}>
                           {new Date(a.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </div>
+                        <details style={{ marginTop: 6 }}>
+                          <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                          <form action={editarAtividade} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                            <input type="hidden" name="atividadeId" value={a.id} />
+                            <input type="hidden" name="projetoId" value={projeto.id} />
+                            <textarea name="descricao" className="form-input" defaultValue={a.descricao} required minLength={2} maxLength={1000} rows={2} style={{ flex: 1, minWidth: 200, resize: "vertical" }} />
+                            <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0, alignSelf: "flex-end" }}>Salvar</button>
+                          </form>
+                        </details>
                       </div>
+                      <form action={deletarAtividade} style={{ flexShrink: 0 }}>
+                        <input type="hidden" name="atividadeId" value={a.id} />
+                        <input type="hidden" name="projetoId" value={projeto.id} />
+                        <button type="submit" title="Excluir" style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--clr-text-muted)", fontSize: 13, lineHeight: 1 }}>✕</button>
+                      </form>
                     </div>
                   ))}
                 </div>
@@ -578,7 +604,7 @@ function OportunidadeView({
               ) : (
                 <div className="task-list">
                   {projeto.tarefas.map((t) => (
-                    <div key={t.id} className="task-item">
+                    <div key={t.id} className="task-item" style={{ flexWrap: "wrap" }}>
                       <form action={toggleTarefaStatus}>
                         <input type="hidden" name="tarefaId" value={t.id} />
                         <input type="hidden" name="statusAtual" value={t.status} />
@@ -596,6 +622,23 @@ function OportunidadeView({
                         </div>
                       )}
                       <span className={`badge badge-${t.status}`} style={{ fontSize: 10 }}>{t.status.replace("_", " ")}</span>
+                      <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
+                        <form action={deletarTarefa}>
+                          <input type="hidden" name="tarefaId" value={t.id} />
+                          <input type="hidden" name="projetoId" value={projeto.id} />
+                          <button type="submit" title="Excluir" style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--clr-text-muted)", fontSize: 13, lineHeight: 1 }}>✕</button>
+                        </form>
+                      </div>
+                      <details style={{ width: "100%", marginTop: 4 }}>
+                        <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                        <form action={editarTarefa} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                          <input type="hidden" name="tarefaId" value={t.id} />
+                          <input type="hidden" name="projetoId" value={projeto.id} />
+                          <input name="descricao" type="text" className="form-input" defaultValue={t.descricao} required minLength={2} maxLength={500} style={{ flex: 1, minWidth: 180 }} />
+                          <input name="dataPrevista" type="date" className="form-input" defaultValue={t.dataPrevista ? new Date(t.dataPrevista).toISOString().slice(0, 10) : ""} style={{ width: 140, flexShrink: 0 }} />
+                          <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>Salvar</button>
+                        </form>
+                      </details>
                     </div>
                   ))}
                 </div>
@@ -720,6 +763,45 @@ function OportunidadeView({
             </div>
           </div>
 
+          {/* ── Anotações ─────────────────────────────────────────── */}
+          <div className="obra-tab-panel op-panel-anotacoes">
+            <div className="obra-card obra-card--full">
+              <div className="obra-card-header">
+                <span className="obra-card-label">Anotações ({projeto.anotacoes.length})</span>
+              </div>
+              {projeto.anotacoes.length === 0 ? (
+                <div className="placeholder-block">Nenhuma anotação ainda. Use o formulário abaixo para registrar.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                  {projeto.anotacoes.map((a) => (
+                    <div key={a.id} style={{ padding: "12px 14px", background: "var(--clr-bg-subtle, #f9fafb)", borderRadius: "var(--r-md)", border: "1px solid var(--clr-border-light)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: a.titulo ? 6 : 0 }}>
+                        {a.titulo && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--clr-text)" }}>{a.titulo}</span>}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>{new Date(a.createdAt).toLocaleDateString("pt-BR")}</span>
+                          <form action={excluirAnotacao}>
+                            <input type="hidden" name="anotacaoId" value={a.id} />
+                            <input type="hidden" name="projetoId" value={projeto.id} />
+                            <button type="submit" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clr-text-muted)", fontSize: 13, padding: "0 2px" }} title="Excluir anotação">✕</button>
+                          </form>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 13, color: "var(--clr-text-secondary)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>{a.conteudo}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form action={criarAnotacao} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input type="hidden" name="projetoId" value={projeto.id} />
+                <input name="titulo" type="text" className="form-input" placeholder="Título (opcional)..." maxLength={200} />
+                <textarea name="conteudo" className="form-input" placeholder="Escreva a anotação..." required minLength={1} rows={4} style={{ resize: "vertical" }} />
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button type="submit" className="btn btn-primary btn-sm">+ Salvar anotação</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
           {/* ── Agentes ───────────────────────────────────────────── */}
           <div className="obra-tab-panel op-panel-agentes">
             <div className="obra-card obra-card--full">
@@ -764,11 +846,15 @@ function CentralDaObraView({
   financeiro,
   orcamento,
   financeiroFormLists,
+  itensOrcamento,
+  medicoes,
 }: {
   projeto: ProjetoDetalhes;
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
+  itensOrcamento: React.ComponentProps<typeof PlanejamentoTab>["itens"];
+  medicoes: React.ComponentProps<typeof MedicoesTab>["medicoes"];
 }) {
   const now = new Date();
   const tarefasAbertas = projeto.tarefas.filter((t) => t.status === "aberta" || t.status === "em_andamento");
@@ -829,6 +915,7 @@ function CentralDaObraView({
         <input type="radio" name="obra-tab" id="tab-orcamento" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-planejamento" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-compras" className="obra-tab-radio" />
+        <input type="radio" name="obra-tab" id="tab-anotacoes" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-agentes" className="obra-tab-radio" />
 
         <div className="obra-tabs-nav">
@@ -839,6 +926,9 @@ function CentralDaObraView({
           <label htmlFor="tab-orcamento" className="obra-tab-label">Orçamento</label>
           <label htmlFor="tab-planejamento" className="obra-tab-label">Planejamento</label>
           <label htmlFor="tab-compras" className="obra-tab-label">Compras</label>
+          <label htmlFor="tab-anotacoes" className="obra-tab-label">
+            Anotações{projeto.anotacoes.length > 0 ? ` (${projeto.anotacoes.length})` : ""}
+          </label>
           <label htmlFor="tab-agentes" className="obra-tab-label">Agentes</label>
         </div>
 
@@ -1010,7 +1100,7 @@ function CentralDaObraView({
               ) : (
                 <div className="task-list">
                   {projeto.tarefas.map((t) => (
-                    <div key={t.id} className="task-item">
+                    <div key={t.id} className="task-item" style={{ flexWrap: "wrap" }}>
                       <form action={toggleTarefaStatus}>
                         <input type="hidden" name="tarefaId" value={t.id} />
                         <input type="hidden" name="statusAtual" value={t.status} />
@@ -1024,6 +1114,23 @@ function CentralDaObraView({
                         </div>
                       )}
                       <span className={`badge badge-${t.status}`} style={{ fontSize: 10 }}>{t.status.replace("_", " ")}</span>
+                      <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
+                        <form action={deletarTarefa}>
+                          <input type="hidden" name="tarefaId" value={t.id} />
+                          <input type="hidden" name="projetoId" value={projeto.id} />
+                          <button type="submit" title="Excluir" style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--clr-text-muted)", fontSize: 13, lineHeight: 1 }}>✕</button>
+                        </form>
+                      </div>
+                      <details style={{ width: "100%", marginTop: 4 }}>
+                        <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                        <form action={editarTarefa} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                          <input type="hidden" name="tarefaId" value={t.id} />
+                          <input type="hidden" name="projetoId" value={projeto.id} />
+                          <input name="descricao" type="text" className="form-input" defaultValue={t.descricao} required minLength={2} maxLength={500} style={{ flex: 1, minWidth: 180 }} />
+                          <input name="dataPrevista" type="date" className="form-input" defaultValue={t.dataPrevista ? new Date(t.dataPrevista).toISOString().slice(0, 10) : ""} style={{ width: 140, flexShrink: 0 }} />
+                          <button type="submit" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>Salvar</button>
+                        </form>
+                      </details>
                     </div>
                   ))}
                 </div>
@@ -1143,26 +1250,33 @@ function CentralDaObraView({
             <OrcamentoTab {...orcamento} />
           </div>
 
-          {/* Planejamento — Lote 10E */}
+          {/* Planejamento — Lote D6 */}
           <div className="obra-tab-panel panel-planejamento">
-            <div className="obra-card obra-card--full">
-              <div className="obra-card-header">
-                <span className="obra-card-label">Planejamento da obra</span>
+            {/* Sub-tabs — name diferente do pai para não conflitar */}
+            <input type="radio" name="obra-sub" id="sub-plan" className="obra-sub-radio" defaultChecked />
+            <input type="radio" name="obra-sub" id="sub-med" className="obra-sub-radio" />
+            <input type="radio" name="obra-sub" id="sub-ff" className="obra-sub-radio" />
+            <input type="radio" name="obra-sub" id="sub-cs" className="obra-sub-radio" />
+
+            <div className="obra-sub-nav">
+              <label htmlFor="sub-plan" className="obra-sub-label">Planejamento</label>
+              <label htmlFor="sub-med" className="obra-sub-label">Medições</label>
+              <label htmlFor="sub-ff" className="obra-sub-label">Físico-Financeiro</label>
+              <label htmlFor="sub-cs" className="obra-sub-label">Curva S</label>
+            </div>
+
+            <div className="obra-sub-panels">
+              <div className="obra-sub-panel sub-panel-plan">
+                <PlanejamentoTab projetoId={projeto.id} itens={itensOrcamento} action={salvarPlanejamentoItem} />
               </div>
-              <div className="placeholder-block">Cronograma e fases da obra serão gerenciados aqui.</div>
-              <div
-                style={{
-                  background: "var(--clr-surface)",
-                  borderRadius: "var(--r-md)",
-                  padding: "12px 16px",
-                  marginTop: 16,
-                  fontSize: 13,
-                  color: "var(--clr-text-muted)",
-                  lineHeight: 1.7,
-                }}
-              >
-                Fases previstas: Fundação · Estrutura · Alvenaria · Cobertura · Instalações · Acabamento · Entrega.
-                Etapas serão criadas manualmente ou sugeridas por agente em fase futura.
+              <div className="obra-sub-panel sub-panel-med">
+                <MedicoesTab projetoId={projeto.id} medicoes={medicoes} itensOrcamento={itensOrcamento} action={criarMedicao} />
+              </div>
+              <div className="obra-sub-panel sub-panel-ff">
+                <FisicoFinanceiroTab itens={itensOrcamento} />
+              </div>
+              <div className="obra-sub-panel sub-panel-cs">
+                <CurvaSTab itens={itensOrcamento} />
               </div>
             </div>
           </div>
@@ -1179,6 +1293,45 @@ function CentralDaObraView({
                   Ver fornecedores cadastrados <ArrowRightIcon size={12} />
                 </Link>
               </div>
+            </div>
+          </div>
+
+          {/* Anotações */}
+          <div className="obra-tab-panel panel-anotacoes">
+            <div className="obra-card obra-card--full">
+              <div className="obra-card-header">
+                <span className="obra-card-label">Anotações ({projeto.anotacoes.length})</span>
+              </div>
+              {projeto.anotacoes.length === 0 ? (
+                <div className="placeholder-block">Nenhuma anotação ainda. Use o formulário abaixo para registrar.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                  {projeto.anotacoes.map((a) => (
+                    <div key={a.id} style={{ padding: "12px 14px", background: "var(--clr-bg-subtle, #f9fafb)", borderRadius: "var(--r-md)", border: "1px solid var(--clr-border-light)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: a.titulo ? 6 : 0 }}>
+                        {a.titulo && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--clr-text)" }}>{a.titulo}</span>}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>{new Date(a.createdAt).toLocaleDateString("pt-BR")}</span>
+                          <form action={excluirAnotacao}>
+                            <input type="hidden" name="anotacaoId" value={a.id} />
+                            <input type="hidden" name="projetoId" value={projeto.id} />
+                            <button type="submit" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clr-text-muted)", fontSize: 13, padding: "0 2px" }} title="Excluir anotação">✕</button>
+                          </form>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 13, color: "var(--clr-text-secondary)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>{a.conteudo}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form action={criarAnotacao} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input type="hidden" name="projetoId" value={projeto.id} />
+                <input name="titulo" type="text" className="form-input" placeholder="Título (opcional)..." maxLength={200} />
+                <textarea name="conteudo" className="form-input" placeholder="Escreva a anotação..." required minLength={1} rows={4} style={{ resize: "vertical" }} />
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button type="submit" className="btn btn-primary btn-sm">+ Salvar anotação</button>
+                </div>
+              </form>
             </div>
           </div>
 
@@ -1250,17 +1403,31 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamento, bibliotecaItens, categorias, centrosCusto, fornecedores] = await Promise.all([
+  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
     listCategoriasByEmpresa(empresaId, { take: 100 }),
     listCentrosCustoByEmpresa(empresaId, { take: 50 }),
     listFornecedoresByEmpresa(empresaId, { take: 100 }),
+    listMedicoesByProjeto(empresaId, id),
   ]);
 
+  const itensOrcamento = itensOrcamentoRaw.map((i) => ({
+    id: i.id,
+    descricao: i.nome,
+    nivel: i.tipo === "nivel" ? 1 : i.tipo === "subnivel" ? 2 : 3,
+    posicao: i.posicao,
+    parentId: i.parentId,
+    dataInicioPlano: i.dataInicioPlano,
+    dataFimPlano: i.dataFimPlano,
+    diasDuracao: i.diasDuracao,
+    responsavel: i.responsavel,
+    custoTotal: i.servicos ? Number(i.servicos) : null,
+  }));
+
   const orcamentoProps = {
-    items: itensOrcamento.map((i) => ({
+    items: itensOrcamentoRaw.map((i) => ({
       ...i,
       quantidade: i.quantidade ? Number(i.quantidade) : null,
       custoServicos: i.custoServicos ? Number(i.custoServicos) : null,
@@ -1305,6 +1472,8 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       financeiro={financeiro}
       orcamento={orcamentoProps}
       financeiroFormLists={financeiroFormLists}
+      itensOrcamento={itensOrcamento}
+      medicoes={medicoes}
     />
   );
 }
