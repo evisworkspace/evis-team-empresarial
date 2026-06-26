@@ -14,6 +14,10 @@ type ClienteBasico = {
 type Props = {
   clientes: ClienteBasico[]
   defaultClienteId?: string
+  defaultMode?: "existente" | "novo"
+  defaultNovoClienteNome?: string
+  defaultNovoClienteTelefone?: string
+  defaultNovoClienteOrigem?: string
   semClientes: boolean
   origens: readonly { value: string; label: string }[]
   novoClienteHref?: string
@@ -22,13 +26,17 @@ type Props = {
 export default function ClienteSelectorPanel({
   clientes,
   defaultClienteId,
+  defaultMode,
+  defaultNovoClienteNome,
+  defaultNovoClienteTelefone,
+  defaultNovoClienteOrigem,
   semClientes,
   origens,
 }: Props) {
   const [localClientes, setLocalClientes] = useState<ClienteBasico[]>(clientes)
   const [selectedId, setSelectedId] = useState(defaultClienteId ?? "")
   const [activeTab, setActiveTab] = useState<"existente" | "novo">(
-    semClientes ? "novo" : "existente",
+    defaultMode ?? (semClientes ? "novo" : "existente"),
   )
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -204,6 +212,7 @@ export default function ClienteSelectorPanel({
               type="text"
               className="form-input"
               placeholder="Nome do cliente ou empresa"
+              defaultValue={defaultNovoClienteNome ?? ""}
               maxLength={200}
             />
           </div>
@@ -215,6 +224,7 @@ export default function ClienteSelectorPanel({
               type="tel"
               className="form-input"
               placeholder="(00) 00000-0000"
+              defaultValue={defaultNovoClienteTelefone ?? ""}
               maxLength={30}
             />
           </div>
@@ -224,7 +234,7 @@ export default function ClienteSelectorPanel({
             <select
               name="novoClienteOrigem"
               className="form-input form-select"
-              defaultValue="indicacao"
+              defaultValue={defaultNovoClienteOrigem ?? "indicacao"}
             >
               <option value="">Não informado</option>
               {origens.map((o) => (

@@ -38,8 +38,12 @@ export default async function NovaOportunidade({
     stage?: string; clienteId?: string; status?: string;
     agenteFilled?: string; erro?: string;
     titulo?: string; descricao?: string; tipoObra?: string; origem?: string;
-    prioridade?: string; metragem?: string; valor?: string;
+    prioridade?: string; statusInicial?: string; dataInicio?: string;
+    metragem?: string; valor?: string; valorGanho?: string;
+    cep?: string; logradouro?: string; numeroEndereco?: string; complemento?: string;
+    bairro?: string; cidade?: string; estado?: string;
     clienteNome?: string; clienteTel?: string; pendencias?: string;
+    tarefas?: string; semDestino?: string;
   }>;
 }) {
   const session = await auth();
@@ -48,13 +52,18 @@ export default async function NovaOportunidade({
     stage: defaultStage, clienteId: preSelectedClienteId, status: statusParam,
     agenteFilled, erro,
     titulo: aTitulo, descricao: aDescricao, tipoObra: aTipoObra, origem: aOrigem,
-    prioridade: aPrioridade, metragem: aMetragem, valor: aValor,
+    prioridade: aPrioridade, statusInicial: aStatusInicial, dataInicio: aDataInicio,
+    metragem: aMetragem, valor: aValor, valorGanho: aValorGanho,
+    cep: aCep, logradouro: aLogradouro, numeroEndereco: aNumeroEndereco,
+    complemento: aComplemento, bairro: aBairro, cidade: aCidade, estado: aEstado,
     clienteNome: aClienteNome, clienteTel: aClienteTel, pendencias: aPendencias,
+    tarefas: aTarefas, semDestino: aSemDestino,
   } = await searchParams;
 
   const isObra = defaultStage === "obra";
   const statusValidos = isObra ? STATUS_OBRA_VALIDOS : STATUS_FUNIL_VALIDOS;
-  const statusInicial = statusParam && statusValidos.includes(statusParam) ? statusParam : undefined;
+  const statusSugerido = statusParam ?? aStatusInicial;
+  const statusInicial = statusSugerido && statusValidos.includes(statusSugerido) ? statusSugerido : undefined;
   const statusMap = isObra ? STATUS_OBRA : STATUS_OPORTUNIDADE;
 
   const clientes = await listClientesByEmpresa(empresaId, { take: 100 });
@@ -68,6 +77,16 @@ export default async function NovaOportunidade({
   const defaultTipoObra = aTipoObra && tiposObraValidos.includes(aTipoObra) ? aTipoObra : "";
   const defaultOrigem   = aOrigem   && origensValidas.includes(aOrigem)     ? aOrigem   : (agenteFilled ? "" : "indicacao");
   const defaultPrioridade = aPrioridade && prioridadesValidas.includes(aPrioridade) ? aPrioridade : (agenteFilled ? "" : "media");
+  const defaultDataInicio = aDataInicio && /^\d{4}-\d{2}-\d{2}$/.test(aDataInicio) ? aDataInicio : "";
+  const enderecoDefaults = {
+    cep: aCep ?? "",
+    logradouro: aLogradouro ?? "",
+    numero: aNumeroEndereco ?? "",
+    complemento: aComplemento ?? "",
+    bairro: aBairro ?? "",
+    cidade: aCidade ?? "",
+    estado: aEstado ?? "",
+  };
 
   return (
     <div>
@@ -108,7 +127,7 @@ export default async function NovaOportunidade({
             </span>
           </div>
           <p style={{ fontSize: 13, color: "var(--clr-text-muted)", marginBottom: 16 }}>
-            Cole uma conversa, mensagem ou relato. O agente preenche os campos automaticamente — você revisa antes de salvar.
+            Cole uma conversa, mensagem ou relato, ou anexe um print. O agente preenche os campos automaticamente — você revisa antes de salvar.
           </p>
 
           {/* Banners de resultado */}
@@ -132,11 +151,21 @@ export default async function NovaOportunidade({
                   Pendências: {aPendencias}
                 </div>
               )}
+              {aTarefas && (
+                <div style={{ marginTop: 6, color: "#14532d", fontWeight: 500 }}>
+                  Ações sugeridas: {aTarefas}
+                </div>
+              )}
+              {aSemDestino && (
+                <div style={{ marginTop: 6, color: "#475569", fontWeight: 500 }}>
+                  Sem destino estruturado atual: {aSemDestino}
+                </div>
+              )}
             </div>
           )}
 
           {/* Mini-form de captura — separado do form principal */}
-          <form action={preencherOportunidadeComAgente}>
+          <form action={preencherOportunidadeComAgente} encType="multipart/form-data">
             <input type="hidden" name="stage" value={defaultStage ?? "oportunidade"} />
             <textarea
               name="texto_captura"
@@ -145,6 +174,16 @@ export default async function NovaOportunidade({
               rows={4}
               style={{ marginBottom: 10, resize: "vertical" }}
             />
+            <div className="form-group" style={{ marginBottom: 10 }}>
+              <label className="form-label">Print ou imagem da entrada</label>
+              <input
+                name="imagem_captura"
+                type="file"
+                className="form-input"
+                accept="image/png,image/jpeg,image/webp"
+              />
+              <span className="form-hint">Opcional. Use PNG, JPG ou WebP com até 5 MB.</span>
+            </div>
             <button type="submit" className="btn btn-secondary btn-sm" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <AgentsIcon size={13} />
               Preencher campos com agente
@@ -247,7 +286,7 @@ export default async function NovaOportunidade({
 
               <div className="form-group">
                 <label className="form-label">Início estimado</label>
-                <input name="dataInicioEstimada" type="date" className="form-input" />
+                <input name="dataInicioEstimada" type="date" className="form-input" defaultValue={defaultDataInicio} />
               </div>
 
               <div className="form-row">
@@ -286,12 +325,14 @@ export default async function NovaOportunidade({
                   step="0.01"
                   className="form-input"
                   placeholder="Ex: 300000"
+                  defaultValue={aValorGanho ?? ""}
                 />
                 <span className="form-hint">Valor esperado ao fechar o contrato.</span>
               </div>
 
               <EnderecoFields
                 fieldNames={{ cep: "cepObra", logradouro: "logradouroObra", numero: "numeroEnderecoObra", complemento: "complementoObra", bairro: "bairroObra", cidade: "cidadeObra", estado: "estadoObra" }}
+                defaults={enderecoDefaults}
                 logradouroLabel="Logradouro da obra"
                 marginTop={0}
               />
@@ -332,6 +373,10 @@ export default async function NovaOportunidade({
               <ClienteSelectorPanel
                 clientes={clientes}
                 defaultClienteId={preSelectedClienteId}
+                defaultMode={aClienteNome && !preSelectedClienteId ? "novo" : undefined}
+                defaultNovoClienteNome={aClienteNome}
+                defaultNovoClienteTelefone={aClienteTel}
+                defaultNovoClienteOrigem={defaultOrigem}
                 semClientes={semClientes}
                 origens={ORIGENS_LEAD}
                 novoClienteHref={`/dashboard/clientes/novo?redirectTo=${encodeURIComponent(
