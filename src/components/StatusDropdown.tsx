@@ -11,8 +11,10 @@ type Props = {
 
 export default function StatusDropdown({ projetoId, stage, statusAtual }: Props) {
   const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number } | null>(null);
   const [isPending, startTransition] = useTransition();
-  const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   const statusMap = stage === "obra" ? STATUS_OBRA : STATUS_OPORTUNIDADE;
   const cfgAtual = statusMap[statusAtual] ?? { label: statusAtual || "—", cor: "#6b7280", grupo: "ativo" as const };
@@ -22,11 +24,40 @@ export default function StatusDropdown({ projetoId, stage, statusAtual }: Props)
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        dropRef.current && !dropRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Recalcula posição ao scrollar/redimensionar enquanto aberto
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, left: r.left });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
+
+  const handleOpen = () => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setDropPos({ top: r.bottom + 4, left: r.left });
+    setOpen((v) => !v);
+  };
 
   const select = (slug: string) => {
     if (slug === statusAtual) { setOpen(false); return; }
@@ -37,10 +68,11 @@ export default function StatusDropdown({ projetoId, stage, statusAtual }: Props)
   };
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleOpen}
         disabled={isPending}
         className="badge-status"
         style={{
@@ -58,19 +90,22 @@ export default function StatusDropdown({ projetoId, stage, statusAtual }: Props)
         </svg>
       </button>
 
-      {open && (
-        <div style={{
-          position: "absolute",
-          top: "calc(100% + 4px)",
-          left: 0,
-          zIndex: 100,
-          background: "#fff",
-          border: "1px solid var(--clr-border)",
-          borderRadius: "var(--r-lg)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-          minWidth: 190,
-          overflow: "hidden",
-        }}>
+      {open && dropPos && (
+        <div
+          ref={dropRef}
+          style={{
+            position: "fixed",
+            top: dropPos.top,
+            left: dropPos.left,
+            zIndex: 9999,
+            background: "#fff",
+            border: "1px solid var(--clr-border)",
+            borderRadius: "var(--r-lg)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            minWidth: 190,
+            overflow: "hidden",
+          }}
+        >
           {ativos.length > 0 && (
             <>
               <div style={{ padding: "6px 12px 3px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#94a3b8", fontFamily: "var(--font-mono)" }}>
@@ -94,7 +129,7 @@ export default function StatusDropdown({ projetoId, stage, statusAtual }: Props)
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
