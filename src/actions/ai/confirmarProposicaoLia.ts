@@ -59,7 +59,7 @@ export async function confirmarProposicaoLia(formData: FormData) {
 
   if (["tarefa", "visita", "reuniao"].includes(tipo)) {
     if (!projetoId) {
-      redirect(`/dashboard/diario?aviso=${encodeURIComponent("Tarefa requer um projeto vinculado. Selecione um projeto primeiro.")}`);
+      redirect(montarRetornoDiario(formData) + `&aviso=${encodeURIComponent("Selecione um projeto antes de confirmar a tarefa.")}`);
     }
 
     await createTarefa(empresaId, {
@@ -73,7 +73,7 @@ export async function confirmarProposicaoLia(formData: FormData) {
     revalidatePath("/dashboard/tarefas");
   } else if (["nota", "financeiro", "documento"].includes(tipo)) {
     if (!projetoId) {
-      redirect(`/dashboard/diario?aviso=${encodeURIComponent("Nota requer um projeto vinculado. Selecione um projeto primeiro.")}`);
+      redirect(montarRetornoDiario(formData) + `&aviso=${encodeURIComponent("Selecione um projeto antes de confirmar a nota.")}`);
     }
 
     await createAtividade(empresaId, {

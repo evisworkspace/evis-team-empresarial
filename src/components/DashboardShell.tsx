@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { MenuIcon } from "@/components/Icons";
+import LiaCopiloto from "@/components/LiaCopiloto";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -17,7 +18,7 @@ export function DashboardShell({ children, userName, companyName }: DashboardShe
 
   // Fecha a sidebar automaticamente quando a rota muda no mobile
   useEffect(() => {
-    setSidebarOpen(false);
+    queueMicrotask(() => setSidebarOpen(false));
   }, [pathname]);
 
   return (
@@ -59,6 +60,10 @@ export function DashboardShell({ children, userName, companyName }: DashboardShe
 
         <main className="page-content">{children}</main>
       </div>
+
+      <Suspense fallback={null}>
+        <LiaCopiloto />
+      </Suspense>
     </div>
   );
 }

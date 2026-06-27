@@ -175,6 +175,10 @@ export async function criarProjeto(formData: FormData) {
     }
   }
 
+  if (stage === "oportunidade") {
+    redirect(`/dashboard/projetos/${projeto.id}?lia=1`);
+  }
+
   redirect(`/dashboard/projetos/${projeto.id}`);
 }
 

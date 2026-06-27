@@ -1962,6 +1962,292 @@ table.evis-table {
 #op-tab-agentes:checked ~ .obra-tabs-panels .op-panel-agentes { display: block; }
 
 /* ============================================================
+   COPILOTO LATERAL — Lia Chat Rail
+   ============================================================ */
+
+.lia-trigger-btn {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  padding: 14px 8px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.12);
+}
+
+.lia-trigger-btn:hover {
+  background: var(--clr-primary-hover);
+  box-shadow: -3px 0 12px rgba(0, 0, 0, 0.16);
+}
+
+.lia-trigger-btn--open {
+  display: none;
+}
+
+.lia-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.lia-rail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  width: 380px;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--clr-bg);
+  border-left: 1px solid var(--clr-border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lia-rail--open {
+  transform: translateX(0);
+}
+
+.lia-rail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: var(--clr-surface);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.lia-rail-kicker {
+  margin-bottom: 4px;
+  color: var(--clr-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lia-rail-title {
+  color: var(--clr-text);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.lia-close-btn {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--clr-text-muted);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-md);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.lia-close-btn:hover {
+  background: var(--clr-surface-hover);
+  color: var(--clr-text);
+}
+
+.lia-context-bar {
+  padding: 8px 16px;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary-text);
+  border-bottom: 1px solid #bae6fd;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lia-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lia-message-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lia-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lia-msg--user {
+  align-self: flex-end;
+  background: var(--clr-primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.lia-msg--lia {
+  align-self: flex-start;
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-bottom-left-radius: 4px;
+}
+
+.lia-typing {
+  align-self: flex-start;
+  padding: 4px 0;
+  color: var(--clr-text-muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.lia-action-card {
+  align-self: flex-start;
+  width: 100%;
+  max-width: 340px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.lia-action-card--confirmed {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.lia-action-card--ignored {
+  opacity: 0.45;
+}
+
+.lia-action-card-type {
+  margin-bottom: 6px;
+  color: var(--clr-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lia-action-card-desc {
+  margin-bottom: 10px;
+  color: var(--clr-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lia-action-card-meta {
+  margin: -4px 0 10px;
+  color: var(--clr-text-muted);
+  font-size: 11.5px;
+}
+
+.lia-action-card-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lia-input-area {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--clr-surface);
+  border-top: 1px solid var(--clr-border);
+}
+
+.lia-input {
+  flex: 1;
+  max-height: 120px;
+  min-height: 42px;
+  resize: none;
+  padding: 8px 12px;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-md);
+  outline: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.lia-input:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.lia-send-btn {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lia-send-btn:hover:not(:disabled) {
+  background: var(--clr-primary-hover);
+}
+
+.lia-send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (min-width: 768px) {
+  .lia-overlay {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .lia-rail {
+    width: 100vw;
+  }
+
+  .lia-trigger-btn {
+    top: auto;
+    bottom: 96px;
+    transform: none;
+  }
+}
+
+/* ============================================================
    TRIAGEM INTELIGENTE — Agente Lia
    ============================================================ */
 
