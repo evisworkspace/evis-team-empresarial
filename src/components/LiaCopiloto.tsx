@@ -27,6 +27,7 @@ type LiaMessage = {
   attachments?: LiaAttachment[];
   actions: LiaAction[];
   timestamp: number;
+  quickReplies?: string[];
 };
 
 type LiaAttachment = {
@@ -470,6 +471,7 @@ export default function LiaCopiloto() {
         content: responseText || "Projeto carregado. O que precisa?",
         actions,
         timestamp: Date.now(),
+        quickReplies: actions.length === 0 ? ["Sim, avançar", "Tenho outro assunto"] : undefined,
       }]);
       setStreamingText("");
     } catch {
@@ -698,6 +700,21 @@ export default function LiaCopiloto() {
                       <span className="lia-attachment-name">{attachment.name}</span>
                       <span className="lia-attachment-size">{formatBytes(attachment.size)}</span>
                     </div>
+                  ))}
+                </div>
+              )}
+              {message.role === "lia" && message.quickReplies && message.quickReplies.length > 0 && messages[messages.length - 1]?.id === message.id && (
+                <div className="lia-quick-replies">
+                  {message.quickReplies.map((reply) => (
+                    <button
+                      key={reply}
+                      type="button"
+                      className="lia-quick-reply-btn"
+                      disabled={isLoading}
+                      onClick={() => void sendMessage(reply)}
+                    >
+                      {reply}
+                    </button>
                   ))}
                 </div>
               )}

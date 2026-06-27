@@ -76,17 +76,19 @@ export default async function EditarProjetoPage({
           </div>
 
           <div className="form-row">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Número da obra</label>
-              <input
-                name="numeroObra"
-                type="text"
-                className="form-input"
-                defaultValue={projeto.numeroObra ?? ""}
-                maxLength={50}
-                placeholder="Ex: 001, A-12"
-              />
-            </div>
+            {!isOportunidade && (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Número da obra</label>
+                <input
+                  name="numeroObra"
+                  type="text"
+                  className="form-input"
+                  defaultValue={projeto.numeroObra ?? ""}
+                  maxLength={50}
+                  placeholder="Ex: 001, A-12"
+                />
+              </div>
+            )}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Início estimado</label>
               <input
