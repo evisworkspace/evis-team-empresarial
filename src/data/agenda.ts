@@ -87,3 +87,21 @@ export function countAgendaByEmpresa(
     },
   });
 }
+
+export function updateAgendaItemStatus(
+  empresaId: string,
+  id: string,
+  status: "agendado" | "realizado" | "cancelado",
+) {
+  return prisma.agendaItem.updateMany({
+    where: { id, empresaId, deletedAt: null },
+    data: { status },
+  });
+}
+
+export function deleteAgendaItem(empresaId: string, id: string) {
+  return prisma.agendaItem.updateMany({
+    where: { id, empresaId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+}

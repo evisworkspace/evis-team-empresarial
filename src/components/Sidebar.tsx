@@ -17,6 +17,7 @@ import {
   ActivityIcon,
   CollapseIcon,
   ExpandIcon,
+  CalendarIcon,
 } from "@/components/Icons";
 import { handleSignOut } from "@/actions/auth";
 
@@ -132,6 +133,13 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
           >
             <ActivityIcon className="sidebar-link-icon" />
             Diário
+          </Link>
+          <Link
+            href="/dashboard/agenda"
+            className={`sidebar-link ${isActive("/dashboard/agenda") ? "active" : ""}`}
+          >
+            <CalendarIcon className="sidebar-link-icon" />
+            Agenda
           </Link>
         </div>
 

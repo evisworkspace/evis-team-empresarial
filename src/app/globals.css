@@ -596,6 +596,9 @@ input, textarea, select {
 .badge-inativo      { background: #f1f5f9; color: var(--clr-text-muted); }
 .badge-pendente     { background: var(--clr-warning-bg); color: var(--clr-warning); }
 .badge-mock         { background: #f1f5f9; color: var(--clr-text-muted); border: 1px dashed var(--clr-border); }
+.badge-fechado      { background: #eff6ff; color: #1d4ed8; }
+.badge-perdido      { background: #fef2f2; color: #dc2626; }
+.badge-overdue      { background: #fef2f2; color: #dc2626; border: 1px solid rgba(220,38,38,.25); font-weight: 600; }
 
 /* --- QUICK START ------------------------------------------- */
 .quickstart {
