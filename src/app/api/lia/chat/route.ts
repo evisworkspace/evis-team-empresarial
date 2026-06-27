@@ -1,14 +1,23 @@
-import { GoogleGenAI } from "@google/genai";
+import { createPartFromBase64, GoogleGenAI, type Part } from "@google/genai";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listAgendaByEmpresa } from "@/data/agenda";
 import { listTarefasByEmpresa } from "@/data/tarefa";
 import { getProjetoWithDetails } from "@/data/projeto";
+import { listAtividadesGlobais } from "@/data/projetoAtividade";
+
+interface ChatAttachment {
+  name: string;
+  mimeType: string;
+  size: number;
+  data: string;
+}
 
 interface ChatMessage {
   role: "user" | "model";
   content: string;
+  attachments?: ChatAttachment[];
 }
 
 interface ChatContext {
@@ -17,6 +26,23 @@ interface ChatContext {
   projetoTitulo?: string | null;
   stage?: string | null;
 }
+
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const MAX_ATTACHMENTS_PER_MESSAGE = 5;
+const ACCEPTED_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/json",
+  "audio/webm",
+  "audio/wav",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/ogg",
+]);
 
 const SYSTEM_PROMPT_TEMPLATE = (ctx: ChatContext, operationalContext: string) => `Você é a Lia, secretária operacional e filtro global da EVIS. Você está ao lado do usuário enquanto ele trabalha.
 
@@ -31,10 +57,17 @@ ${operationalContext}
 
 Você pode ajudar com:
 Responder perguntas de secretária operacional com base no contexto real acima
+Ler arquivos anexados pelo usuário quando forem imagens, PDFs, textos, CSV/JSON ou áudios
 Sugerir e criar tarefas de próximos passos
 Sugerir e criar compromissos na Agenda do sistema
 Registrar atividades já realizadas no projeto
 Orientar o fluxo pré-orçamento, da oportunidade à visita técnica
+
+RAIZ OPERACIONAL:
+A memória da Lia é a linha do tempo do EVIS. Não crie memória paralela.
+Quando o usuário trouxer uma lembrança, observação ou comando rápido, identifique o contexto, proponha o registro correto e vincule à obra/oportunidade.
+Se for lembrete ou verificação a fazer, proponha tarefa ou agenda. Se for fato já ocorrido, proponha atividade.
+Sempre preserve a entrada original no registro aprovado pelo usuário.
 
 Quando propuser uma ação concreta, inclua na sua resposta este marcador HTML em uma linha isolada:
 <!--ACTION:{"tipo":"tarefa","descricao":"Agendar visita técnica com o cliente","dataPrevista":"2026-07-01T14:00"}-->
@@ -77,7 +110,7 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
   const now = new Date();
   const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const [agenda, tarefas] = await Promise.all([
+  const [agenda, tarefas, atividadesGlobais] = await Promise.all([
     listAgendaByEmpresa(empresaId, {
       projetoId: ctx.projetoId ?? undefined,
       from: now,
@@ -86,6 +119,7 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
       take: 8,
     }),
     listTarefasByEmpresa(empresaId, { status: "aberta", take: 8 }),
+    ctx.projetoId ? Promise.resolve([]) : listAtividadesGlobais(empresaId, 8),
   ]);
 
   const agendaLines = agenda.length
@@ -106,6 +140,13 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
     : ["Nenhuma tarefa aberta no contexto atual."];
 
   let projetoLine = "Nenhum projeto carregado.";
+  let timelineLines = atividadesGlobais.length
+    ? atividadesGlobais.map((atividade) => {
+        const projeto = atividade.projeto?.titulo ? ` · ${atividade.projeto.titulo}` : "";
+        return `${formatDateTime(atividade.createdAt)} · ${atividade.tipo}: ${atividade.descricao.slice(0, 180)}${projeto}`;
+      })
+    : ["Nenhuma atividade recente no contexto atual."];
+
   if (ctx.projetoId) {
     const projeto = await getProjetoWithDetails(empresaId, ctx.projetoId);
     if (projeto) {
@@ -117,6 +158,11 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
         `Tarefas abertas no projeto: ${projeto.tarefas.filter((tarefa) => tarefa.status === "aberta").length}`,
         `Atividades recentes: ${projeto.atividades.length}`,
       ].join(" | ");
+      timelineLines = projeto.atividades.length
+        ? projeto.atividades.slice(0, 8).map((atividade) =>
+            `${formatDateTime(atividade.createdAt)} · ${atividade.tipo}: ${atividade.descricao.slice(0, 180)}`,
+          )
+        : ["Nenhuma atividade recente nesta obra/oportunidade."];
     }
   }
 
@@ -124,6 +170,7 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
     projetoLine,
     `Agenda próximos 7 dias: ${agendaLines.join(" ; ")}`,
     `Tarefas abertas: ${tarefaLines.join(" ; ")}`,
+    `Linha do tempo recente: ${timelineLines.join(" ; ")}`,
   ].join("\n");
 }
 
@@ -134,6 +181,45 @@ function isChatMessage(value: unknown): value is ChatMessage {
     (record.role === "user" || record.role === "model") &&
     typeof record.content === "string"
   );
+}
+
+function isChatAttachment(value: unknown): value is ChatAttachment {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  const mimeType = typeof record.mimeType === "string" ? record.mimeType.split(";")[0] : "";
+  return (
+    typeof record.name === "string" &&
+    typeof record.mimeType === "string" &&
+    typeof record.size === "number" &&
+    typeof record.data === "string" &&
+    record.size > 0 &&
+    record.size <= MAX_ATTACHMENT_BYTES &&
+    ACCEPTED_MIME_TYPES.has(mimeType)
+  );
+}
+
+function partsFromMessage(message: ChatMessage): Part[] {
+  const parts: Part[] = [];
+  if (message.content.trim()) {
+    parts.push({ text: message.content.trim() });
+  }
+
+  const attachments = (message.attachments ?? [])
+    .filter(isChatAttachment)
+    .slice(0, MAX_ATTACHMENTS_PER_MESSAGE);
+
+  for (const attachment of attachments) {
+    const mimeType = attachment.mimeType.split(";")[0];
+    if (mimeType === "text/plain" || mimeType === "text/csv" || mimeType === "application/json") {
+      const text = Buffer.from(attachment.data, "base64").toString("utf8").slice(0, 20000);
+      parts.push({ text: `Arquivo anexado: ${attachment.name}\n${text}` });
+    } else {
+      parts.push({ text: `Arquivo anexado: ${attachment.name} (${mimeType})` });
+      parts.push(createPartFromBase64(attachment.data, mimeType));
+    }
+  }
+
+  return parts.length > 0 ? parts : [{ text: "Mensagem vazia." }];
 }
 
 export async function POST(request: Request) {
@@ -176,7 +262,7 @@ export async function POST(request: Request) {
       model,
       contents: messages.map((message) => ({
         role: message.role,
-        parts: [{ text: message.content }],
+        parts: partsFromMessage(message),
       })),
       config: {
         systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext),

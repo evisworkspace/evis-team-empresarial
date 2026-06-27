@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
+import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { executarAcaoLia } from "@/actions/ai/executarAcaoLia";
 
@@ -19,8 +19,17 @@ type LiaMessage = {
   id: string;
   role: "user" | "lia";
   content: string;
+  attachments?: LiaAttachment[];
   actions: LiaAction[];
   timestamp: number;
+};
+
+type LiaAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  data: string;
 };
 
 type LiaContext = {
@@ -31,9 +40,53 @@ type LiaContext = {
 };
 
 const ACTION_RE = /<!--ACTION:(.*?)-->/g;
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "text/csv",
+  "application/json",
+  "audio/webm",
+  "audio/wav",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/ogg",
+]);
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function formatBytes(value: number) {
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function inferMimeType(file: File) {
+  if (file.type) return file.type.split(";")[0];
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".pdf")) return "application/pdf";
+  if (name.endsWith(".txt")) return "text/plain";
+  if (name.endsWith(".csv")) return "text/csv";
+  if (name.endsWith(".json")) return "application/json";
+  return "application/octet-stream";
+}
+
+function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      resolve(result.includes(",") ? result.split(",")[1] : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function sanitizeVisibleText(value: string) {
@@ -113,6 +166,10 @@ export default function LiaCopiloto() {
   const [messages, setMessages] = useState<LiaMessage[]>([]);
   const [streamingText, setStreamingText] = useState("");
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<LiaAttachment[]>([]);
+  const [attachmentNotice, setAttachmentNotice] = useState("");
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [context, setContext] = useState<LiaContext>({
     pathname: "",
@@ -122,6 +179,10 @@ export default function LiaCopiloto() {
   });
   const [isPending, startTransition] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const autoOpenedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -144,14 +205,151 @@ export default function LiaCopiloto() {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages, streamingText]);
 
+  useEffect(() => {
+    return () => {
+      mediaRecorderRef.current?.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  async function addFiles(files: File[]) {
+    if (files.length === 0) return;
+
+    const next: LiaAttachment[] = [];
+    const notices: string[] = [];
+    let totalBytes = attachments.reduce((sum, item) => sum + item.size, 0);
+
+    for (const file of files) {
+      const mimeType = inferMimeType(file);
+      if (!ACCEPTED_MIME_TYPES.has(mimeType)) {
+        notices.push(`${file.name}: formato ainda não suportado.`);
+        continue;
+      }
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        notices.push(`${file.name}: limite de ${formatBytes(MAX_ATTACHMENT_BYTES)}.`);
+        continue;
+      }
+      if (attachments.length + next.length >= MAX_ATTACHMENTS) {
+        notices.push(`Limite de ${MAX_ATTACHMENTS} anexos por mensagem.`);
+        break;
+      }
+      if (totalBytes + file.size > MAX_TOTAL_BYTES) {
+        notices.push(`Limite total de ${formatBytes(MAX_TOTAL_BYTES)} por mensagem.`);
+        break;
+      }
+
+      const data = await readFileAsBase64(file);
+      next.push({
+        id: makeId("attach"),
+        name: file.name || "audio-lia.webm",
+        mimeType,
+        size: file.size,
+        data,
+      });
+      totalBytes += file.size;
+    }
+
+    if (next.length > 0) {
+      setAttachments((prev) => [...prev, ...next].slice(0, MAX_ATTACHMENTS));
+    }
+    setAttachmentNotice(notices.join(" "));
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    if (files.length > 0) {
+      event.preventDefault();
+      void addFiles(files);
+    }
+  }
+
+  function handleDragOver(event: DragEvent<HTMLElement>) {
+    if (Array.from(event.dataTransfer.types).includes("Files")) {
+      event.preventDefault();
+      setIsDraggingFile(true);
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLElement>) {
+    if (event.dataTransfer.files.length === 0) return;
+    event.preventDefault();
+    setIsDraggingFile(false);
+    void addFiles(Array.from(event.dataTransfer.files));
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setIsDraggingFile(false);
+    }
+  }
+
+  async function toggleRecording() {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setAttachmentNotice("Gravação de áudio indisponível neste navegador.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
+
+      const preferredType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType: preferredType });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const mimeType = recorder.mimeType || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([blob], `audio-lia-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.webm`, {
+          type: mimeType,
+        });
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        audioChunksRef.current = [];
+        setIsRecording(false);
+        void addFiles([file]);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setAttachmentNotice("");
+    } catch {
+      setAttachmentNotice("Não consegui acessar o microfone.");
+    }
+  }
+
   async function sendMessage(value: string) {
     const text = value.trim();
-    if (!text || isLoading) return;
+    const files = attachments;
+    if ((!text && files.length === 0) || isLoading) return;
+
+    const content = text || "Anexo enviado para análise.";
 
     const userMsg: LiaMessage = {
       id: makeId("user"),
       role: "user",
-      content: text,
+      content,
+      attachments: files,
       actions: [],
       timestamp: Date.now(),
     };
@@ -159,6 +357,8 @@ export default function LiaCopiloto() {
 
     setMessages(nextMessages);
     setInput("");
+    setAttachments([]);
+    setAttachmentNotice("");
     setIsLoading(true);
     setStreamingText("");
 
@@ -170,6 +370,12 @@ export default function LiaCopiloto() {
           messages: nextMessages.map((message) => ({
             role: message.role === "lia" ? "model" : "user",
             content: message.content,
+            attachments: message.attachments?.map((attachment) => ({
+              name: attachment.name,
+              mimeType: attachment.mimeType,
+              size: attachment.size,
+              data: attachment.data,
+            })),
           })),
           context,
         }),
@@ -273,6 +479,7 @@ export default function LiaCopiloto() {
     }
 
     startTransition(async () => {
+      const evidencia = getActionEvidence(messageId);
       const result = action.tipo === "agenda"
         ? await executarAcaoLia({
             tipo: "agenda",
@@ -281,6 +488,7 @@ export default function LiaCopiloto() {
             dataPrevista: action.dataPrevista ?? "",
             tipoAgenda: action.tipoAgenda,
             projetoId: context.projetoId ?? undefined,
+            ...evidencia,
           })
         : action.tipo === "visita_tecnica"
           ? await executarAcaoLia({
@@ -288,6 +496,7 @@ export default function LiaCopiloto() {
               descricao: action.descricao,
               dataPrevista: action.dataPrevista,
               projetoId: context.projetoId!,
+              ...evidencia,
             })
           : action.tipo === "tarefa"
             ? await executarAcaoLia({
@@ -295,12 +504,14 @@ export default function LiaCopiloto() {
                 descricao: action.descricao,
                 dataPrevista: action.dataPrevista,
                 projetoId: context.projetoId!,
+                ...evidencia,
               })
             : await executarAcaoLia({
                 tipo: "atividade",
                 descricao: action.descricao,
                 tipoAtividade: action.tipoAtividade,
                 projetoId: context.projetoId!,
+                ...evidencia,
               });
 
       if (result.ok) {
@@ -325,6 +536,23 @@ export default function LiaCopiloto() {
     addLiaNote("Tudo bem. Não criei nada.");
   }
 
+  function getActionEvidence(messageId: string) {
+    const actionMessageIndex = messages.findIndex((message) => message.id === messageId);
+    const sourceMessage = messages
+      .slice(0, actionMessageIndex >= 0 ? actionMessageIndex : messages.length)
+      .reverse()
+      .find((message) => message.role === "user");
+
+    return {
+      entradaOriginal: sourceMessage?.content,
+      anexos: sourceMessage?.attachments?.map((attachment) => ({
+        name: attachment.name,
+        mimeType: attachment.mimeType,
+        size: attachment.size,
+      })),
+    };
+  }
+
   return (
     <>
       <button
@@ -338,7 +566,13 @@ export default function LiaCopiloto() {
 
       {isOpen && <div className="lia-overlay" onClick={() => setIsOpen(false)} />}
 
-      <aside className={`lia-rail${isOpen ? " lia-rail--open" : ""}`} aria-label="Copiloto Lia">
+      <aside
+        className={`lia-rail${isOpen ? " lia-rail--open" : ""}${isDraggingFile ? " lia-rail--dragging" : ""}`}
+        aria-label="Copiloto Lia"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <div className="lia-rail-header">
           <div>
             <div className="lia-rail-kicker">Lia · EVIS</div>
@@ -365,6 +599,16 @@ export default function LiaCopiloto() {
               <div className={`lia-msg lia-msg--${message.role === "user" ? "user" : "lia"}`}>
                 {message.content}
               </div>
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="lia-attachment-list lia-attachment-list--sent">
+                  {message.attachments.map((attachment) => (
+                    <div key={attachment.id} className="lia-attachment-chip">
+                      <span className="lia-attachment-name">{attachment.name}</span>
+                      <span className="lia-attachment-size">{formatBytes(attachment.size)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {message.actions.map((action) => (
                 <div
                   key={action.id}
@@ -414,18 +658,74 @@ export default function LiaCopiloto() {
         </div>
 
         <form className="lia-input-area" onSubmit={handleSubmit}>
-          <textarea
-            className="lia-input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Escreva para a Lia..."
-            rows={2}
-            disabled={isLoading}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/png,image/jpeg,image/webp,application/pdf,text/plain,text/csv,application/json,audio/*"
+            className="lia-file-input"
+            onChange={(event) => {
+              const files = event.target.files ? Array.from(event.target.files) : [];
+              event.target.value = "";
+              void addFiles(files);
+            }}
           />
-          <button type="submit" className="lia-send-btn" disabled={isLoading || !input.trim()}>
-            Enviar
-          </button>
+
+          {attachments.length > 0 && (
+            <div className="lia-attachment-list">
+              {attachments.map((attachment) => (
+                <div key={attachment.id} className="lia-attachment-chip">
+                  <span className="lia-attachment-name">{attachment.name}</span>
+                  <span className="lia-attachment-size">{formatBytes(attachment.size)}</span>
+                  <button
+                    type="button"
+                    className="lia-attachment-remove"
+                    aria-label={`Remover ${attachment.name}`}
+                    onClick={() => removeAttachment(attachment.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {attachmentNotice && <div className="lia-attachment-notice">{attachmentNotice}</div>}
+
+          <div className="lia-input-row">
+            <button
+              type="button"
+              className="lia-tool-btn"
+              title="Anexar arquivo"
+              aria-label="Anexar arquivo"
+              disabled={isLoading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className={`lia-tool-btn${isRecording ? " lia-tool-btn--recording" : ""}`}
+              title={isRecording ? "Parar gravação" : "Gravar áudio"}
+              aria-label={isRecording ? "Parar gravação" : "Gravar áudio"}
+              disabled={isLoading}
+              onClick={toggleRecording}
+            >
+              {isRecording ? "■" : "●"}
+            </button>
+            <textarea
+              className="lia-input"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="Escreva para a Lia..."
+              rows={2}
+              disabled={isLoading}
+            />
+            <button type="submit" className="lia-send-btn" disabled={isLoading || (!input.trim() && attachments.length === 0)}>
+              Enviar
+            </button>
+          </div>
         </form>
       </aside>
     </>

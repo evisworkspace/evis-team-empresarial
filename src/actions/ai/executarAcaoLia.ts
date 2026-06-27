@@ -8,11 +8,18 @@ import { createAtividade } from "@/data/projetoAtividade";
 import { createAgendaItem } from "@/data/agenda";
 import { createAuditEntry } from "@/lib/audit";
 
+type EvidenciaLia = {
+  entradaOriginal?: string;
+  anexos?: { name: string; mimeType: string; size: number }[];
+};
+
 interface AcaoTarefa {
   tipo: "tarefa";
   descricao: string;
   dataPrevista?: string;
   projetoId: string;
+  entradaOriginal?: string;
+  anexos?: EvidenciaLia["anexos"];
 }
 
 interface AcaoAgenda {
@@ -22,6 +29,8 @@ interface AcaoAgenda {
   dataPrevista: string;
   tipoAgenda?: string;
   projetoId?: string;
+  entradaOriginal?: string;
+  anexos?: EvidenciaLia["anexos"];
 }
 
 interface AcaoVisitaTecnica {
@@ -29,6 +38,8 @@ interface AcaoVisitaTecnica {
   descricao: string;
   dataPrevista?: string;
   projetoId: string;
+  entradaOriginal?: string;
+  anexos?: EvidenciaLia["anexos"];
 }
 
 interface AcaoAtividade {
@@ -36,6 +47,8 @@ interface AcaoAtividade {
   descricao: string;
   tipoAtividade?: string;
   projetoId: string;
+  entradaOriginal?: string;
+  anexos?: EvidenciaLia["anexos"];
 }
 
 type Acao = AcaoTarefa | AcaoAgenda | AcaoVisitaTecnica | AcaoAtividade;
@@ -45,6 +58,27 @@ function parseDataPrevista(value?: string) {
   const data = new Date(value);
   if (Number.isNaN(data.getTime())) return undefined;
   return data;
+}
+
+function buildEvidencia(acao: EvidenciaLia) {
+  return {
+    entradaOriginal: acao.entradaOriginal?.trim() || null,
+    anexos: acao.anexos?.map((anexo) => ({
+      nome: anexo.name,
+      tipo: anexo.mimeType,
+      tamanho: anexo.size,
+    })) ?? [],
+  };
+}
+
+function buildTimelineDescription(prefixo: string, acao: EvidenciaLia) {
+  const evidencia = buildEvidencia(acao);
+  const linhas = [prefixo];
+  if (evidencia.entradaOriginal) linhas.push(`Entrada original: ${evidencia.entradaOriginal}`);
+  if (evidencia.anexos.length > 0) {
+    linhas.push(`Anexos: ${evidencia.anexos.map((anexo) => anexo.nome).join(", ")}`);
+  }
+  return linhas.join("\n");
 }
 
 export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?: string }> {
@@ -66,6 +100,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
     if (acao.tipo === "agenda") {
       const inicio = parseDataPrevista(acao.dataPrevista);
       if (!inicio) return { ok: false, erro: "Data da agenda inválida." };
+      const evidencia = buildEvidencia(acao);
 
       const agenda = await createAgendaItem(empresaId, {
         projetoId: acao.projetoId || null,
@@ -80,7 +115,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
         await createAtividade(empresaId, {
           projetoId: acao.projetoId,
           tipo: "nota",
-          descricao: `[Lia] Agenda criada: ${agenda.titulo}`,
+          descricao: buildTimelineDescription(`[Lia] Agenda criada: ${agenda.titulo}`, acao),
         });
         revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
       }
@@ -91,7 +126,11 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
         eventoTipo: "validacao_ia",
         entidadeTipo: "agenda_item",
         entidadeId: agenda.id,
-        conteudoPersistido: { titulo: agenda.titulo, inicio: agenda.inicio.toISOString() },
+        conteudoPersistido: {
+          titulo: agenda.titulo,
+          inicio: agenda.inicio.toISOString(),
+          evidencia,
+        },
         origemInformacao: "lia:copiloto",
       });
       revalidatePath("/dashboard");
@@ -100,6 +139,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
     }
 
     if (acao.tipo === "tarefa") {
+      const evidencia = buildEvidencia(acao);
       const tarefa = await createTarefa(empresaId, {
         projetoId: acao.projetoId,
         descricao: acao.descricao.trim(),
@@ -107,21 +147,28 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
         status: "aberta",
         origem: "sugerida_ia",
       });
+      await createAtividade(empresaId, {
+        projetoId: acao.projetoId,
+        tipo: "nota",
+        descricao: buildTimelineDescription(`[Lia] Tarefa criada: ${acao.descricao.trim()}`, acao),
+      });
       await createAuditEntry({
         empresaId,
         projetoId: acao.projetoId,
         eventoTipo: "validacao_ia",
         entidadeTipo: "tarefa",
         entidadeId: tarefa.id,
-        conteudoPersistido: { acao: "criada_pela_lia" },
+        conteudoPersistido: { acao: "criada_pela_lia", descricao: acao.descricao.trim(), evidencia },
         origemInformacao: "lia:copiloto",
       });
       revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
       revalidatePath("/dashboard/tarefas");
+      revalidatePath("/dashboard/diario");
       return { ok: true };
     }
 
     if (acao.tipo === "visita_tecnica") {
+      const evidencia = buildEvidencia(acao);
       const tarefa = await createTarefa(empresaId, {
         projetoId: acao.projetoId,
         descricao: acao.descricao.trim(),
@@ -132,7 +179,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
       await createAtividade(empresaId, {
         projetoId: acao.projetoId,
         tipo: "visita",
-        descricao: `[Lia] Visita técnica: ${acao.descricao.trim()}`,
+        descricao: buildTimelineDescription(`[Lia] Visita técnica: ${acao.descricao.trim()}`, acao),
       });
       await createAuditEntry({
         empresaId,
@@ -140,7 +187,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
         eventoTipo: "validacao_ia",
         entidadeTipo: "tarefa",
         entidadeId: tarefa.id,
-        conteudoPersistido: { acao: "visita_tecnica_criada_pela_lia" },
+        conteudoPersistido: { acao: "visita_tecnica_criada_pela_lia", descricao: acao.descricao.trim(), evidencia },
         origemInformacao: "lia:copiloto",
       });
       revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
@@ -153,10 +200,24 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
       ? acao.tipoAtividade
       : "nota";
 
-    await createAtividade(empresaId, {
+    const atividade = await createAtividade(empresaId, {
       projetoId: acao.projetoId,
       tipo,
-      descricao: acao.descricao.trim(),
+      descricao: buildTimelineDescription(`[Lia] ${acao.descricao.trim()}`, acao),
+    });
+    await createAuditEntry({
+      empresaId,
+      projetoId: acao.projetoId,
+      eventoTipo: "validacao_ia",
+      entidadeTipo: "projeto_atividade",
+      entidadeId: atividade.id,
+      conteudoPersistido: {
+        acao: "atividade_criada_pela_lia",
+        tipo,
+        descricao: acao.descricao.trim(),
+        evidencia: buildEvidencia(acao),
+      },
+      origemInformacao: "lia:copiloto",
     });
     revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
     revalidatePath("/dashboard/diario");
