@@ -261,16 +261,16 @@ export default async function EditarProjetoPage({
         <div className="form-card-title" style={{ color: "#991b1b" }}>Zona de Perigo</div>
         <details>
           <summary style={{ fontSize: 13, color: "#b91c1c", cursor: "pointer", listStyle: "none", padding: "2px 0", fontWeight: 600 }}>
-            Excluir permanentemente est{isOportunidade ? "a oportunidade" : "a obra"}
+            Arquivar est{isOportunidade ? "a oportunidade" : "a obra"}
           </summary>
           <div style={{ marginTop: 12 }}>
             <p style={{ fontSize: 13, color: "#7f1d1d", marginBottom: 14, lineHeight: 1.6 }}>
-              Ação irreversível. Serão excluídos: orçamento, tarefas, lançamentos financeiros, medições, atividades e histórico de auditoria.
+              Esta ação remove o item das listagens operacionais e preserva a trilha de auditoria.
             </p>
             <form action={deletarProjeto}>
               <input type="hidden" name="projetoId" value={projeto.id} />
               <button type="submit" style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "var(--r-sm)", padding: "6px 14px", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
-                Excluir permanentemente
+                Arquivar e voltar para a lista
               </button>
             </form>
           </div>

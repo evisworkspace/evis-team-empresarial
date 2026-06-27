@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
-import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto, hardDeleteProjeto } from "@/data/projeto";
+import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto } from "@/data/projeto";
 import { createCliente, updateCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
 import { createAtividade, editAtividade, deleteAtividade } from "@/data/projetoAtividade";
@@ -646,7 +646,19 @@ export async function deletarProjeto(formData: FormData) {
   const projetoId = formData.get("projetoId") as string;
   if (!projetoId) throw new Error("projetoId obrigatório.");
 
-  await hardDeleteProjeto(empresaId, projetoId);
+  const result = await softDeleteProjeto(empresaId, projetoId);
+  if (result.count === 0) throw new Error("Projeto não encontrado.");
+
+  await createAuditEntry({
+    empresaId,
+    projetoId,
+    eventoTipo: "edicao",
+    entidadeTipo: "projeto",
+    entidadeId: projetoId,
+    conteudoPersistido: { acao: "excluir", origem: "tela_edicao" },
+  });
+
+  revalidatePath("/dashboard/projetos");
 
   redirect("/dashboard/projetos");
 }

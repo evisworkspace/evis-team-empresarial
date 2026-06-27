@@ -122,7 +122,7 @@ export default function ProjetoAcoes({ projetoId, stage, titulo }: Props) {
           <div style={{ height: 1, background: "#f1f5f9" }} />
           <MenuItem
             onClick={() => { setOpen(false); setConfirmExcluir(true); }}
-            label="Excluir"
+            label="Arquivar"
             color="var(--clr-danger)"
           />
         </div>,
@@ -158,10 +158,10 @@ export default function ProjetoAcoes({ projetoId, stage, titulo }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontSize: 17, fontWeight: 700, color: "var(--clr-text)", marginBottom: 8 }}>
-              Excluir projeto?
+              Arquivar projeto?
             </div>
             <p style={{ fontSize: 14, color: "var(--clr-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
-              <strong>{titulo}</strong> será removido permanentemente. Esta ação não pode ser desfeita.
+              <strong>{titulo}</strong> será removido das listagens operacionais. A trilha de auditoria será preservada.
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
@@ -180,7 +180,7 @@ export default function ProjetoAcoes({ projetoId, stage, titulo }: Props) {
                   opacity: isPending ? 0.6 : 1,
                 }}
               >
-                Excluir definitivamente
+                Arquivar projeto
               </button>
               <button
                 type="button"

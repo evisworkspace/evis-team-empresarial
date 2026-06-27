@@ -10,12 +10,11 @@ import { sumLancamentosByProjeto } from "@/data/financeiro";
 import { listCategoriasByEmpresa } from "@/data/categoriaFinanceira";
 import { listCentrosCustoByEmpresa } from "@/data/centroDeCusto";
 import { listFornecedoresByEmpresa } from "@/data/fornecedor";
-import { listClientesByEmpresa } from "@/data/cliente";
 import { criarTarefa, toggleTarefaStatus, editarTarefa, deletarTarefa } from "@/actions/tarefa";
 import { criarLancamento, marcarLancamentoPago } from "@/actions/financeiro";
-import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, reverterParaOportunidade, editarAtividade, deletarAtividade, deletarProjeto, trocarClienteProjeto } from "@/actions/projeto";
+import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, editarAtividade, deletarAtividade } from "@/actions/projeto";
 import { criarAnotacao, excluirAnotacao } from "@/actions/anotacao";
-import { listItensOrcamentoByProjeto, sumOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
+import { listItensOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
 import { listItensByEmpresa } from "@/data/itemBiblioteca";
 import { OrcamentoTab } from "@/components/orcamento/OrcamentoTab";
@@ -205,14 +204,12 @@ function OportunidadeView({
   financeiro,
   orcamento,
   financeiroFormLists,
-  clientes,
   diariosObra,
 }: {
   projeto: ProjetoDetalhes;
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
-  clientes: { id: string; nome: string }[];
   diariosObra: React.ComponentProps<typeof DiarioTab>["diarios"];
 }) {
   const isPerdida = projeto.statusInterno === "perdido";
@@ -1520,7 +1517,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, todosClientes] = await Promise.all([
+  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
@@ -1528,7 +1525,6 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     listCentrosCustoByEmpresa(empresaId, { take: 50 }),
     listFornecedoresByEmpresa(empresaId, { take: 100 }),
     listMedicoesByProjeto(empresaId, id),
-    listClientesByEmpresa(empresaId, { take: 200 }),
   ]);
 
   const itensOrcamento = itensOrcamentoRaw.map((i) => ({
@@ -1592,7 +1588,6 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         financeiro={financeiro}
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
-        clientes={todosClientes.map((c) => ({ id: c.id, nome: c.nome }))}
         diariosObra={(projeto.diariosObra ?? []).map((d) => ({
           ...d,
           itensHITL: d.itensHITL.map((i) => ({
