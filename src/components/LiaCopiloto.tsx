@@ -194,6 +194,7 @@ export default function LiaCopiloto() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const autoOpenedRef = useRef<string | null>(null);
+  const autoAssessedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const nextContext = readContextFromWindow();
@@ -206,7 +207,10 @@ export default function LiaCopiloto() {
       if (shouldOpen && autoOpenedRef.current !== autoOpenKey) {
         autoOpenedRef.current = autoOpenKey;
         setIsOpen(true);
-        setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(nextContext, "autoOpportunity")]));
+        // Não definir mensagem estática quando há projeto — a avaliação automática assume
+        if (!nextContext.projetoId) {
+          setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(nextContext, "autoOpportunity")]));
+        }
       }
     });
   }, [pathname]);
@@ -214,6 +218,14 @@ export default function LiaCopiloto() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages, streamingText]);
+
+  useEffect(() => {
+    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
+    if (autoAssessedRef.current === context.projetoId) return;
+    autoAssessedRef.current = context.projetoId;
+    void sendSilentAssessment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, context.projetoId]);
 
   useEffect(() => {
     return () => {
@@ -430,6 +442,52 @@ export default function LiaCopiloto() {
           timestamp: Date.now(),
         },
       ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function sendSilentAssessment() {
+    setIsLoading(true);
+    setStreamingText("");
+    const assessmentPrompt = "Contexto carregado. Avalie o estado atual e sugira a próxima ação.";
+    try {
+      const res = await fetch("/api/lia/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: assessmentPrompt }],
+          context,
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error();
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        if (done) break;
+        full += decoder.decode(chunk, { stream: true });
+        setStreamingText(sanitizeVisibleText(full));
+      }
+      full += decoder.decode();
+      const { text: responseText, actions } = parseActionsFromText(full);
+      setMessages([{
+        id: makeId("lia"),
+        role: "lia",
+        content: responseText || "Projeto carregado. O que precisa?",
+        actions,
+        timestamp: Date.now(),
+      }]);
+      setStreamingText("");
+    } catch {
+      setMessages([{
+        id: makeId("lia"),
+        role: "lia",
+        content: "Estou aqui. O que precisa?",
+        actions: [],
+        timestamp: Date.now(),
+      }]);
     } finally {
       setIsLoading(false);
     }
