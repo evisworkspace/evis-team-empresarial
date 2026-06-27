@@ -6,12 +6,17 @@ import { executarAcaoLia } from "@/actions/ai/executarAcaoLia";
 
 type LiaAction = {
   id: string;
-  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade";
+  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade" | "nova_oportunidade";
   titulo?: string;
   descricao: string;
   dataPrevista?: string;
   tipoAgenda?: string;
   tipoAtividade?: string;
+  clienteNome?: string;
+  clienteTelefone?: string;
+  enderecoObra?: string;
+  tipoObra?: string;
+  origem?: string;
   status: "pending" | "confirmed" | "ignored";
 };
 
@@ -104,7 +109,7 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
   const text = raw.replace(ACTION_RE, (_, json) => {
     try {
       const parsed = JSON.parse(json) as Partial<LiaAction>;
-      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade"];
+      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade", "nova_oportunidade"];
       if (typeof parsed.tipo === "string" && tiposValidos.includes(parsed.tipo) && typeof parsed.descricao === "string" && parsed.descricao.trim()) {
         actions.push({
           id: makeId(parsed.tipo),
@@ -114,6 +119,11 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
           dataPrevista: typeof parsed.dataPrevista === "string" ? parsed.dataPrevista : undefined,
           tipoAgenda: typeof parsed.tipoAgenda === "string" ? parsed.tipoAgenda : undefined,
           tipoAtividade: typeof parsed.tipoAtividade === "string" ? parsed.tipoAtividade : undefined,
+          clienteNome: typeof parsed.clienteNome === "string" ? parsed.clienteNome : undefined,
+          clienteTelefone: typeof parsed.clienteTelefone === "string" ? parsed.clienteTelefone : undefined,
+          enderecoObra: typeof parsed.enderecoObra === "string" ? parsed.enderecoObra : undefined,
+          tipoObra: typeof parsed.tipoObra === "string" ? parsed.tipoObra : undefined,
+          origem: typeof parsed.origem === "string" ? parsed.origem : undefined,
           status: "pending",
         });
       }
@@ -477,7 +487,7 @@ export default function LiaCopiloto() {
       addLiaNote("Para criar um item de agenda preciso da data e hora. Quando será esse compromisso?");
       return;
     }
-    if (action.tipo !== "agenda" && !context.projetoId) {
+    if (action.tipo !== "agenda" && action.tipo !== "nova_oportunidade" && !context.projetoId) {
       addLiaNote("Para confirmar, abra um projeto primeiro.");
       return;
     }
@@ -510,16 +520,31 @@ export default function LiaCopiloto() {
                 projetoId: context.projetoId!,
                 ...evidencia,
               })
-            : await executarAcaoLia({
-                tipo: "atividade",
-                descricao: action.descricao,
-                tipoAtividade: action.tipoAtividade,
-                projetoId: context.projetoId!,
-                ...evidencia,
-              });
+            : action.tipo === "nova_oportunidade"
+              ? await executarAcaoLia({
+                  tipo: "nova_oportunidade",
+                  clienteNome: action.clienteNome || "",
+                  clienteTelefone: action.clienteTelefone,
+                  titulo: action.titulo || "",
+                  descricao: action.descricao,
+                  enderecoObra: action.enderecoObra,
+                  tipoObra: action.tipoObra,
+                  origem: action.origem,
+                  ...evidencia,
+                })
+              : await executarAcaoLia({
+                  tipo: "atividade",
+                  descricao: action.descricao,
+                  tipoAtividade: action.tipoAtividade,
+                  projetoId: context.projetoId!,
+                  ...evidencia,
+                });
 
       if (result.ok) {
         updateActionStatus(messageId, action.id, "confirmed");
+        if (result.projetoId) {
+          setContext(prev => ({ ...prev, projetoId: result.projetoId! }));
+        }
         const doneMessage =
           action.tipo === "agenda"
             ? "Feito. Compromisso criado na Agenda."
@@ -527,7 +552,9 @@ export default function LiaCopiloto() {
               ? "Feito. Visita técnica registrada como tarefa e atividade."
               : action.tipo === "tarefa"
                 ? "Feito. Tarefa criada com badge IA."
-                : "Feito. Atividade registrada.";
+                : action.tipo === "nova_oportunidade"
+                  ? "Cliente e oportunidade criados. Acesse a oportunidade para continuar."
+                  : "Feito. Atividade registrada.";
         addLiaNote(doneMessage);
       } else {
         addLiaNote(result.erro ?? "Não consegui executar essa ação.");
@@ -625,9 +652,20 @@ export default function LiaCopiloto() {
                         ? "Visita técnica sugerida"
                         : action.tipo === "tarefa"
                           ? "Tarefa sugerida"
-                          : "Atividade sugerida"}
+                          : action.tipo === "nova_oportunidade"
+                            ? "NOVA OPORTUNIDADE"
+                            : "Atividade sugerida"}
                   </div>
-                  <div className="lia-action-card-desc">{action.descricao}</div>
+                  {action.tipo === "nova_oportunidade" ? (
+                    <div className="lia-action-card-body" style={{ fontSize: "0.85rem", marginTop: "0.5rem", color: "var(--text-secondary)" }}>
+                      <p style={{ margin: "0 0 0.25rem" }}><strong>Cliente:</strong> {action.clienteNome}{action.clienteTelefone ? ` · ${action.clienteTelefone}` : ""}</p>
+                      <p style={{ margin: "0 0 0.25rem" }}><strong>Oportunidade:</strong> {action.titulo}</p>
+                      {action.enderecoObra && <p style={{ margin: "0 0 0.25rem" }}><strong>Endereço:</strong> {action.enderecoObra}</p>}
+                      {action.descricao && <p className="lia-action-card-desc" style={{ marginTop: "0.5rem", WebkitLineClamp: 3 }}>{action.descricao}</p>}
+                    </div>
+                  ) : (
+                    <div className="lia-action-card-desc">{action.descricao}</div>
+                  )}
                   {action.tipo === "agenda" && !action.dataPrevista && (
                     <div className="lia-action-card-meta lia-action-card-meta--warn">
                       Data e hora obrigatórias para agenda. Informe quando confirmar.

@@ -51,7 +51,21 @@ interface AcaoAtividade {
   anexos?: EvidenciaLia["anexos"];
 }
 
-type Acao = AcaoTarefa | AcaoAgenda | AcaoVisitaTecnica | AcaoAtividade;
+interface AcaoNovaOportunidade {
+  tipo: "nova_oportunidade";
+  clienteNome: string;
+  clienteTelefone?: string;
+  titulo: string;
+  descricao?: string;
+  enderecoObra?: string;
+  tipoObra?: string;
+  origem?: string;
+  projetoId?: string; // opcional para manter consistência nas propriedades básicas
+  entradaOriginal?: string;
+  anexos?: EvidenciaLia["anexos"];
+}
+
+type Acao = AcaoTarefa | AcaoAgenda | AcaoVisitaTecnica | AcaoAtividade | AcaoNovaOportunidade;
 
 function parseDataPrevista(value?: string) {
   if (!value) return undefined;
@@ -81,11 +95,11 @@ function buildTimelineDescription(prefixo: string, acao: EvidenciaLia) {
   return linhas.join("\n");
 }
 
-export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?: string }> {
+export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?: string; projetoId?: string }> {
   const session = await auth();
   const empresaId = getEmpresaId(session);
 
-  if (acao.tipo !== "agenda" && !acao.projetoId) {
+  if (acao.tipo !== "agenda" && acao.tipo !== "nova_oportunidade" && !acao.projetoId) {
     return {
       ok: false,
       erro: "Projeto não identificado. Abra um projeto antes de confirmar a ação.",
@@ -193,6 +207,21 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
       revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
       revalidatePath("/dashboard/tarefas");
       return { ok: true };
+    }
+
+    if (acao.tipo === "nova_oportunidade") {
+      const { criarOportunidadeDoCopiloto } = await import("@/actions/ai/criarOportunidadeDoCopiloto");
+      const resultado = await criarOportunidadeDoCopiloto({
+        clienteNome: acao.clienteNome,
+        clienteTelefone: acao.clienteTelefone,
+        titulo: acao.titulo,
+        descricao: acao.descricao,
+        enderecoObra: acao.enderecoObra,
+        tipoObra: acao.tipoObra,
+        origem: acao.origem,
+      });
+      if (!resultado.ok) return { ok: false, erro: resultado.error };
+      return { ok: true, projetoId: resultado.projetoId };
     }
 
     const tiposValidos = ["ligacao", "visita", "email", "reuniao", "nota", "outro"];
