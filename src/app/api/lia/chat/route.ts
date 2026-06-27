@@ -2,6 +2,7 @@ import { createPartFromBase64, GoogleGenAI, type Part } from "@google/genai";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
+import { pickGeminiKey } from "@/lib/gemini";
 import { listAgendaByEmpresa } from "@/data/agenda";
 import { countClientesByEmpresa } from "@/data/cliente";
 import { listTarefasByEmpresa } from "@/data/tarefa";
@@ -264,7 +265,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Empresa não encontrada" }, { status: 403 });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = pickGeminiKey();
   if (!apiKey) {
     return NextResponse.json({ error: "API Gemini não configurada" }, { status: 500 });
   }

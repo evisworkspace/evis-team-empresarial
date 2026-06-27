@@ -1,5 +1,6 @@
 "use server";
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { pickGeminiKey } from "@/lib/gemini";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -236,7 +237,7 @@ async function gerarItensGemini(
   dataReferencia: string,
   contextoObra?: ContextoObra
 ): Promise<ItemCategorizado[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = pickGeminiKey();
   if (!apiKey) {
     // Fallback: usar apenas detecção por padrão se não há API key
     return eventosDetectados
