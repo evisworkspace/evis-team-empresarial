@@ -3,7 +3,6 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { createCliente } from "@/data/cliente";
-import { createTarefa } from "@/data/tarefa";
 import { createAuditEntry } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
@@ -81,20 +80,6 @@ export async function criarOportunidadeDoCopiloto(
         origem: origem || "copiloto_ia",
       },
       origemInformacao: "lia:copiloto",
-    });
-
-    // Tarefas padrão para nova oportunidade (mesmo padrão do criarProjeto)
-    await createTarefa(empresaId, {
-      projetoId: novoProjeto.id,
-      descricao: "Confirmar escopo e expectativas com o cliente",
-      status: "aberta",
-      origem: "sugerida_ia",
-    });
-    await createTarefa(empresaId, {
-      projetoId: novoProjeto.id,
-      descricao: "Iniciar pré-orçamento com base nos dados recebidos",
-      status: "aberta",
-      origem: "sugerida_ia",
     });
 
     revalidatePath("/dashboard/projetos");
