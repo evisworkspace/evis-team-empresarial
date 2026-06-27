@@ -473,6 +473,10 @@ export default function LiaCopiloto() {
   }
 
   function confirmarAcao(messageId: string, action: LiaAction) {
+    if (action.tipo === "agenda" && !action.dataPrevista) {
+      addLiaNote("Para criar um item de agenda preciso da data e hora. Quando será esse compromisso?");
+      return;
+    }
     if (action.tipo !== "agenda" && !context.projetoId) {
       addLiaNote("Para confirmar, abra um projeto primeiro.");
       return;
@@ -624,6 +628,11 @@ export default function LiaCopiloto() {
                           : "Atividade sugerida"}
                   </div>
                   <div className="lia-action-card-desc">{action.descricao}</div>
+                  {action.tipo === "agenda" && !action.dataPrevista && (
+                    <div className="lia-action-card-meta lia-action-card-meta--warn">
+                      Data e hora obrigatórias para agenda. Informe quando confirmar.
+                    </div>
+                  )}
                   {action.dataPrevista && (
                     <div className="lia-action-card-meta">
                       Data sugerida: {new Date(action.dataPrevista).toLocaleString("pt-BR")}

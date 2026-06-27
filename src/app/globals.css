@@ -2250,6 +2250,11 @@ table.evis-table {
   font-size: 11.5px;
 }
 
+.lia-action-card-meta--warn {
+  color: var(--clr-warning);
+  font-weight: 600;
+}
+
 .lia-action-card-btns {
   display: flex;
   gap: 8px;
