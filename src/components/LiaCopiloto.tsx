@@ -158,7 +158,7 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
   const content = source === "autoOpportunity"
     ? "Oportunidade criada! Quer que eu sugira os próximos passos para avançar com este projeto?"
     : context.projetoId
-      ? "Estou no contexto deste projeto com você. Quer que eu sugira um próximo passo?"
+      ? "Estou lendo o contexto deste projeto para sugerir o próximo passo."
     : "Olá! Estou aqui para ajudar. O que você precisa fazer agora?";
 
   return {
@@ -218,14 +218,6 @@ export default function LiaCopiloto() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages, streamingText]);
-
-  useEffect(() => {
-    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
-    if (autoAssessedRef.current === context.projetoId) return;
-    autoAssessedRef.current = context.projetoId;
-    void sendSilentAssessment();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, context.projetoId]);
 
   useEffect(() => {
     return () => {
@@ -493,6 +485,14 @@ export default function LiaCopiloto() {
     }
   }
 
+  useEffect(() => {
+    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
+    if (autoAssessedRef.current === context.projetoId) return;
+    autoAssessedRef.current = context.projetoId;
+    void sendSilentAssessment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, context.projetoId]);
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
@@ -537,7 +537,10 @@ export default function LiaCopiloto() {
     const nextContext = readContextFromWindow();
     setContext(nextContext);
     setIsOpen(true);
-    setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(nextContext, "manual")]));
+    setMessages((prev) => {
+      if (prev.length > 0) return prev;
+      return nextContext.projetoId ? [] : [initialMessage(nextContext, "manual")];
+    });
   }
 
   function confirmarAcao(messageId: string, action: LiaAction) {
@@ -607,7 +610,7 @@ export default function LiaCopiloto() {
           action.tipo === "agenda"
             ? "Feito. Compromisso criado na Agenda."
             : action.tipo === "visita_tecnica"
-              ? "Feito. Visita técnica registrada como tarefa e atividade."
+              ? "Feito. Visita técnica registrada na linha do tempo."
               : action.tipo === "tarefa"
                 ? "Feito. Tarefa criada com badge IA."
                 : action.tipo === "nova_oportunidade"

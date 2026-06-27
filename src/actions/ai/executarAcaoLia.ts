@@ -183,14 +183,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
 
     if (acao.tipo === "visita_tecnica") {
       const evidencia = buildEvidencia(acao);
-      const tarefa = await createTarefa(empresaId, {
-        projetoId: acao.projetoId,
-        descricao: acao.descricao.trim(),
-        dataPrevista: parseDataPrevista(acao.dataPrevista),
-        status: "aberta",
-        origem: "sugerida_ia",
-      });
-      await createAtividade(empresaId, {
+      const atividade = await createAtividade(empresaId, {
         projetoId: acao.projetoId,
         tipo: "visita",
         descricao: buildTimelineDescription(`[Lia] Visita técnica: ${acao.descricao.trim()}`, acao),
@@ -199,13 +192,13 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
         empresaId,
         projetoId: acao.projetoId,
         eventoTipo: "validacao_ia",
-        entidadeTipo: "tarefa",
-        entidadeId: tarefa.id,
-        conteudoPersistido: { acao: "visita_tecnica_criada_pela_lia", descricao: acao.descricao.trim(), evidencia },
+        entidadeTipo: "projeto_atividade",
+        entidadeId: atividade.id,
+        conteudoPersistido: { acao: "visita_tecnica_registrada_pela_lia", descricao: acao.descricao.trim(), evidencia },
         origemInformacao: "lia:copiloto",
       });
       revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
-      revalidatePath("/dashboard/tarefas");
+      revalidatePath("/dashboard/diario");
       return { ok: true };
     }
 
