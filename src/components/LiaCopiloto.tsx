@@ -594,7 +594,7 @@ export default function LiaCopiloto() {
             ? "Contexto: oportunidade comercial"
             : context.stage === "obra"
               ? "Contexto: obra em andamento"
-              : "Contexto: dashboard"}
+              : "Contexto: visão geral"}
         </div>
 
         <div className="lia-messages">

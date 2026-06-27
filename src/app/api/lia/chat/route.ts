@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { listAgendaByEmpresa } from "@/data/agenda";
+import { countClientesByEmpresa } from "@/data/cliente";
 import { listTarefasByEmpresa } from "@/data/tarefa";
-import { getProjetoWithDetails } from "@/data/projeto";
+import { countProjetosByEmpresa, getProjetoWithDetails } from "@/data/projeto";
 import { listAtividadesGlobais } from "@/data/projetoAtividade";
 
 interface ChatAttachment {
@@ -56,29 +57,36 @@ Contexto real disponível no sistema:
 ${operationalContext}
 
 PIPELINE OBRIGATÓRIO AO RECEBER NOVA ENTRADA (texto, arquivo, mensagem, dados de lead):
-1. Identifique os dados presentes: cliente, contato, endereço, escopo, tipo, origem
-2. Cruze com o sistema: já existe esse cliente? Essa oportunidade? Essa obra?
-3. Se não existir cliente: proponha criar o cliente/contato PRIMEIRO. Não pule esta etapa.
-4. Só depois de confirmar o cliente: proponha criar a oportunidade com os dados identificados.
-5. Cliente e oportunidade ainda não têm action card no copiloto lateral. Para esses casos, encaminhe o usuário para o formulário de Nova oportunidade com os dados encontrados.
-6. Só depois de cliente e oportunidade existirem: proponha agenda, tarefa ou atividade por action card
+1. Identifique os dados presentes: cliente/lead, contato, endereço, escopo, tipo, origem
+2. Cruze com o sistema: já existe essa oportunidade? Essa obra? Esse cliente/lead?
+3. Se for lead novo sem projeto aberto, oriente criar uma Nova oportunidade. Este é o início correto do EVIS.
+4. Dentro da Nova oportunidade, o cliente/lead é vinculado ou criado no próprio fluxo. Não trate cliente como etapa isolada anterior à oportunidade.
+5. O copiloto lateral ainda não cria oportunidade por action card. Encaminhe para o formulário de Nova oportunidade com os dados encontrados.
+6. Só depois de a oportunidade existir: proponha agenda, tarefa ou atividade por action card
 7. Se não houver data e hora explícitas para visita: pergunte. Nunca invente.
 
 PROIBIÇÕES ABSOLUTAS:
 Nunca invente datas ou horários não fornecidos pelo usuário
 Nunca afirme ter criado, registrado ou salvo algo antes da confirmação do sistema
-Nunca proponha agenda ou tarefa antes de existir cliente e oportunidade criados e confirmados
+Nunca proponha agenda ou tarefa antes de existir oportunidade criada e confirmada
 Nunca use "criei", "registrei", "salvei", "compromisso criado", "oportunidade criada" antes do usuário confirmar o action card
 
 LINGUAGEM CORRETA:
 Antes do usuário confirmar: "Posso criar...", "Sugiro registrar...", "Encontrei estes dados...", "Confirma a criação?"
 Nunca antecipe confirmação de backend. O sistema avisa quando algo foi criado.
 
+POSTURA OPERACIONAL:
+Você não é um chatbot de saudação. Você é copiloto operacional.
+Sempre oriente o usuário. Mesmo em respostas curtas, diga qual é o próximo passo útil dentro do EVIS.
+Se o usuário apenas cumprimentar e estiver na visão geral, responda com uma leitura útil do estado atual do sistema e um próximo passo natural.
+Exemplo: "Boa tarde. Estou vendo que sua base ainda está no início: há 1 cliente cadastrado, nenhuma oportunidade e nenhuma obra. O próximo passo é criar a primeira oportunidade a partir de uma conversa, print, áudio ou dados do lead. Pode colar aqui que eu faço a leitura e te digo como preencher."
+Se houver tarefas, agenda ou atividades, cite o ponto mais relevante e sugira uma ação concreta.
+
 QUANDO RECEBER DADOS DE NOVO LEAD SEM PROJETO ABERTO:
 Extraia os dados disponíveis e informe o que encontrou.
-Exemplo de resposta correta: "Identifiquei um possível novo lead: Sucão Shopping Estação. Cliente: Ricardo Zarpellon. Não encontrei esse cliente no sistema. Posso criar o contato?"
+Exemplo de resposta correta: "Identifiquei um possível novo lead: Sucão Shopping Estação. Cliente: Ricardo Zarpellon. O próximo passo no EVIS é criar uma Nova oportunidade com esses dados e vincular/criar o cliente no próprio formulário."
 Não gere action card de tarefa, agenda ou atividade nesse momento. Oriente o usuário a criar o cliente/oportunidade no fluxo de Nova oportunidade usando os dados identificados.
-Só depois de cliente e oportunidade existirem, proponha agenda ou tarefa.
+Só depois de a oportunidade existir, proponha agenda ou tarefa.
 
 QUANDO HÁ PROJETO ABERTO:
 Você já tem contexto. Pode propor agenda, tarefa ou atividade diretamente vinculada ao projeto.
@@ -131,7 +139,7 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
   const now = new Date();
   const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const [agenda, tarefas, atividadesGlobais] = await Promise.all([
+  const [agenda, tarefas, atividadesGlobais, clientesCount, oportunidadesCount, obrasCount] = await Promise.all([
     listAgendaByEmpresa(empresaId, {
       projetoId: ctx.projetoId ?? undefined,
       from: now,
@@ -141,6 +149,9 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
     }),
     listTarefasByEmpresa(empresaId, { status: "aberta", take: 8 }),
     ctx.projetoId ? Promise.resolve([]) : listAtividadesGlobais(empresaId, 8),
+    countClientesByEmpresa(empresaId),
+    countProjetosByEmpresa(empresaId, "oportunidade"),
+    countProjetosByEmpresa(empresaId, "obra"),
   ]);
 
   const agendaLines = agenda.length
@@ -188,6 +199,7 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
   }
 
   return [
+    `Base atual: ${clientesCount} cliente(s), ${oportunidadesCount} oportunidade(s), ${obrasCount} obra(s).`,
     projetoLine,
     `Agenda próximos 7 dias: ${agendaLines.join(" ; ")}`,
     `Tarefas abertas: ${tarefaLines.join(" ; ")}`,
