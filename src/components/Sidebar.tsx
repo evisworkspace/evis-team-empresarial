@@ -216,13 +216,6 @@ export function Sidebar({ userName, companyName, mobileOpen, onClose }: SidebarP
         {/* IA */}
         <div className="sidebar-section">
           <span className="sidebar-section-label-mono">IA</span>
-          <Link
-            href="/dashboard/triagem"
-            className={`sidebar-link ${isActive("/dashboard/triagem") ? "active" : ""}`}
-          >
-            <AgentsIcon className="sidebar-link-icon" />
-            Triagem IA — Lia
-          </Link>
           <div className="sidebar-link-disabled">
             <AgentsIcon className="sidebar-link-icon" />
             Agentes EVIS
