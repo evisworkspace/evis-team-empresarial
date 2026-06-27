@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { finalizarProjeto, cancelarProjeto, excluirProjeto } from "@/actions/projeto";
 
 type Props = {
@@ -11,16 +12,50 @@ type Props = {
 export default function ProjetoAcoes({ projetoId, stage, titulo }: Props) {
   const [open, setOpen] = useState(false);
   const [confirmExcluir, setConfirmExcluir] = useState(false);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number } | null>(null);
   const [isPending, startTransition] = useTransition();
-  const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        dropRef.current && !dropRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
+      const menuWidth = 190;
+      const menuHeight = 118;
+      const gap = 6;
+      const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, r.right - menuWidth));
+      const hasSpaceBelow = r.bottom + gap + menuHeight <= window.innerHeight - 8;
+      const top = hasSpaceBelow ? r.bottom + gap : Math.max(8, r.top - menuHeight - gap);
+      setDropPos({ top, left });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
+
+  const toggleOpen = () => {
+    if (!btnRef.current) return;
+    setOpen((v) => !v);
+  };
 
   const act = (action: (fd: FormData) => Promise<void>) => {
     const fd = new FormData();
@@ -32,10 +67,11 @@ export default function ProjetoAcoes({ projetoId, stage, titulo }: Props) {
 
   return (
     <>
-      <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <div style={{ display: "inline-block" }}>
         <button
+          ref={btnRef}
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggleOpen}
           disabled={isPending}
           title="Ações"
           style={{
@@ -58,39 +94,40 @@ export default function ProjetoAcoes({ projetoId, stage, titulo }: Props) {
             <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
           </svg>
         </button>
-
-        {open && (
-          <div style={{
-            position: "absolute",
-            right: 0,
-            top: "calc(100% + 4px)",
-            background: "#fff",
-            border: "1px solid var(--clr-border)",
-            borderRadius: "var(--r-lg)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-            minWidth: 170,
-            zIndex: 50,
-            overflow: "hidden",
-          }}>
-            <MenuItem
-              onClick={() => act(finalizarProjeto)}
-              label={stage === "oportunidade" ? "Marcar como Ganho" : "Finalizar obra"}
-              color="var(--clr-success)"
-            />
-            <MenuItem
-              onClick={() => act(cancelarProjeto)}
-              label={stage === "oportunidade" ? "Arquivar" : "Cancelar obra"}
-              color="var(--clr-warning)"
-            />
-            <div style={{ height: 1, background: "#f1f5f9" }} />
-            <MenuItem
-              onClick={() => { setOpen(false); setConfirmExcluir(true); }}
-              label="Excluir"
-              color="var(--clr-danger)"
-            />
-          </div>
-        )}
       </div>
+
+      {open && dropPos && typeof document !== "undefined" && createPortal(
+        <div style={{
+          position: "fixed",
+          top: dropPos.top,
+          left: dropPos.left,
+          background: "#fff",
+          border: "1px solid var(--clr-border)",
+          borderRadius: "var(--r-lg)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+          minWidth: 190,
+          zIndex: 9999,
+          overflow: "hidden",
+        }} ref={dropRef}>
+          <MenuItem
+            onClick={() => act(finalizarProjeto)}
+            label={stage === "oportunidade" ? "Marcar como Ganho" : "Finalizar obra"}
+            color="var(--clr-success)"
+          />
+          <MenuItem
+            onClick={() => act(cancelarProjeto)}
+            label={stage === "oportunidade" ? "Arquivar" : "Cancelar obra"}
+            color="var(--clr-warning)"
+          />
+          <div style={{ height: 1, background: "#f1f5f9" }} />
+          <MenuItem
+            onClick={() => { setOpen(false); setConfirmExcluir(true); }}
+            label="Excluir"
+            color="var(--clr-danger)"
+          />
+        </div>,
+        document.body,
+      )}
 
       {confirmExcluir && (
         <div

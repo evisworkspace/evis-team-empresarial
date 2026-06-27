@@ -12,7 +12,6 @@ import { GerenciarStatusBotao } from "@/components/GerenciarStatusPanel";
 import { getOrSeedStatuses } from "@/data/statusProjeto";
 import StatusDropdown from "@/components/StatusDropdown";
 import ProjetoAcoes from "@/components/ProjetoAcoes";
-import { getStatusConfig } from "@/lib/status";
 import FiltrarStatusPanel from "@/components/FiltrarStatusPanel";
 
 export const metadata: Metadata = { title: "Projetos e Obras" };
@@ -62,6 +61,32 @@ const TH: React.CSSProperties = {
   whiteSpace: "nowrap",
   borderBottom: "1px solid var(--clr-border)",
   background: "var(--clr-surface)",
+};
+
+const PAGE_FRAME: React.CSSProperties = {
+  minHeight: "calc(100dvh - var(--topbar-h) - 64px)",
+  display: "flex",
+  flexDirection: "column",
+};
+
+const LIST_REGION: React.CSSProperties = {
+  flex: 1,
+  minHeight: 360,
+  display: "flex",
+  flexDirection: "column",
+};
+
+const LIST_CARD: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  display: "flex",
+  flexDirection: "column",
+};
+
+const TABLE_WRAP_FILL: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  overflow: "auto",
 };
 
 export default async function ProjetosPage({
@@ -162,7 +187,7 @@ export default async function ProjetosPage({
     : `${obrasAtivasCount} obra${obrasAtivasCount !== 1 ? "s" : ""} · ${opCount} oportunidade${opCount !== 1 ? "s" : ""} ativa${opCount !== 1 ? "s" : ""}`;
 
   return (
-    <div>
+    <div style={PAGE_FRAME}>
       {/* ── Header ── */}
       <div className="page-header">
         <div className="page-header-row">
@@ -375,171 +400,175 @@ export default async function ProjetosPage({
       {isObraKanban && <ProjetosKanban projetos={projetosKanban} colunas={statusKanban} />}
 
       {/* ── Lista ── */}
-      {!isKanban && (projetos.length === 0 ? (
-        <div className="card card-pad">
-          <div className="empty-state">
-            <div className="empty-state-icon"><BuildingIcon size={24} /></div>
-            <div className="empty-state-title">
-              {isObraView ? "Nenhuma obra criada" : isOportunidadeView ? "Nenhuma oportunidade" : "Nenhum projeto criado"}
+      {!isKanban && (
+        <div style={LIST_REGION}>
+          {projetos.length === 0 ? (
+            <div className="card card-pad" style={{ ...LIST_CARD, justifyContent: "center" }}>
+              <div className="empty-state">
+                <div className="empty-state-icon"><BuildingIcon size={24} /></div>
+                <div className="empty-state-title">
+                  {isObraView ? "Nenhuma obra criada" : isOportunidadeView ? "Nenhuma oportunidade" : "Nenhum projeto criado"}
+                </div>
+                <p className="empty-state-sub">Crie seu primeiro registro para começar a operar no EVIS.</p>
+                <Link
+                  href={isObraView ? "/dashboard/projetos/novo?stage=obra" : "/dashboard/projetos/novo?stage=oportunidade"}
+                  className="btn btn-primary"
+                  style={{ marginTop: 8 }}
+                >
+                  <PlusIcon size={15} />
+                  {isObraView ? "Nova obra" : "Nova oportunidade"}
+                </Link>
+              </div>
             </div>
-            <p className="empty-state-sub">Crie seu primeiro registro para começar a operar no EVIS.</p>
-            <Link
-              href={isObraView ? "/dashboard/projetos/novo?stage=obra" : "/dashboard/projetos/novo?stage=oportunidade"}
-              className="btn btn-primary"
-              style={{ marginTop: 8 }}
-            >
-              <PlusIcon size={15} />
-              {isObraView ? "Nova obra" : "Nova oportunidade"}
-            </Link>
-          </div>
-        </div>
-      ) : isOportunidadeView ? (
-        /* ── Tabela enriquecida de oportunidades ── */
-        <div className="card">
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--clr-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--clr-text-muted)" }}>
-              {projetos.length} oportunidade{projetos.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="table-wrap">
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1000 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...TH, width: 48 }}>#</th>
-                  <th style={TH}>Oportunidade</th>
-                  <th style={TH}>Cliente</th>
-                  <th style={TH}>Status</th>
-                  <th style={TH}>Prioridade</th>
-                  <th style={TH}>Tipo</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Valor est.</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Metragem</th>
-                  <th style={TH}>Origem</th>
-                  <th style={TH}>Criada em</th>
-                  <th style={TH}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {projetos.map((p, rowIdx) => {
-                  const pr = p as typeof p & { prioridade?: string | null; tipoObra?: string | null; valorEstimado?: number | null; metragemEstimada?: number | null };
-                  return (
-                    <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", width: 64 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", fontWeight: 600 }}>
-                          {p.codigoSequencial ?? `#${String(rowIdx + 1).padStart(3, "0")}`}
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                        <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
-                          <div>
-                            <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
-                            {pr.tipoObra && (
-                              <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>{pr.tipoObra}</div>
-                            )}
-                          </div>
-                        </Link>
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
-                        {p.cliente?.nome ?? "—"}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                        <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, ...prioridadeStyle(pr.prioridade ?? null) }}>
-                        {prioridadeLabel(pr.prioridade ?? null)}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontSize: 12, color: "var(--clr-text-muted)" }}>
-                        {pr.tipoObra ?? "—"}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--clr-text)" }}>
-                        {formatMoney(pr.valorEstimado)}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--clr-text-secondary)" }}>
-                        {formatArea(pr.metragemEstimada)}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontSize: 12, color: "var(--clr-text-muted)" }}>
-                        {p.origem ?? "—"}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", whiteSpace: "nowrap" }}>
-                        {formatDate(p.createdAt)}
-                      </td>
-                      <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)", transition: "color 0.12s" }}>
-                            <ChevronRightIcon size={16} />
-                          </Link>
-                          <ProjetoAcoes projetoId={p.id} stage={p.stage} titulo={p.titulo} />
-                        </div>
-                      </td>
+          ) : isOportunidadeView ? (
+            /* ── Tabela enriquecida de oportunidades ── */
+            <div className="card" style={LIST_CARD}>
+              <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--clr-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--clr-text-muted)" }}>
+                  {projetos.length} oportunidade{projetos.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="table-wrap" style={TABLE_WRAP_FILL}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1000 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...TH, width: 48 }}>#</th>
+                      <th style={TH}>Oportunidade</th>
+                      <th style={TH}>Cliente</th>
+                      <th style={TH}>Status</th>
+                      <th style={TH}>Prioridade</th>
+                      <th style={TH}>Tipo</th>
+                      <th style={{ ...TH, textAlign: "right" }}>Valor est.</th>
+                      <th style={{ ...TH, textAlign: "right" }}>Metragem</th>
+                      <th style={TH}>Origem</th>
+                      <th style={TH}>Criada em</th>
+                      <th style={TH}></th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {projetos.map((p, rowIdx) => {
+                      const pr = p as typeof p & { prioridade?: string | null; tipoObra?: string | null; valorEstimado?: number | null; metragemEstimada?: number | null };
+                      return (
+                        <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", width: 64 }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", fontWeight: 600 }}>
+                              {p.codigoSequencial ?? `#${String(rowIdx + 1).padStart(3, "0")}`}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                            <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+                              <div>
+                                <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
+                                {pr.tipoObra && (
+                                  <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>{pr.tipoObra}</div>
+                                )}
+                              </div>
+                            </Link>
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                            {p.cliente?.nome ?? "—"}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                            <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, ...prioridadeStyle(pr.prioridade ?? null) }}>
+                            {prioridadeLabel(pr.prioridade ?? null)}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontSize: 12, color: "var(--clr-text-muted)" }}>
+                            {pr.tipoObra ?? "—"}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--clr-text)" }}>
+                            {formatMoney(pr.valorEstimado)}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--clr-text-secondary)" }}>
+                            {formatArea(pr.metragemEstimada)}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontSize: 12, color: "var(--clr-text-muted)" }}>
+                            {p.origem ?? "—"}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", whiteSpace: "nowrap" }}>
+                            {formatDate(p.createdAt)}
+                          </td>
+                          <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)", transition: "color 0.12s" }}>
+                                <ChevronRightIcon size={16} />
+                              </Link>
+                              <ProjetoAcoes projetoId={p.id} stage={p.stage} titulo={p.titulo} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* ── Tabela padrão (obras ou todos) ── */
+            <div className="card" style={LIST_CARD}>
+              <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--clr-border)", display: "flex", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--clr-text-muted)" }}>
+                  {projetos.length} resultado{projetos.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="table-wrap" style={TABLE_WRAP_FILL}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={TH}>Título</th>
+                      <th style={TH}>Cliente</th>
+                      <th style={TH}>Tipo</th>
+                      <th style={TH}>Status</th>
+                      <th style={TH}>Início estimado</th>
+                      <th style={TH}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projetos.map((p) => (
+                      <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
+                        <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                          <Link href={`/dashboard/projetos/${p.id}`} style={{ textDecoration: "none" }}>
+                            <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
+                            {p.codigoSequencial && (
+                              <div style={{ fontSize: 11, color: "var(--clr-primary)", fontFamily: "var(--font-mono)", fontWeight: 600, marginTop: 2 }}>{p.codigoSequencial}</div>
+                            )}
+                            {p.numeroObra && (
+                              <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>Nr. {p.numeroObra}</div>
+                            )}
+                          </Link>
+                        </td>
+                        <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                          {p.cliente?.nome ?? "—"}
+                        </td>
+                        <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                          <span className={p.stage === "obra" ? "badge badge-obra" : "badge badge-oportunidade"}>
+                            {p.stage === "obra" ? "Obra" : "Oportunidade"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                          <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
+                        </td>
+                        <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
+                          {formatDate(p.dataInicioEstimada)}
+                        </td>
+                        <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)" }}>
+                              <ChevronRightIcon size={16} />
+                            </Link>
+                            <ProjetoAcoes projetoId={p.id} stage={p.stage} titulo={p.titulo} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        /* ── Tabela padrão (obras ou todos) ── */
-        <div className="card">
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--clr-border)", display: "flex", alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--clr-text-muted)" }}>
-              {projetos.length} resultado{projetos.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="table-wrap">
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={TH}>Título</th>
-                  <th style={TH}>Cliente</th>
-                  <th style={TH}>Tipo</th>
-                  <th style={TH}>Status</th>
-                  <th style={TH}>Início estimado</th>
-                  <th style={TH}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {projetos.map((p) => (
-                  <tr key={p.id} style={{ cursor: "pointer" }} className="evis-table-row">
-                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                      <Link href={`/dashboard/projetos/${p.id}`} style={{ textDecoration: "none" }}>
-                        <div style={{ fontWeight: 600, color: "var(--clr-text)", fontSize: 14 }}>{p.titulo}</div>
-                        {p.codigoSequencial && (
-                          <div style={{ fontSize: 11, color: "var(--clr-primary)", fontFamily: "var(--font-mono)", fontWeight: 600, marginTop: 2 }}>{p.codigoSequencial}</div>
-                        )}
-                        {p.numeroObra && (
-                          <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 2 }}>Nr. {p.numeroObra}</div>
-                        )}
-                      </Link>
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
-                      {p.cliente?.nome ?? "—"}
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                      <span className={p.stage === "obra" ? "badge badge-obra" : "badge badge-oportunidade"}>
-                        {p.stage === "obra" ? "Obra" : "Oportunidade"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                      <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
-                      {formatDate(p.dataInicioEstimada)}
-                    </td>
-                    <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <Link href={`/dashboard/projetos/${p.id}`} style={{ display: "flex", alignItems: "center", color: "var(--clr-text-muted)" }}>
-                          <ChevronRightIcon size={16} />
-                        </Link>
-                        <ProjetoAcoes projetoId={p.id} stage={p.stage} titulo={p.titulo} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
+      )}
     </div>
   );
 }

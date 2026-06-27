@@ -16,7 +16,7 @@ export function createAtividade(
 
 export function listAtividadesByProjeto(empresaId: string, projetoId: string) {
   return prisma.projetoAtividade.findMany({
-    where: { projetoId, empresaId },
+    where: { projetoId, empresaId, projeto: { deletedAt: null } },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -41,7 +41,7 @@ export function deleteAtividade(empresaId: string, atividadeId: string) {
 
 export function listAtividadesGlobais(empresaId: string, take = 100) {
   return prisma.projetoAtividade.findMany({
-    where: { empresaId },
+    where: { empresaId, projeto: { deletedAt: null } },
     include: {
       projeto: { select: { id: true, titulo: true, stage: true, codigoSequencial: true } },
     },
