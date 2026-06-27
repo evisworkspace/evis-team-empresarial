@@ -25,35 +25,35 @@ datasource db {
 
 /// Tenant raiz — não carrega empresa_id de si mesma.
 model Empresa {
-  id         String    @id @default(uuid()) @db.Uuid
-  nome       String
-  tipoPessoa String    @map("tipo_pessoa") // domínio: PF | PJ
-  documento    String?
-  razaoSocial  String?   @map("razao_social")
-  email        String?
-  celular      String?
-  isWhatsapp   Boolean?  @default(false) @map("is_whatsapp")
-  tipoEmpresa  String?   @map("tipo_empresa")
-  logo         String?
-  descricao    String?   @db.Text
-  status       String // domínio: ativo | inativo
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
+  id          String    @id @default(uuid()) @db.Uuid
+  nome        String
+  tipoPessoa  String    @map("tipo_pessoa") // domínio: PF | PJ
+  documento   String?
+  razaoSocial String?   @map("razao_social")
+  email       String?
+  celular     String?
+  isWhatsapp  Boolean?  @default(false) @map("is_whatsapp")
+  tipoEmpresa String?   @map("tipo_empresa")
+  logo        String?
+  descricao   String?   @db.Text
+  status      String // domínio: ativo | inativo
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-  usuarios   Usuario[]
-  clientes   Cliente[]
-  projetos   Projeto[]
-  itensOrcamento ProjetoItemOrcamento[]
-  fornecedores Fornecedor[]
-  tarefas    Tarefa[]
-  lancamentos LancamentoFinanceiro[]
-  rastreios  RastreioAuditoria[]
-  atividades ProjetoAtividade[]
-  anotacoes  Anotacao[]
-  statusProjetos StatusProjeto[]
-  users      User[] // Auth.js — vínculo tenant do usuário autenticado
-  convites   ConviteEquipe[]
+  usuarios              Usuario[]
+  clientes              Cliente[]
+  projetos              Projeto[]
+  itensOrcamento        ProjetoItemOrcamento[]
+  fornecedores          Fornecedor[]
+  tarefas               Tarefa[]
+  lancamentos           LancamentoFinanceiro[]
+  rastreios             RastreioAuditoria[]
+  atividades            ProjetoAtividade[]
+  anotacoes             Anotacao[]
+  statusProjetos        StatusProjeto[]
+  users                 User[] // Auth.js — vínculo tenant do usuário autenticado
+  convites              ConviteEquipe[]
   grupos                GrupoItem[]
   categoriasItem        CategoriaItem[]
   unidades              UnidadeMedida[]
@@ -63,27 +63,28 @@ model Empresa {
   medicoes              Medicao[]
   diariosObra           DiarioDeObra[]
   diariosItemHITL       DiarioItemHITL[]
+  agendaItens           AgendaItem[]
 
   @@map("empresa")
 }
 
 /// Operador humano (HITL) — identifica o humano na trilha de auditoria.
 model Usuario {
-  id        String    @id @default(uuid()) @db.Uuid
-  empresaId String    @map("empresa_id") @db.Uuid
-  nome      String
-  email     String
-  perfil    String // domínio: admin | operador | viewer
-  status    String // domínio: ativo | inativo
+  id         String    @id @default(uuid()) @db.Uuid
+  empresaId  String    @map("empresa_id") @db.Uuid
+  nome       String
+  email      String
+  perfil     String // domínio: admin | operador | viewer
+  status     String // domínio: ativo | inativo
   // Vínculo explícito com a identidade Auth.js (decisão 9.1). Email é apenas dado de
   // apoio, NUNCA o vínculo principal. Relação 1:1 (MVP): um User ↔ um usuario.
-  authUserId String?  @unique @map("auth_user_id")
+  authUserId String?   @unique @map("auth_user_id")
   cpf        String?
   telefone   String?
-  foto       String?   // URL Vercel Blob — avatar pessoal (prevalece sobre User.image do Google)
+  foto       String? // URL Vercel Blob — avatar pessoal (prevalece sobre User.image do Google)
   createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
 
   empresa            Empresa             @relation(fields: [empresaId], references: [id])
   authUser           User?               @relation(fields: [authUserId], references: [id])
@@ -100,13 +101,13 @@ model ConviteEquipe {
   id        String    @id @default(uuid()) @db.Uuid
   empresaId String    @map("empresa_id") @db.Uuid
   email     String
-  perfil    String    // domínio: admin | membro
+  perfil    String // domínio: admin | membro
   token     String    @unique
   expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
 
-  empresa   Empresa   @relation(fields: [empresaId], references: [id])
+  empresa Empresa @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
   @@map("convite_equipe")
@@ -114,29 +115,29 @@ model ConviteEquipe {
 
 /// Destinatário do serviço — pode existir antes de qualquer projeto.
 model Cliente {
-  id           String    @id @default(uuid()) @db.Uuid
-  empresaId    String    @map("empresa_id") @db.Uuid
-  nome         String
-  telefone     String?
-  tipoPessoa   String?   @map("tipo_pessoa") // domínio: PF | PJ
-  origemContato String?  @map("origem_contato")
-  razaoSocial  String?  @map("razao_social")
-  email        String?
-  cpfCnpj      String?  @map("cpf_cnpj")
-  cep          String?
-  rua          String?
-  numero       String?
-  complemento  String?
-  bairro       String?
-  cidade       String?
-  estado       String?
+  id             String    @id @default(uuid()) @db.Uuid
+  empresaId      String    @map("empresa_id") @db.Uuid
+  nome           String
+  telefone       String?
+  tipoPessoa     String?   @map("tipo_pessoa") // domínio: PF | PJ
+  origemContato  String?   @map("origem_contato")
+  razaoSocial    String?   @map("razao_social")
+  email          String?
+  cpfCnpj        String?   @map("cpf_cnpj")
+  cep            String?
+  rua            String?
+  numero         String?
+  complemento    String?
+  bairro         String?
+  cidade         String?
+  estado         String?
   observacoes    String?
   rg             String?   @map("rg")
   dataNascimento DateTime? @map("data_nascimento")
-  status       String // domínio: ativo | inativo
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  status         String // domínio: ativo | inativo
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
 
   empresa  Empresa   @relation(fields: [empresaId], references: [id])
   projetos Projeto[]
@@ -147,45 +148,46 @@ model Cliente {
 
 /// Entidade-base única (Oportunidade + Obra), discriminada por stage.
 model Projeto {
-  id                 String    @id @default(uuid()) @db.Uuid
-  empresaId          String    @map("empresa_id") @db.Uuid
-  clienteId          String    @map("cliente_id") @db.Uuid
-  codigoSequencial   String?   @map("codigo_sequencial") @db.VarChar(20) // gerado pelo sistema: YYYY-NNN
-  numeroObra         String?   @map("numero_obra") // UNIQUE por empresa quando não nulo — atribuído manualmente pelo usuário
-  titulo             String
-  descricao          String?
-  stage              String // domínio: oportunidade | obra
-  statusInterno      String    @map("status_interno") // domínio por stage (docs/06 §6)
-  origem             String?
-  tipoObra           String?   @map("tipo_obra") // residencial | comercial | industrial | reforma | outro
-  prioridade         String?   // baixa | media | alta | urgente
-  metragemEstimada   Decimal?  @map("metragem_estimada") @db.Decimal(10, 2)
-  valorEstimado      Decimal?  @map("valor_estimado") @db.Decimal(15, 2)
-  valorGanhoEstimativa Decimal? @map("valor_ganho_estimativa") @db.Decimal(15, 2)
-  enderecoObra       String?   @map("endereco_obra")
-  dataInicioEstimada DateTime? @map("data_inicio_estimada") @db.Date
-  dataDeGanho        DateTime? @map("data_de_ganho") @db.Date
-  cepObra            String?   @map("cep_obra")
-  logradouroObra     String?   @map("logradouro_obra")
-  numeroEnderecoObra String?   @map("numero_endereco_obra")
-  complementoObra    String?   @map("complemento_obra")
-  bairroObra         String?   @map("bairro_obra")
-  cidadeObra         String?   @map("cidade_obra")
-  estadoObra         String?   @map("estado_obra")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-  deletedAt          DateTime? @map("deleted_at")
+  id                   String    @id @default(uuid()) @db.Uuid
+  empresaId            String    @map("empresa_id") @db.Uuid
+  clienteId            String    @map("cliente_id") @db.Uuid
+  codigoSequencial     String?   @map("codigo_sequencial") @db.VarChar(20) // gerado pelo sistema: YYYY-NNN
+  numeroObra           String?   @map("numero_obra") // UNIQUE por empresa quando não nulo — atribuído manualmente pelo usuário
+  titulo               String
+  descricao            String?
+  stage                String // domínio: oportunidade | obra
+  statusInterno        String    @map("status_interno") // domínio por stage (docs/06 §6)
+  origem               String?
+  tipoObra             String?   @map("tipo_obra") // residencial | comercial | industrial | reforma | outro
+  prioridade           String? // baixa | media | alta | urgente
+  metragemEstimada     Decimal?  @map("metragem_estimada") @db.Decimal(10, 2)
+  valorEstimado        Decimal?  @map("valor_estimado") @db.Decimal(15, 2)
+  valorGanhoEstimativa Decimal?  @map("valor_ganho_estimativa") @db.Decimal(15, 2)
+  enderecoObra         String?   @map("endereco_obra")
+  dataInicioEstimada   DateTime? @map("data_inicio_estimada") @db.Date
+  dataDeGanho          DateTime? @map("data_de_ganho") @db.Date
+  cepObra              String?   @map("cep_obra")
+  logradouroObra       String?   @map("logradouro_obra")
+  numeroEnderecoObra   String?   @map("numero_endereco_obra")
+  complementoObra      String?   @map("complemento_obra")
+  bairroObra           String?   @map("bairro_obra")
+  cidadeObra           String?   @map("cidade_obra")
+  estadoObra           String?   @map("estado_obra")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
 
-  empresa     Empresa                @relation(fields: [empresaId], references: [id])
-  cliente     Cliente                @relation(fields: [clienteId], references: [id])
+  empresa        Empresa                @relation(fields: [empresaId], references: [id])
+  cliente        Cliente                @relation(fields: [clienteId], references: [id])
   itensOrcamento ProjetoItemOrcamento[]
-  tarefas     Tarefa[]
-  lancamentos LancamentoFinanceiro[]
-  rastreios   RastreioAuditoria[]
-  atividades  ProjetoAtividade[]
-  anotacoes   Anotacao[]
-  medicoes    Medicao[]
-  diariosObra DiarioDeObra[]
+  tarefas        Tarefa[]
+  lancamentos    LancamentoFinanceiro[]
+  rastreios      RastreioAuditoria[]
+  atividades     ProjetoAtividade[]
+  anotacoes      Anotacao[]
+  medicoes       Medicao[]
+  diariosObra    DiarioDeObra[]
+  agendaItens    AgendaItem[]
 
   @@unique([empresaId, codigoSequencial])
   @@unique([empresaId, numeroObra])
@@ -217,10 +219,10 @@ model Anotacao {
 /// Registro manual de atividades comerciais — ligações, visitas, notas, e-mails.
 /// Append-only: não tem updatedAt/deletedAt.
 model ProjetoAtividade {
-  id        String   @id @default(uuid()) @db.Uuid
-  empresaId String   @map("empresa_id") @db.Uuid
-  projetoId String   @map("projeto_id") @db.Uuid
-  tipo      String   // ligacao | visita | email | reuniao | nota | outro
+  id        String @id @default(uuid()) @db.Uuid
+  empresaId String @map("empresa_id") @db.Uuid
+  projetoId String @map("projeto_id") @db.Uuid
+  tipo      String // ligacao | visita | email | reuniao | nota | outro
   descricao String
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -235,16 +237,16 @@ model ProjetoAtividade {
 
 /// Orçamento hierárquico — 3 níveis: nivel → subnivel → composicao (tipo discriminado).
 model ProjetoItemOrcamento {
-  id               String    @id @default(uuid()) @db.Uuid
-  empresaId        String    @map("empresa_id") @db.Uuid
-  projetoId        String    @map("projeto_id") @db.Uuid
-  parentId         String?   @map("parent_id") @db.Uuid
-  posicao          Int       @default(0)
-  tipo             String    @db.VarChar(20) // nivel | subnivel | composicao
-  nome             String    @db.VarChar(300)
-  grupo            String?   @db.VarChar(100)
+  id        String  @id @default(uuid()) @db.Uuid
+  empresaId String  @map("empresa_id") @db.Uuid
+  projetoId String  @map("projeto_id") @db.Uuid
+  parentId  String? @map("parent_id") @db.Uuid
+  posicao   Int     @default(0)
+  tipo      String  @db.VarChar(20) // nivel | subnivel | composicao
+  nome      String  @db.VarChar(300)
+  grupo     String? @db.VarChar(100)
 
-  itemBibliotecaId String?   @map("item_biblioteca_id") @db.Uuid
+  itemBibliotecaId String? @map("item_biblioteca_id") @db.Uuid
 
   unidade       String?  @db.VarChar(20)
   quantidade    Decimal? @db.Decimal(15, 4)
@@ -277,31 +279,31 @@ model ProjetoItemOrcamento {
 
 /// Prestador ou fornecedor de material.
 model Fornecedor {
-  id               String    @id @default(uuid()) @db.Uuid
-  empresaId        String    @map("empresa_id") @db.Uuid
-  nome             String
-  contato          String?
-  tipoPessoa       String?   @map("tipo_pessoa")
-  razaoSocial      String?   @map("razao_social")
-  cpfCnpj          String?   @map("cpf_cnpj")
-  tipo             String // domínio: servico | material | ambos
-  categorias       String?
-  email            String?
-  telefone         String?
-  site             String?
-  nomeResponsavel  String?   @map("nome_responsavel")
-  nomeContato      String?   @map("nome_contato")
-  cep              String?
-  rua              String?
-  numero           String?
-  complemento      String?
-  bairro           String?
-  cidade           String?
-  estado           String?
-  status           String // domínio: ativo | inativo
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  id              String    @id @default(uuid()) @db.Uuid
+  empresaId       String    @map("empresa_id") @db.Uuid
+  nome            String
+  contato         String?
+  tipoPessoa      String?   @map("tipo_pessoa")
+  razaoSocial     String?   @map("razao_social")
+  cpfCnpj         String?   @map("cpf_cnpj")
+  tipo            String // domínio: servico | material | ambos
+  categorias      String?
+  email           String?
+  telefone        String?
+  site            String?
+  nomeResponsavel String?   @map("nome_responsavel")
+  nomeContato     String?   @map("nome_contato")
+  cep             String?
+  rua             String?
+  numero          String?
+  complemento     String?
+  bairro          String?
+  cidade          String?
+  estado          String?
+  status          String // domínio: ativo | inativo
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
   empresa         Empresa                @relation(fields: [empresaId], references: [id])
   tarefas         Tarefa[]               @relation("TarefaResponsavelFornecedor")
@@ -327,9 +329,9 @@ model Tarefa {
   updatedAt               DateTime  @updatedAt @map("updated_at")
   deletedAt               DateTime? @map("deleted_at")
 
-  empresa              Empresa     @relation(fields: [empresaId], references: [id])
-  projeto              Projeto     @relation(fields: [projetoId], references: [id])
-  responsavelUsuario   Usuario?    @relation("TarefaResponsavelUsuario", fields: [responsavelUsuarioId], references: [id])
+  empresa               Empresa     @relation(fields: [empresaId], references: [id])
+  projeto               Projeto     @relation(fields: [projetoId], references: [id])
+  responsavelUsuario    Usuario?    @relation("TarefaResponsavelUsuario", fields: [responsavelUsuarioId], references: [id])
   responsavelFornecedor Fornecedor? @relation("TarefaResponsavelFornecedor", fields: [responsavelFornecedorId], references: [id])
 
   @@index([projetoId, status])
@@ -337,6 +339,30 @@ model Tarefa {
   @@index([responsavelUsuarioId])
   @@index([responsavelFornecedorId])
   @@map("tarefa")
+}
+
+/// Agenda operacional do sistema — compromissos com data/hora.
+model AgendaItem {
+  id        String    @id @default(uuid()) @db.Uuid
+  empresaId String    @map("empresa_id") @db.Uuid
+  projetoId String?   @map("projeto_id") @db.Uuid
+  titulo    String    @db.VarChar(200)
+  descricao String?   @db.Text
+  tipo      String    @default("compromisso") @db.VarChar(40) // compromisso | visita | reuniao | ligacao | follow_up | prazo | entrega | lembrete
+  inicio    DateTime
+  fim       DateTime?
+  status    String    @default("agendado") @db.VarChar(30) // agendado | concluido | cancelado
+  origem    String    @default("manual") @db.VarChar(30) // manual | sugerida_ia
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  empresa Empresa  @relation(fields: [empresaId], references: [id])
+  projeto Projeto? @relation(fields: [projetoId], references: [id])
+
+  @@index([empresaId, inicio])
+  @@index([projetoId, inicio])
+  @@map("agenda_item")
 }
 
 model GrupoItem {
@@ -392,7 +418,7 @@ model CategoriaFinanceira {
   empresaId String    @map("empresa_id") @db.Uuid
   numero    String
   nome      String
-  tipo      String    // receita | despesa
+  tipo      String // receita | despesa
   grupoDRE  String?   @map("grupo_dre")
   parentId  String?   @map("parent_id") @db.Uuid
   ativo     Boolean   @default(true)
@@ -400,9 +426,9 @@ model CategoriaFinanceira {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  empresa Empresa              @relation(fields: [empresaId], references: [id])
-  parent  CategoriaFinanceira? @relation("SubCategorias", fields: [parentId], references: [id])
-  filhos  CategoriaFinanceira[] @relation("SubCategorias")
+  empresa     Empresa                @relation(fields: [empresaId], references: [id])
+  parent      CategoriaFinanceira?   @relation("SubCategorias", fields: [parentId], references: [id])
+  filhos      CategoriaFinanceira[]  @relation("SubCategorias")
   lancamentos LancamentoFinanceiro[]
 
   @@index([empresaId])
@@ -419,7 +445,7 @@ model CentroDeCusto {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  empresa Empresa @relation(fields: [empresaId], references: [id])
+  empresa     Empresa                @relation(fields: [empresaId], references: [id])
   lancamentos LancamentoFinanceiro[]
 
   @@index([empresaId])
@@ -441,9 +467,9 @@ model ItemBiblioteca {
   categoriaId  String? @map("categoria_id") @db.Uuid
   fornecedorId String? @map("fornecedor_id") @db.Uuid
 
-  unidade    UnidadeMedida? @relation(fields: [unidadeId], references: [id])
-  grupo      GrupoItem?     @relation(fields: [grupoId], references: [id])
-  categoria  CategoriaItem? @relation(fields: [categoriaId], references: [id])
+  unidade        UnidadeMedida?         @relation(fields: [unidadeId], references: [id])
+  grupo          GrupoItem?             @relation(fields: [grupoId], references: [id])
+  categoria      CategoriaItem?         @relation(fields: [categoriaId], references: [id])
   fornecedor     Fornecedor?            @relation(fields: [fornecedorId], references: [id])
   empresa        Empresa                @relation(fields: [empresaId], references: [id])
   itensOrcamento ProjetoItemOrcamento[]
@@ -459,36 +485,36 @@ model ItemBiblioteca {
 
 /// Entrada ou saída básica. "vencido" é estado derivado, não armazenado.
 model LancamentoFinanceiro {
-  id             String    @id @default(uuid()) @db.Uuid
-  empresaId      String    @map("empresa_id") @db.Uuid
-  projetoId      String    @map("projeto_id") @db.Uuid
-  fornecedorId   String?   @map("fornecedor_id") @db.Uuid
-  categoriaFinanceiraId String?  @map("categoria_financeira_id") @db.Uuid
-  centroDeCustoId       String?  @map("centro_de_custo_id") @db.Uuid
-  tipo           String // domínio: entrada | saida
-  valor          Decimal   @db.Decimal(15, 2) // precisão provisória — docs/06 §12 adiado
-  dataVencimento DateTime  @map("data_vencimento") @db.Date
-  dataRealizacao DateTime? @map("data_realizacao") @db.Date // só quando status = realizado
-  descricao      String?
-  status         String // domínio: previsto | realizado | cancelado
-  contaBancaria  String?   @map("conta_bancaria") @db.VarChar(100)
-  formaPagamento String?   @map("forma_pagamento") @db.VarChar(50)
-  numeroParcela  Int?      @map("numero_parcela")
-  totalParcelas  Int?      @map("total_parcelas")
-  valorTotal     Decimal?  @map("valor_total") @db.Decimal(15, 2)
-  notaFiscal     String?   @map("nota_fiscal") @db.VarChar(200)
-  juros          Decimal?  @db.Decimal(15, 2)
-  multa          Decimal?  @db.Decimal(15, 2)
-  desconto       Decimal?  @db.Decimal(15, 2)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  deletedAt      DateTime? @map("deleted_at")
+  id                    String    @id @default(uuid()) @db.Uuid
+  empresaId             String    @map("empresa_id") @db.Uuid
+  projetoId             String    @map("projeto_id") @db.Uuid
+  fornecedorId          String?   @map("fornecedor_id") @db.Uuid
+  categoriaFinanceiraId String?   @map("categoria_financeira_id") @db.Uuid
+  centroDeCustoId       String?   @map("centro_de_custo_id") @db.Uuid
+  tipo                  String // domínio: entrada | saida
+  valor                 Decimal   @db.Decimal(15, 2) // precisão provisória — docs/06 §12 adiado
+  dataVencimento        DateTime  @map("data_vencimento") @db.Date
+  dataRealizacao        DateTime? @map("data_realizacao") @db.Date // só quando status = realizado
+  descricao             String?
+  status                String // domínio: previsto | realizado | cancelado
+  contaBancaria         String?   @map("conta_bancaria") @db.VarChar(100)
+  formaPagamento        String?   @map("forma_pagamento") @db.VarChar(50)
+  numeroParcela         Int?      @map("numero_parcela")
+  totalParcelas         Int?      @map("total_parcelas")
+  valorTotal            Decimal?  @map("valor_total") @db.Decimal(15, 2)
+  notaFiscal            String?   @map("nota_fiscal") @db.VarChar(200)
+  juros                 Decimal?  @db.Decimal(15, 2)
+  multa                 Decimal?  @db.Decimal(15, 2)
+  desconto              Decimal?  @db.Decimal(15, 2)
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
 
-  empresa              Empresa              @relation(fields: [empresaId], references: [id])
-  projeto              Projeto              @relation(fields: [projetoId], references: [id])
-  fornecedor           Fornecedor?          @relation(fields: [fornecedorId], references: [id])
-  categoriaFinanceira  CategoriaFinanceira? @relation(fields: [categoriaFinanceiraId], references: [id])
-  centroDeCusto        CentroDeCusto?       @relation(fields: [centroDeCustoId], references: [id])
+  empresa             Empresa              @relation(fields: [empresaId], references: [id])
+  projeto             Projeto              @relation(fields: [projetoId], references: [id])
+  fornecedor          Fornecedor?          @relation(fields: [fornecedorId], references: [id])
+  categoriaFinanceira CategoriaFinanceira? @relation(fields: [categoriaFinanceiraId], references: [id])
+  centroDeCusto       CentroDeCusto?       @relation(fields: [centroDeCustoId], references: [id])
 
   @@index([projetoId, status])
   @@index([empresaId])
@@ -508,9 +534,9 @@ model Medicao {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  empresa  Empresa       @relation(fields: [empresaId], references: [id])
-  projeto  Projeto       @relation(fields: [projetoId], references: [id])
-  itens    MedicaoItem[]
+  empresa Empresa       @relation(fields: [empresaId], references: [id])
+  projeto Projeto       @relation(fields: [projetoId], references: [id])
+  itens   MedicaoItem[]
 
   @@unique([projetoId, numero])
   @@index([projetoId])
@@ -537,20 +563,20 @@ model MedicaoItem {
 
 /// Registro diário de obra (RDO) — fonte do Canteiro IA.
 model DiarioDeObra {
-  id          String    @id @default(uuid()) @db.Uuid
-  empresaId   String    @map("empresa_id") @db.Uuid
-  projetoId   String    @map("projeto_id") @db.Uuid
-  numero      Int
-  data        DateTime  @db.Date
-  status      String    @default("rascunho") @db.VarChar(30) // rascunho | processando | concluido
-  descricao   String    @db.Text
-  processado  Boolean   @default(false)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id         String   @id @default(uuid()) @db.Uuid
+  empresaId  String   @map("empresa_id") @db.Uuid
+  projetoId  String   @map("projeto_id") @db.Uuid
+  numero     Int
+  data       DateTime @db.Date
+  status     String   @default("rascunho") @db.VarChar(30) // rascunho | processando | concluido
+  descricao  String   @db.Text
+  processado Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  empresa     Empresa        @relation(fields: [empresaId], references: [id])
-  projeto     Projeto        @relation(fields: [projetoId], references: [id])
-  itensHITL   DiarioItemHITL[]
+  empresa   Empresa          @relation(fields: [empresaId], references: [id])
+  projeto   Projeto          @relation(fields: [projetoId], references: [id])
+  itensHITL DiarioItemHITL[]
 
   @@unique([projetoId, numero])
   @@index([projetoId, data])
@@ -612,8 +638,8 @@ model RastreioAuditoria {
 model StatusProjeto {
   id        String   @id @default(uuid()) @db.Uuid
   empresaId String   @map("empresa_id") @db.Uuid
-  stage     String   // "oportunidade" | "obra"
-  slug      String   // valor armazenado em Projeto.statusInterno
+  stage     String // "oportunidade" | "obra"
+  slug      String // valor armazenado em Projeto.statusInterno
   label     String
   cor       String   @default("#6b7280")
   ordem     Int

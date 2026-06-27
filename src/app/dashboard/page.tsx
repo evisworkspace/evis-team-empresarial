@@ -8,6 +8,7 @@ import { sumLancamentosByEmpresa } from "@/data/financeiro";
 import { countClientesByEmpresa } from "@/data/cliente";
 import { countFornecedoresByEmpresa } from "@/data/fornecedor";
 import { countTarefasByEmpresa, countOverdueTarefasByEmpresa } from "@/data/tarefa";
+import { listAgendaByEmpresa } from "@/data/agenda";
 import {
   BuildingIcon,
   UsersIcon,
@@ -27,11 +28,25 @@ function formatCurrency(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatAgendaDate(v: Date) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(v);
+}
+
 export default async function DashboardPage() {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
 
-  const [empresa, obrasCount, opCount, clientesCount, fornecedoresCount, tarefasAbertas, tarefasAtrasadas, recentes, saldoFinanceiro] =
+  const now = new Date();
+  const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const [empresa, obrasCount, opCount, clientesCount, fornecedoresCount, tarefasAbertas, tarefasAtrasadas, recentes, saldoFinanceiro, agendaProxima] =
     await Promise.all([
       getEmpresaById(empresaId),
       countProjetosByEmpresa(empresaId, "obra"),
@@ -42,6 +57,7 @@ export default async function DashboardPage() {
       countOverdueTarefasByEmpresa(empresaId),
       listProjetosByEmpresaWithCliente(empresaId, { take: 5 }),
       sumLancamentosByEmpresa(empresaId),
+      listAgendaByEmpresa(empresaId, { from: now, to: next7Days, status: "agendado", take: 5 }),
     ]);
 
   const firstName = (session!.user.name ?? "").split(" ")[0] || "Usuário";
@@ -266,6 +282,34 @@ export default async function DashboardPage() {
               <Link href="/dashboard/tarefas?status=aberta" className="btn btn-secondary btn-sm">
                 Ver tarefas <ArrowRightIcon size={14} />
               </Link>
+            </div>
+          )}
+          {agendaProxima.length > 0 && (
+            <div className="card card-pad">
+              <div className="card-title">Agenda</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {agendaProxima.map((item) => (
+                  <div key={item.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--clr-primary)",
+                      minWidth: 92,
+                      fontFamily: "var(--font-mono)",
+                    }}>
+                      {formatAgendaDate(item.inicio)}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--clr-text)" }}>{item.titulo}</div>
+                      {item.projeto && (
+                        <Link href={`/dashboard/projetos/${item.projeto.id}`} style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>
+                          {item.projeto.titulo}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

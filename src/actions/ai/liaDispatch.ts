@@ -11,8 +11,9 @@ Extraia TODOS os itens práticos identificados e classifique cada um.
 
 TIPOS disponíveis:
 - tarefa: ação que precisa ser feita, sem data específica clara
-- visita: visita técnica a agendar, com local ou data mencionada
-- reuniao: reunião, call, encontro a agendar
+- agenda: compromisso no calendário do usuário — visita futura, reunião, ligação combinada, follow-up, prazo, retorno a cliente, entrega programada ou lembrete com horário
+- visita_tecnica: vistoria, levantamento, medição ou inspeção em obra — fato técnico de campo, constatação ou escopo observado
+- reuniao: reunião formal identificada; se tiver data/hora, prefira agenda
 - nota: informação relevante, constatação, contexto de projeto
 - lead: menção a um novo cliente interessado, nova obra ou oportunidade comercial
 - financeiro: valor, pagamento, custo, boleto, PIX mencionado
@@ -31,6 +32,9 @@ Para cada item extraído:
 REGRAS:
 - Extraia o máximo de itens distintos — não comprima dois fatos em um
 - Nunca crie o mesmo item duas vezes
+- Agenda é estrutura do sistema, não agente. Use agenda sempre que houver compromisso, data, horário, prazo ou follow-up.
+- Visita técnica é registro técnico; não use visita_tecnica apenas porque há uma visita futura marcada.
+- Exemplo: "visita amanhã às 10h no Sucão" deve gerar agenda e, se útil, uma tarefa de preparação. Não deve virar visita_tecnica.
 - Responda em português, zero markdown nos textos
 - Se não houver nada relevante, retorne array vazio`;
 

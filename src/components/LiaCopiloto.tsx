@@ -6,9 +6,11 @@ import { executarAcaoLia } from "@/actions/ai/executarAcaoLia";
 
 type LiaAction = {
   id: string;
-  tipo: "tarefa" | "atividade";
+  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade";
+  titulo?: string;
   descricao: string;
   dataPrevista?: string;
+  tipoAgenda?: string;
   tipoAtividade?: string;
   status: "pending" | "confirmed" | "ignored";
 };
@@ -49,16 +51,15 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
   const text = raw.replace(ACTION_RE, (_, json) => {
     try {
       const parsed = JSON.parse(json) as Partial<LiaAction>;
-      if (
-        (parsed.tipo === "tarefa" || parsed.tipo === "atividade") &&
-        typeof parsed.descricao === "string" &&
-        parsed.descricao.trim()
-      ) {
+      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade"];
+      if (typeof parsed.tipo === "string" && tiposValidos.includes(parsed.tipo) && typeof parsed.descricao === "string" && parsed.descricao.trim()) {
         actions.push({
           id: makeId(parsed.tipo),
-          tipo: parsed.tipo,
+          tipo: parsed.tipo as LiaAction["tipo"],
+          titulo: typeof parsed.titulo === "string" ? parsed.titulo.trim() : undefined,
           descricao: parsed.descricao.trim(),
           dataPrevista: typeof parsed.dataPrevista === "string" ? parsed.dataPrevista : undefined,
+          tipoAgenda: typeof parsed.tipoAgenda === "string" ? parsed.tipoAgenda : undefined,
           tipoAtividade: typeof parsed.tipoAtividade === "string" ? parsed.tipoAtividade : undefined,
           status: "pending",
         });
@@ -266,23 +267,53 @@ export default function LiaCopiloto() {
   }
 
   function confirmarAcao(messageId: string, action: LiaAction) {
-    if (!context.projetoId) {
+    if (action.tipo !== "agenda" && !context.projetoId) {
       addLiaNote("Para confirmar, abra um projeto primeiro.");
       return;
     }
 
     startTransition(async () => {
-      const result = await executarAcaoLia({
-        tipo: action.tipo,
-        descricao: action.descricao,
-        dataPrevista: action.dataPrevista,
-        tipoAtividade: action.tipoAtividade,
-        projetoId: context.projetoId!,
-      });
+      const result = action.tipo === "agenda"
+        ? await executarAcaoLia({
+            tipo: "agenda",
+            titulo: action.titulo,
+            descricao: action.descricao,
+            dataPrevista: action.dataPrevista ?? "",
+            tipoAgenda: action.tipoAgenda,
+            projetoId: context.projetoId ?? undefined,
+          })
+        : action.tipo === "visita_tecnica"
+          ? await executarAcaoLia({
+              tipo: "visita_tecnica",
+              descricao: action.descricao,
+              dataPrevista: action.dataPrevista,
+              projetoId: context.projetoId!,
+            })
+          : action.tipo === "tarefa"
+            ? await executarAcaoLia({
+                tipo: "tarefa",
+                descricao: action.descricao,
+                dataPrevista: action.dataPrevista,
+                projetoId: context.projetoId!,
+              })
+            : await executarAcaoLia({
+                tipo: "atividade",
+                descricao: action.descricao,
+                tipoAtividade: action.tipoAtividade,
+                projetoId: context.projetoId!,
+              });
 
       if (result.ok) {
         updateActionStatus(messageId, action.id, "confirmed");
-        addLiaNote(action.tipo === "tarefa" ? "Feito. Tarefa criada com badge IA." : "Feito. Atividade registrada.");
+        const doneMessage =
+          action.tipo === "agenda"
+            ? "Feito. Compromisso criado na Agenda."
+            : action.tipo === "visita_tecnica"
+              ? "Feito. Visita técnica registrada como tarefa e atividade."
+              : action.tipo === "tarefa"
+                ? "Feito. Tarefa criada com badge IA."
+                : "Feito. Atividade registrada.";
+        addLiaNote(doneMessage);
       } else {
         addLiaNote(result.erro ?? "Não consegui executar essa ação.");
       }
@@ -340,7 +371,13 @@ export default function LiaCopiloto() {
                   className={`lia-action-card lia-action-card--${action.status}`}
                 >
                   <div className="lia-action-card-type">
-                    {action.tipo === "tarefa" ? "Tarefa sugerida" : "Atividade sugerida"}
+                    {action.tipo === "agenda"
+                      ? "Agenda sugerida"
+                      : action.tipo === "visita_tecnica"
+                        ? "Visita técnica sugerida"
+                        : action.tipo === "tarefa"
+                          ? "Tarefa sugerida"
+                          : "Atividade sugerida"}
                   </div>
                   <div className="lia-action-card-desc">{action.descricao}</div>
                   {action.dataPrevista && (

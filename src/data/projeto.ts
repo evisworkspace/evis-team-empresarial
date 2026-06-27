@@ -225,6 +225,10 @@ export async function softDeleteProjeto(empresaId: string, projetoId: string) {
       where: { projetoId, empresaId, deletedAt: null },
       data: { deletedAt: now },
     }),
+    prisma.agendaItem.updateMany({
+      where: { projetoId, empresaId, deletedAt: null },
+      data: { deletedAt: now },
+    }),
     prisma.projeto.updateMany({
       where: { id: projetoId, empresaId, deletedAt: null },
       data: { deletedAt: now },
@@ -248,6 +252,7 @@ export async function hardDeleteProjeto(empresaId: string, projetoId: string) {
     prisma.projetoItemOrcamento.deleteMany({ where: { projetoId, empresaId } }),
     prisma.lancamentoFinanceiro.deleteMany({ where: { projetoId, empresaId } }),
     prisma.tarefa.deleteMany({ where: { projetoId, empresaId } }),
+    prisma.agendaItem.deleteMany({ where: { projetoId, empresaId } }),
     prisma.projetoAtividade.deleteMany({ where: { projetoId, empresaId } }),
     prisma.anotacao.deleteMany({ where: { projetoId, empresaId } }),
     prisma.rastreioAuditoria.deleteMany({ where: { projetoId, empresaId } }),

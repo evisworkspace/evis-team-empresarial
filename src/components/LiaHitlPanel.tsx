@@ -30,8 +30,10 @@ interface Props {
 
 const TIPO_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
   tarefa: { label: "Tarefa", color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
-  visita: { label: "Visita", color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
-  reuniao: { label: "Reunião", color: "#7e22ce", bg: "#faf5ff", border: "#e9d5ff" },
+  agenda: { label: "Agenda", color: "#0369a1", bg: "#e0f2fe", border: "#7dd3fc" },
+  visita_tecnica: { label: "Visita técnica", color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
+  visita: { label: "Visita técnica", color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
+  reuniao: { label: "Agenda · reunião", color: "#7e22ce", bg: "#faf5ff", border: "#e9d5ff" },
   nota: { label: "Nota", color: "#475569", bg: "#f8fafc", border: "#cbd5e1" },
   lead: { label: "Novo lead", color: "#c2410c", bg: "#fff7ed", border: "#fed7aa" },
   financeiro: { label: "Financeiro", color: "#a16207", bg: "#fefce8", border: "#fde68a" },
