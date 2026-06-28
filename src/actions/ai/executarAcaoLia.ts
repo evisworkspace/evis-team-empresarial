@@ -55,9 +55,30 @@ interface AcaoNovaOportunidade {
   tipo: "nova_oportunidade";
   clienteNome: string;
   clienteTelefone?: string;
+  clienteTipoPessoa?: string;
+  clienteEmail?: string;
+  clienteCpfCnpj?: string;
+  clienteRazaoSocial?: string;
+  clienteRg?: string;
+  clienteDataNascimento?: string;
+  clienteCep?: string;
+  clienteRua?: string;
+  clienteNumero?: string;
+  clienteComplemento?: string;
+  clienteBairro?: string;
+  clienteCidade?: string;
+  clienteEstado?: string;
+  clienteObservacoes?: string;
   titulo: string;
   descricao?: string;
   enderecoObra?: string;
+  cepObra?: string;
+  logradouroObra?: string;
+  numeroEnderecoObra?: string;
+  complementoObra?: string;
+  bairroObra?: string;
+  cidadeObra?: string;
+  estadoObra?: string;
   tipoObra?: string;
   origem?: string;
   projetoId?: string; // opcional para manter consistência nas propriedades básicas
@@ -106,7 +127,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
     };
   }
 
-  if (!acao.descricao || acao.descricao.trim().length < 2) {
+  if (acao.tipo !== "nova_oportunidade" && (!acao.descricao || acao.descricao.trim().length < 2)) {
     return { ok: false, erro: "Descrição da ação inválida." };
   }
 
@@ -207,9 +228,30 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
       const resultado = await criarOportunidadeDoCopiloto({
         clienteNome: acao.clienteNome,
         clienteTelefone: acao.clienteTelefone,
+        clienteTipoPessoa: acao.clienteTipoPessoa,
+        clienteEmail: acao.clienteEmail,
+        clienteCpfCnpj: acao.clienteCpfCnpj,
+        clienteRazaoSocial: acao.clienteRazaoSocial,
+        clienteRg: acao.clienteRg,
+        clienteDataNascimento: acao.clienteDataNascimento,
+        clienteCep: acao.clienteCep,
+        clienteRua: acao.clienteRua,
+        clienteNumero: acao.clienteNumero,
+        clienteComplemento: acao.clienteComplemento,
+        clienteBairro: acao.clienteBairro,
+        clienteCidade: acao.clienteCidade,
+        clienteEstado: acao.clienteEstado,
+        clienteObservacoes: acao.clienteObservacoes,
         titulo: acao.titulo,
         descricao: acao.descricao,
         enderecoObra: acao.enderecoObra,
+        cepObra: acao.cepObra,
+        logradouroObra: acao.logradouroObra,
+        numeroEnderecoObra: acao.numeroEnderecoObra,
+        complementoObra: acao.complementoObra,
+        bairroObra: acao.bairroObra,
+        cidadeObra: acao.cidadeObra,
+        estadoObra: acao.estadoObra,
         tipoObra: acao.tipoObra,
         origem: acao.origem,
       });

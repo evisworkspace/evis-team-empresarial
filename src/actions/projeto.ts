@@ -43,16 +43,33 @@ export async function criarProjeto(formData: FormData) {
   let clienteId: string;
 
   if (clienteMode === "novo") {
-    const novoNome = (formData.get("novoClienteNome") as string)?.trim();
-    const novoTelefone = (formData.get("novoClienteTelefone") as string)?.trim() || undefined;
-    const novoOrigem = (formData.get("novoClienteOrigem") as string)?.trim() || undefined;
+    const novoNome = ((formData.get("nome") as string) || (formData.get("novoClienteNome") as string))?.trim();
+    const novoTelefone = ((formData.get("telefone") as string) || (formData.get("novoClienteTelefone") as string))?.trim() || undefined;
+    const novoOrigem = ((formData.get("origemContato") as string) || (formData.get("novoClienteOrigem") as string))?.trim() || undefined;
+    const novoTipoPessoa = (formData.get("tipoPessoa") as string) === "PJ" ? "PJ" : "PF";
+    const novoDataNascimentoRaw = (formData.get("dataNascimento") as string)?.trim();
+    const novoDataNascimento = novoDataNascimentoRaw ? new Date(novoDataNascimentoRaw) : undefined;
 
     if (!novoNome || novoNome.length < 2) throw new Error("Nome do cliente é obrigatório.");
 
     const novoCliente = await createCliente(empresaId, {
       nome: novoNome,
       telefone: novoTelefone,
+      tipoPessoa: novoTipoPessoa,
       origemContato: novoOrigem,
+      razaoSocial: (formData.get("razaoSocial") as string)?.trim() || undefined,
+      email: (formData.get("email") as string)?.trim() || undefined,
+      cpfCnpj: (formData.get("cpfCnpj") as string)?.trim() || undefined,
+      cep: (formData.get("cep") as string)?.trim() || undefined,
+      rua: (formData.get("rua") as string)?.trim() || undefined,
+      numero: (formData.get("numero") as string)?.trim() || undefined,
+      complemento: (formData.get("complemento") as string)?.trim() || undefined,
+      bairro: (formData.get("bairro") as string)?.trim() || undefined,
+      cidade: (formData.get("cidade") as string)?.trim() || undefined,
+      estado: (formData.get("estado") as string)?.trim() || undefined,
+      observacoes: (formData.get("observacoes") as string)?.trim() || undefined,
+      rg: (formData.get("rg") as string)?.trim() || undefined,
+      dataNascimento: novoDataNascimento,
     });
 
     await createAuditEntry({

@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
-import { CadastroClienteDrawer } from "@/components/CadastroClienteDrawer"
+import ClienteFormFields from "@/components/ClienteFormFields"
+import type { ClienteFormDefaults } from "@/components/ClienteFormFields"
 
 type ClienteBasico = {
   id: string
@@ -15,51 +16,28 @@ type Props = {
   clientes: ClienteBasico[]
   defaultClienteId?: string
   defaultMode?: "existente" | "novo"
-  defaultNovoClienteNome?: string
-  defaultNovoClienteTelefone?: string
-  defaultNovoClienteOrigem?: string
+  defaultNovoCliente?: ClienteFormDefaults
   semClientes: boolean
-  origens: readonly { value: string; label: string }[]
-  novoClienteHref?: string
 }
 
 export default function ClienteSelectorPanel({
   clientes,
   defaultClienteId,
   defaultMode,
-  defaultNovoClienteNome,
-  defaultNovoClienteTelefone,
-  defaultNovoClienteOrigem,
+  defaultNovoCliente,
   semClientes,
-  origens,
 }: Props) {
-  const [localClientes, setLocalClientes] = useState<ClienteBasico[]>(clientes)
+  const localClientes = clientes
   const [selectedId, setSelectedId] = useState(defaultClienteId ?? "")
   const [activeTab, setActiveTab] = useState<"existente" | "novo">(
     defaultMode ?? (semClientes ? "novo" : "existente"),
   )
-  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const clienteSelecionado = localClientes.find((c) => c.id === selectedId)
-
-  function handleClienteCriado(clienteId: string, clienteNome: string) {
-    setLocalClientes((prev) => [
-      ...prev,
-      { id: clienteId, nome: clienteNome, telefone: null, email: null, cidade: null, estado: null },
-    ])
-    setSelectedId(clienteId)
-    setActiveTab("existente")
-    setDrawerOpen(false)
-  }
+  const temClienteDetectado = Boolean(defaultNovoCliente?.nome || defaultNovoCliente?.telefone || defaultNovoCliente?.cpfCnpj)
 
   return (
     <>
-      <CadastroClienteDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onClienteCriado={handleClienteCriado}
-      />
-
       {/* Tabs */}
       <input type="hidden" name="clienteMode" value={activeTab} />
 
@@ -183,67 +161,38 @@ export default function ClienteSelectorPanel({
       {/* Seção: novo cliente */}
       {activeTab === "novo" && (
         <div>
-          {/* Botão principal — abre drawer com form completo */}
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="btn btn-primary"
-            style={{ width: "100%", marginBottom: 16, justifyContent: "center" }}
-          >
-            + Cadastrar novo cliente
-          </button>
-
           <div
             style={{
-              borderTop: "1px solid var(--clr-border)",
-              paddingTop: 14,
               marginBottom: 12,
             }}
           >
             <p style={{ fontSize: 12, color: "var(--clr-text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
-              Ou preencha só o essencial agora e complete depois:
+              O cliente será criado junto com esta oportunidade, usando o mesmo formulário completo de Cadastros.
             </p>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Nome *</label>
-            <input
-              name="novoClienteNome"
-              type="text"
-              className="form-input"
-              placeholder="Nome do cliente ou empresa"
-              defaultValue={defaultNovoClienteNome ?? ""}
-              maxLength={200}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">WhatsApp / Telefone</label>
-            <input
-              name="novoClienteTelefone"
-              type="tel"
-              className="form-input"
-              placeholder="(00) 00000-0000"
-              defaultValue={defaultNovoClienteTelefone ?? ""}
-              maxLength={30}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Como chegou até você?</label>
-            <select
-              name="novoClienteOrigem"
-              className="form-input form-select"
-              defaultValue={defaultNovoClienteOrigem ?? "indicacao"}
+          {temClienteDetectado && (
+            <div
+              style={{
+                background: "var(--clr-bg-subtle)",
+                border: "1px solid var(--clr-border)",
+                borderRadius: "var(--r-md)",
+                padding: 12,
+                fontSize: 13,
+                color: "var(--clr-text-muted)",
+                lineHeight: 1.5,
+              }}
             >
-              <option value="">Não informado</option>
-              {origens.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              <strong style={{ color: "var(--clr-text)" }}>{defaultNovoCliente?.nome}</strong>
+              {defaultNovoCliente?.telefone ? <div>{defaultNovoCliente.telefone}</div> : null}
+              {defaultNovoCliente?.cpfCnpj ? <div>{defaultNovoCliente.cpfCnpj}</div> : null}
+              {(defaultNovoCliente?.cidade || defaultNovoCliente?.estado) ? (
+                <div>{[defaultNovoCliente.cidade, defaultNovoCliente.estado].filter(Boolean).join(" — ")}</div>
+              ) : null}
+            </div>
+          )}
+
+          <ClienteFormFields defaults={defaultNovoCliente} />
         </div>
       )}
     </>

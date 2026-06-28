@@ -14,7 +14,28 @@ type LiaAction = {
   tipoAtividade?: string;
   clienteNome?: string;
   clienteTelefone?: string;
+  clienteTipoPessoa?: string;
+  clienteEmail?: string;
+  clienteCpfCnpj?: string;
+  clienteRazaoSocial?: string;
+  clienteRg?: string;
+  clienteDataNascimento?: string;
+  clienteCep?: string;
+  clienteRua?: string;
+  clienteNumero?: string;
+  clienteComplemento?: string;
+  clienteBairro?: string;
+  clienteCidade?: string;
+  clienteEstado?: string;
+  clienteObservacoes?: string;
   enderecoObra?: string;
+  cepObra?: string;
+  logradouroObra?: string;
+  numeroEnderecoObra?: string;
+  complementoObra?: string;
+  bairroObra?: string;
+  cidadeObra?: string;
+  estadoObra?: string;
   tipoObra?: string;
   origem?: string;
   status: "pending" | "confirmed" | "ignored";
@@ -137,7 +158,28 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
           tipoAtividade: typeof parsed.tipoAtividade === "string" ? parsed.tipoAtividade : undefined,
           clienteNome: typeof parsed.clienteNome === "string" ? parsed.clienteNome : undefined,
           clienteTelefone: typeof parsed.clienteTelefone === "string" ? parsed.clienteTelefone : undefined,
+          clienteTipoPessoa: typeof parsed.clienteTipoPessoa === "string" ? parsed.clienteTipoPessoa : undefined,
+          clienteEmail: typeof parsed.clienteEmail === "string" ? parsed.clienteEmail : undefined,
+          clienteCpfCnpj: typeof parsed.clienteCpfCnpj === "string" ? parsed.clienteCpfCnpj : undefined,
+          clienteRazaoSocial: typeof parsed.clienteRazaoSocial === "string" ? parsed.clienteRazaoSocial : undefined,
+          clienteRg: typeof parsed.clienteRg === "string" ? parsed.clienteRg : undefined,
+          clienteDataNascimento: typeof parsed.clienteDataNascimento === "string" ? parsed.clienteDataNascimento : undefined,
+          clienteCep: typeof parsed.clienteCep === "string" ? parsed.clienteCep : undefined,
+          clienteRua: typeof parsed.clienteRua === "string" ? parsed.clienteRua : undefined,
+          clienteNumero: typeof parsed.clienteNumero === "string" ? parsed.clienteNumero : undefined,
+          clienteComplemento: typeof parsed.clienteComplemento === "string" ? parsed.clienteComplemento : undefined,
+          clienteBairro: typeof parsed.clienteBairro === "string" ? parsed.clienteBairro : undefined,
+          clienteCidade: typeof parsed.clienteCidade === "string" ? parsed.clienteCidade : undefined,
+          clienteEstado: typeof parsed.clienteEstado === "string" ? parsed.clienteEstado : undefined,
+          clienteObservacoes: typeof parsed.clienteObservacoes === "string" ? parsed.clienteObservacoes : undefined,
           enderecoObra: typeof parsed.enderecoObra === "string" ? parsed.enderecoObra : undefined,
+          cepObra: typeof parsed.cepObra === "string" ? parsed.cepObra : undefined,
+          logradouroObra: typeof parsed.logradouroObra === "string" ? parsed.logradouroObra : undefined,
+          numeroEnderecoObra: typeof parsed.numeroEnderecoObra === "string" ? parsed.numeroEnderecoObra : undefined,
+          complementoObra: typeof parsed.complementoObra === "string" ? parsed.complementoObra : undefined,
+          bairroObra: typeof parsed.bairroObra === "string" ? parsed.bairroObra : undefined,
+          cidadeObra: typeof parsed.cidadeObra === "string" ? parsed.cidadeObra : undefined,
+          estadoObra: typeof parsed.estadoObra === "string" ? parsed.estadoObra : undefined,
           tipoObra: typeof parsed.tipoObra === "string" ? parsed.tipoObra : undefined,
           origem: typeof parsed.origem === "string" ? parsed.origem : undefined,
           status: "pending",
@@ -625,9 +667,30 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                     tipo: "nova_oportunidade",
                     clienteNome: action.clienteNome || "",
                     clienteTelefone: action.clienteTelefone,
+                    clienteTipoPessoa: action.clienteTipoPessoa,
+                    clienteEmail: action.clienteEmail,
+                    clienteCpfCnpj: action.clienteCpfCnpj,
+                    clienteRazaoSocial: action.clienteRazaoSocial,
+                    clienteRg: action.clienteRg,
+                    clienteDataNascimento: action.clienteDataNascimento,
+                    clienteCep: action.clienteCep,
+                    clienteRua: action.clienteRua,
+                    clienteNumero: action.clienteNumero,
+                    clienteComplemento: action.clienteComplemento,
+                    clienteBairro: action.clienteBairro,
+                    clienteCidade: action.clienteCidade,
+                    clienteEstado: action.clienteEstado,
+                    clienteObservacoes: action.clienteObservacoes,
                     titulo: action.titulo || "",
                     descricao: action.descricao,
                     enderecoObra: action.enderecoObra,
+                    cepObra: action.cepObra,
+                    logradouroObra: action.logradouroObra,
+                    numeroEnderecoObra: action.numeroEnderecoObra,
+                    complementoObra: action.complementoObra,
+                    bairroObra: action.bairroObra,
+                    cidadeObra: action.cidadeObra,
+                    estadoObra: action.estadoObra,
                     tipoObra: action.tipoObra,
                     origem: action.origem,
                     ...evidencia,
@@ -792,6 +855,8 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                   {action.tipo === "nova_oportunidade" ? (
                     <div className="lia-action-card-body" style={{ fontSize: "0.85rem", marginTop: "0.5rem", color: "var(--text-secondary)" }}>
                       <p style={{ margin: "0 0 0.25rem" }}><strong>Cliente:</strong> {action.clienteNome}{action.clienteTelefone ? ` · ${action.clienteTelefone}` : ""}</p>
+                      {action.clienteCpfCnpj && <p style={{ margin: "0 0 0.25rem" }}><strong>CPF/CNPJ:</strong> {action.clienteCpfCnpj}</p>}
+                      {action.clienteEmail && <p style={{ margin: "0 0 0.25rem" }}><strong>E-mail:</strong> {action.clienteEmail}</p>}
                       <p style={{ margin: "0 0 0.25rem" }}><strong>Oportunidade:</strong> {action.titulo}</p>
                       {action.enderecoObra && <p style={{ margin: "0 0 0.25rem" }}><strong>Endereço:</strong> {action.enderecoObra}</p>}
                       {action.descricao && <p className="lia-action-card-desc" style={{ marginTop: "0.5rem", WebkitLineClamp: 3 }}>{action.descricao}</p>}

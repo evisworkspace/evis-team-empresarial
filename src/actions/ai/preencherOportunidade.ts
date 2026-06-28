@@ -24,7 +24,10 @@ Regras obrigatórias:
 - itensSemDestino: liste informações detectadas que ainda não têm módulo estruturado. Ex: "Documentos de projeto para futura aba Arquivos".
 - titulo: nome curto e objetivo para identificar a oportunidade. Ex: "Reforma Apartamento — Pedro", "Construção Residência Silva".
 - descricao: narrativa completa preservando o contexto original. Pode ser longa.
-- Endereço: se o texto trouxer endereço completo, separe em cep, logradouro, número, complemento, bairro, cidade e estado quando possível.`;
+- Endereço: se o texto trouxer endereço completo, separe em cep, logradouro, número, complemento, bairro, cidade e estado quando possível.
+- clienteNome, clienteTelefone e demais campos cliente* alimentam o cadastro completo do Cliente/Lead dentro da oportunidade.
+- Se o endereço do cliente e o endereço da obra parecerem o mesmo, repita os dados nos campos de endereço da obra e nos campos clienteCep/clienteRua/clienteNumero/clienteComplemento/clienteBairro/clienteCidade/clienteEstado.
+- Se houver CNPJ, razao social, inscrição estadual/municipal, e-mail, telefone secundário, dados bancários ou redes sociais do cliente, preserve em clienteObservacoes quando não houver campo estruturado específico.`;
 
 interface ExtracaoOportunidade {
   titulo: string;
@@ -46,6 +49,20 @@ interface ExtracaoOportunidade {
   estadoObra: string;
   clienteNome: string;
   clienteTelefone: string;
+  clienteTipoPessoa: string;
+  clienteEmail: string;
+  clienteCpfCnpj: string;
+  clienteRazaoSocial: string;
+  clienteRg: string;
+  clienteDataNascimento: string;
+  clienteCep: string;
+  clienteRua: string;
+  clienteNumero: string;
+  clienteComplemento: string;
+  clienteBairro: string;
+  clienteCidade: string;
+  clienteEstado: string;
+  clienteObservacoes: string;
   pendencias: string[];
   tarefasSugeridas: string[];
   itensSemDestino: string[];
@@ -81,6 +98,20 @@ const RESPONSE_SCHEMA = {
     estadoObra: { type: "string" },
     clienteNome: { type: "string" },
     clienteTelefone: { type: "string" },
+    clienteTipoPessoa: { type: "string" },
+    clienteEmail: { type: "string" },
+    clienteCpfCnpj: { type: "string" },
+    clienteRazaoSocial: { type: "string" },
+    clienteRg: { type: "string" },
+    clienteDataNascimento: { type: "string" },
+    clienteCep: { type: "string" },
+    clienteRua: { type: "string" },
+    clienteNumero: { type: "string" },
+    clienteComplemento: { type: "string" },
+    clienteBairro: { type: "string" },
+    clienteCidade: { type: "string" },
+    clienteEstado: { type: "string" },
+    clienteObservacoes: { type: "string" },
     pendencias: { type: "array", items: { type: "string" } },
     tarefasSugeridas: { type: "array", items: { type: "string" } },
     itensSemDestino: { type: "array", items: { type: "string" } },
@@ -90,15 +121,23 @@ const RESPONSE_SCHEMA = {
     "statusInicial", "dataInicioEstimada", "metragemEstimada", "valorEstimado",
     "valorGanhoEstimativa", "cepObra", "logradouroObra", "numeroEnderecoObra",
     "complementoObra", "bairroObra", "cidadeObra", "estadoObra",
-    "clienteNome", "clienteTelefone", "pendencias", "tarefasSugeridas", "itensSemDestino",
+    "clienteNome", "clienteTelefone", "clienteTipoPessoa", "clienteEmail",
+    "clienteCpfCnpj", "clienteRazaoSocial", "clienteRg", "clienteDataNascimento",
+    "clienteCep", "clienteRua", "clienteNumero", "clienteComplemento",
+    "clienteBairro", "clienteCidade", "clienteEstado", "clienteObservacoes",
+    "pendencias", "tarefasSugeridas", "itensSemDestino",
   ],
   propertyOrdering: [
     "titulo", "clienteNome", "clienteTelefone",
+    "clienteTipoPessoa", "clienteEmail", "clienteCpfCnpj", "clienteRazaoSocial",
+    "clienteRg", "clienteDataNascimento",
     "tipoObra", "origem", "prioridade", "statusInicial",
     "dataInicioEstimada", "metragemEstimada", "valorEstimado",
     "valorGanhoEstimativa", "descricao",
     "cepObra", "logradouroObra", "numeroEnderecoObra",
     "complementoObra", "bairroObra", "cidadeObra", "estadoObra",
+    "clienteCep", "clienteRua", "clienteNumero", "clienteComplemento",
+    "clienteBairro", "clienteCidade", "clienteEstado", "clienteObservacoes",
     "pendencias", "tarefasSugeridas", "itensSemDestino",
   ],
 };
@@ -244,6 +283,20 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
     setIf(p, "estado", data.estadoObra);
     setIf(p, "clienteNome", data.clienteNome);
     setIf(p, "clienteTel", data.clienteTelefone);
+    setIf(p, "clienteTipoPessoa", data.clienteTipoPessoa);
+    setIf(p, "clienteEmail", data.clienteEmail);
+    setIf(p, "clienteCpfCnpj", data.clienteCpfCnpj);
+    setIf(p, "clienteRazaoSocial", data.clienteRazaoSocial);
+    setIf(p, "clienteRg", data.clienteRg);
+    setIf(p, "clienteDataNascimento", data.clienteDataNascimento);
+    setIf(p, "clienteCep", data.clienteCep);
+    setIf(p, "clienteRua", data.clienteRua);
+    setIf(p, "clienteNumero", data.clienteNumero);
+    setIf(p, "clienteComplemento", data.clienteComplemento);
+    setIf(p, "clienteBairro", data.clienteBairro);
+    setIf(p, "clienteCidade", data.clienteCidade);
+    setIf(p, "clienteEstado", data.clienteEstado);
+    setIf(p, "clienteObservacoes", data.clienteObservacoes?.slice(0, 800));
     if (data.pendencias?.length > 0) p.set("pendencias", data.pendencias.join(" · "));
     if (data.tarefasSugeridas?.length > 0) p.set("tarefas", data.tarefasSugeridas.join(" · "));
     if (data.itensSemDestino?.length > 0) p.set("semDestino", data.itensSemDestino.join(" · "));

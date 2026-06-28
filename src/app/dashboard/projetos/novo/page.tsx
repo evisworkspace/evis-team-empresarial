@@ -43,7 +43,12 @@ export default async function NovaOportunidade({
     metragem?: string; valor?: string; valorGanho?: string;
     cep?: string; logradouro?: string; numeroEndereco?: string; complemento?: string;
     bairro?: string; cidade?: string; estado?: string;
-    clienteNome?: string; clienteTel?: string; pendencias?: string;
+    clienteNome?: string; clienteTel?: string; clienteTipoPessoa?: string;
+    clienteEmail?: string; clienteCpfCnpj?: string; clienteRazaoSocial?: string;
+    clienteRg?: string; clienteDataNascimento?: string; clienteCep?: string;
+    clienteRua?: string; clienteNumero?: string; clienteComplemento?: string;
+    clienteBairro?: string; clienteCidade?: string; clienteEstado?: string;
+    clienteObservacoes?: string; pendencias?: string;
     tarefas?: string; semDestino?: string;
   }>;
 }) {
@@ -57,7 +62,12 @@ export default async function NovaOportunidade({
     metragem: aMetragem, valor: aValor, valorGanho: aValorGanho,
     cep: aCep, logradouro: aLogradouro, numeroEndereco: aNumeroEndereco,
     complemento: aComplemento, bairro: aBairro, cidade: aCidade, estado: aEstado,
-    clienteNome: aClienteNome, clienteTel: aClienteTel, pendencias: aPendencias,
+    clienteNome: aClienteNome, clienteTel: aClienteTel, clienteTipoPessoa: aClienteTipoPessoa,
+    clienteEmail: aClienteEmail, clienteCpfCnpj: aClienteCpfCnpj, clienteRazaoSocial: aClienteRazaoSocial,
+    clienteRg: aClienteRg, clienteDataNascimento: aClienteDataNascimento, clienteCep: aClienteCep,
+    clienteRua: aClienteRua, clienteNumero: aClienteNumero, clienteComplemento: aClienteComplemento,
+    clienteBairro: aClienteBairro, clienteCidade: aClienteCidade, clienteEstado: aClienteEstado,
+    clienteObservacoes: aClienteObservacoes, pendencias: aPendencias,
     tarefas: aTarefas, semDestino: aSemDestino,
   } = await searchParams;
 
@@ -87,6 +97,25 @@ export default async function NovaOportunidade({
     bairro: aBairro ?? "",
     cidade: aCidade ?? "",
     estado: aEstado ?? "",
+  };
+  const clienteDefaults = {
+    nome: aClienteNome ?? "",
+    telefone: aClienteTel ?? "",
+    tipoPessoa: aClienteTipoPessoa ?? (aClienteCpfCnpj && aClienteCpfCnpj.replace(/\D/g, "").length === 14 ? "PJ" : undefined),
+    email: aClienteEmail ?? "",
+    cpfCnpj: aClienteCpfCnpj ?? "",
+    origemContato: defaultOrigem,
+    razaoSocial: aClienteRazaoSocial ?? "",
+    rg: aClienteRg ?? "",
+    dataNascimento: aClienteDataNascimento && /^\d{4}-\d{2}-\d{2}$/.test(aClienteDataNascimento) ? aClienteDataNascimento : "",
+    cep: aClienteCep ?? aCep ?? "",
+    rua: aClienteRua ?? aLogradouro ?? "",
+    numero: aClienteNumero ?? aNumeroEndereco ?? "",
+    complemento: aClienteComplemento ?? aComplemento ?? "",
+    bairro: aClienteBairro ?? aBairro ?? "",
+    cidade: aClienteCidade ?? aCidade ?? "",
+    estado: aClienteEstado ?? aEstado ?? "",
+    observacoes: aClienteObservacoes ?? "",
   };
 
   return (
@@ -310,14 +339,8 @@ export default async function NovaOportunidade({
                 clientes={clientes}
                 defaultClienteId={preSelectedClienteId}
                 defaultMode={aClienteNome && !preSelectedClienteId ? "novo" : undefined}
-                defaultNovoClienteNome={aClienteNome}
-                defaultNovoClienteTelefone={aClienteTel}
-                defaultNovoClienteOrigem={defaultOrigem}
+                defaultNovoCliente={clienteDefaults}
                 semClientes={semClientes}
-                origens={ORIGENS_LEAD}
-                novoClienteHref={`/dashboard/clientes/novo?redirectTo=${encodeURIComponent(
-                  `/dashboard/projetos/novo${defaultStage ? `?stage=${defaultStage}` : ""}`
-                )}`}
               />
             </div>
           </div>

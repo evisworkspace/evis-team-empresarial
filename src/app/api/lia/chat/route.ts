@@ -255,7 +255,7 @@ Para atividade (registro de algo já ocorrido):
 <!--ACTION:{"tipo":"atividade","descricao":"Entrada de lead recebida da plataforma Zins","tipoAtividade":"nota"}-->
 
 Para nova oportunidade (somente quando não há projeto aberto e os dados do lead foram identificados):
-<!--ACTION:{"tipo":"nova_oportunidade","clienteNome":"Ricardo Zarpellon","clienteTelefone":"42999989582","titulo":"Sucão Shopping Estação RETROFIT","descricao":"Reforma de imóvel comercial 12m². Serviços: demolições, elétrica, iluminação, portas, revestimentos, pintura, marcenaria, comunicação visual, serralheria.","enderecoObra":"Av. Sete de Setembro, 2775 - Rebouças, Curitiba - PR","tipoObra":"Imóvel Comercial","origem":"Plataforma Zinz"}-->
+<!--ACTION:{"tipo":"nova_oportunidade","clienteNome":"Ricardo Zarpellon","clienteTelefone":"42999989582","clienteTipoPessoa":"PJ","clienteEmail":"contato@empresa.com","clienteCpfCnpj":"00.000.000/0001-00","clienteRazaoSocial":"Empresa Ltda","clienteCep":"80240-000","clienteRua":"Av. Sete de Setembro","clienteNumero":"2775","clienteBairro":"Rebouças","clienteCidade":"Curitiba","clienteEstado":"PR","titulo":"Sucão Shopping Estação RETROFIT","descricao":"Reforma de imóvel comercial 12m². Serviços: demolições, elétrica, iluminação, portas, revestimentos, pintura, marcenaria, comunicação visual, serralheria.","cepObra":"80240-000","logradouroObra":"Av. Sete de Setembro","numeroEnderecoObra":"2775","bairroObra":"Rebouças","cidadeObra":"Curitiba","estadoObra":"PR","tipoObra":"comercial","origem":"outros"}-->
 
 Regra: gere o ACTION nova_oportunidade APENAS quando:
 - Não há projeto aberto (projetoId ausente no contexto)
@@ -263,6 +263,8 @@ Regra: gere o ACTION nova_oportunidade APENAS quando:
 - O título da oportunidade pode ser inferido
 Não gere outros ACTION cards (tarefa, agenda, atividade) junto com nova_oportunidade na mesma resposta.
 Após o card, diga: "Confirme para criar o cliente e a oportunidade agora. Depois disso posso registrar a visita e as tarefas."
+Se houver CNPJ, razão social, e-mail, endereço, dados bancários, inscrição estadual/municipal ou redes sociais do cliente, preserve nos campos cliente* quando houver campo, e em clienteObservacoes quando não houver campo estruturado.
+Se o endereço do cliente e o endereço da oportunidade parecerem o mesmo, preencha ambos os grupos: clienteCep/clienteRua/... e cepObra/logradouroObra/...
 
 Tipos de atividade: ligacao, visita, email, reuniao, nota, outro
 Tipos de agenda: compromisso, visita, reuniao, ligacao, follow_up, prazo, entrega, lembrete
