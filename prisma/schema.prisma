@@ -44,6 +44,7 @@ model Empresa {
   usuarios              Usuario[]
   clientes              Cliente[]
   projetos              Projeto[]
+  configs               ProjetoConfig[]
   itensOrcamento        ProjetoItemOrcamento[]
   fornecedores          Fornecedor[]
   tarefas               Tarefa[]
@@ -64,6 +65,10 @@ model Empresa {
   diariosObra           DiarioDeObra[]
   diariosItemHITL       DiarioItemHITL[]
   agendaItens           AgendaItem[]
+  ottoSessoes           OttoSessao[]
+  ottoDocumentos        OttoDocumento[]
+  ottoDecisoes          OttoDecisao[]
+  ottoItensEAP          OttoItemEAP[]
 
   @@map("empresa")
 }
@@ -188,6 +193,8 @@ model Projeto {
   medicoes       Medicao[]
   diariosObra    DiarioDeObra[]
   agendaItens    AgendaItem[]
+  config         ProjetoConfig?
+  ottoSessoes    OttoSessao[]
 
   @@unique([empresaId, codigoSequencial])
   @@unique([empresaId, numeroObra])
@@ -247,6 +254,7 @@ model ProjetoItemOrcamento {
   grupo     String? @db.VarChar(100)
 
   itemBibliotecaId String? @map("item_biblioteca_id") @db.Uuid
+  fornecedorId     String? @map("fornecedor_id") @db.Uuid
 
   unidade       String?  @db.VarChar(20)
   quantidade    Decimal? @db.Decimal(15, 4)
@@ -259,6 +267,7 @@ model ProjetoItemOrcamento {
   dataFimPlano    DateTime? @map("data_fim_plano") @db.Date
   diasDuracao     Int?      @map("dias_duracao")
   responsavel     String?   @db.VarChar(150)
+  statusItem      String?   @map("status_item") @db.VarChar(20) // para_aprovar | aprovado | nao_aprovado
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -267,6 +276,7 @@ model ProjetoItemOrcamento {
   empresa        Empresa                @relation(fields: [empresaId], references: [id])
   projeto        Projeto                @relation(fields: [projetoId], references: [id])
   itemBiblioteca ItemBiblioteca?        @relation(fields: [itemBibliotecaId], references: [id])
+  fornecedor     Fornecedor?            @relation(fields: [fornecedorId], references: [id])
   parent         ProjetoItemOrcamento?  @relation("SubItens", fields: [parentId], references: [id])
   children       ProjetoItemOrcamento[] @relation("SubItens")
   medicaoItens   MedicaoItem[]
@@ -274,6 +284,8 @@ model ProjetoItemOrcamento {
   @@index([projetoId])
   @@index([empresaId])
   @@index([parentId])
+  @@index([fornecedorId])
+  @@index([statusItem])
   @@map("projeto_item_orcamento")
 }
 
@@ -309,6 +321,7 @@ model Fornecedor {
   tarefas         Tarefa[]               @relation("TarefaResponsavelFornecedor")
   lancamentos     LancamentoFinanceiro[]
   itensBiblioteca ItemBiblioteca[]
+  itensOrcamento  ProjetoItemOrcamento[]
 
   @@index([empresaId])
   @@map("fornecedor")
@@ -522,6 +535,120 @@ model LancamentoFinanceiro {
   @@index([categoriaFinanceiraId])
   @@index([centroDeCustoId])
   @@map("lancamento_financeiro")
+}
+
+model ProjetoConfig {
+  id         String   @id @default(uuid()) @db.Uuid
+  empresaId  String   @map("empresa_id") @db.Uuid
+  projetoId  String   @unique @map("projeto_id") @db.Uuid
+  bdiPadraoP Decimal  @default(10) @map("bdi_padrao_p") @db.Decimal(10, 2)
+  bdiPadraoS Decimal  @default(15) @map("bdi_padrao_s") @db.Decimal(10, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  projeto Projeto @relation(fields: [projetoId], references: [id])
+
+  @@index([empresaId])
+  @@map("projeto_config")
+}
+
+model OttoSessao {
+  id             String    @id @default(uuid()) @db.Uuid
+  empresaId      String    @map("empresa_id") @db.Uuid
+  projetoId      String    @map("projeto_id") @db.Uuid
+  estado         String    @default("rascunho") @db.VarChar(40)
+  leituraTecnica String?   @map("leitura_tecnica") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  empresa    Empresa         @relation(fields: [empresaId], references: [id])
+  projeto    Projeto         @relation(fields: [projetoId], references: [id])
+  documentos OttoDocumento[]
+  decisoes   OttoDecisao[]
+  itensEAP   OttoItemEAP[]
+
+  @@index([projetoId])
+  @@index([empresaId])
+  @@index([estado])
+  @@map("otto_sessao")
+}
+
+model OttoDocumento {
+  id           String    @id @default(uuid()) @db.Uuid
+  sessaoId     String    @map("sessao_id") @db.Uuid
+  empresaId    String    @map("empresa_id") @db.Uuid
+  tipo         String    @db.VarChar(20)
+  titulo       String    @db.VarChar(300)
+  conteudo     String?   @db.Text
+  url          String?   @db.VarChar(2000)
+  legibilidade String?   @db.VarChar(10)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  sessao  OttoSessao @relation(fields: [sessaoId], references: [id])
+  empresa Empresa    @relation(fields: [empresaId], references: [id])
+
+  @@index([sessaoId])
+  @@index([empresaId])
+  @@map("otto_documento")
+}
+
+model OttoDecisao {
+  id           String    @id @default(uuid()) @db.Uuid
+  sessaoId     String    @map("sessao_id") @db.Uuid
+  empresaId    String    @map("empresa_id") @db.Uuid
+  pergunta     String    @db.Text
+  resposta     String?   @db.Text
+  impacto      String?   @db.VarChar(200)
+  status       String    @default("pendente") @db.VarChar(20)
+  posicao      Int       @default(0)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  respondidaEm DateTime? @map("respondida_em")
+  deletedAt    DateTime? @map("deleted_at")
+
+  sessao  OttoSessao @relation(fields: [sessaoId], references: [id])
+  empresa Empresa    @relation(fields: [empresaId], references: [id])
+
+  @@index([sessaoId])
+  @@index([empresaId])
+  @@index([status])
+  @@map("otto_decisao")
+}
+
+model OttoItemEAP {
+  id           String    @id @default(uuid()) @db.Uuid
+  sessaoId     String    @map("sessao_id") @db.Uuid
+  empresaId    String    @map("empresa_id") @db.Uuid
+  parentId     String?   @map("parent_id") @db.Uuid
+  posicao      Int       @default(0)
+  nivelEAP     Int       @default(1) @map("nivel_eap")
+  nome         String    @db.VarChar(300)
+  descricao    String?   @db.Text
+  unidade      String?   @db.VarChar(20)
+  quantidade   Decimal?  @db.Decimal(15, 4)
+  statusEscopo String?   @map("status_escopo") @db.VarChar(20)
+  natureza     String?   @db.VarChar(30)
+  confianca    String?   @db.VarChar(10)
+  fonte        String?   @db.VarChar(300)
+  aprovado     Boolean   @default(false)
+  exportado    Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  sessao   OttoSessao    @relation(fields: [sessaoId], references: [id])
+  empresa  Empresa       @relation(fields: [empresaId], references: [id])
+  parent   OttoItemEAP?  @relation("SubEAP", fields: [parentId], references: [id])
+  children OttoItemEAP[] @relation("SubEAP")
+
+  @@index([sessaoId])
+  @@index([empresaId])
+  @@index([parentId])
+  @@index([nivelEAP])
+  @@index([aprovado])
+  @@map("otto_item_eap")
 }
 
 model Medicao {

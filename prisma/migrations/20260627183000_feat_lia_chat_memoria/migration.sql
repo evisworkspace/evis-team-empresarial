@@ -1,0 +1,2 @@
+-- No-op migration.
+-- Esta pasta existia sem migration.sql e bloqueava o Prisma (P3015).

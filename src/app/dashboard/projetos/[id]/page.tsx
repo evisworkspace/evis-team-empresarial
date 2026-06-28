@@ -17,6 +17,7 @@ import { criarAnotacao, excluirAnotacao } from "@/actions/anotacao";
 import { listItensOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
 import { listItensByEmpresa } from "@/data/itemBiblioteca";
+import { getOttoSessaoAtiva } from "@/data/otto";
 import { OrcamentoTab } from "@/components/orcamento/OrcamentoTab";
 import { listMedicoesByProjeto } from "@/data/medicao";
 import { PlanejamentoTab } from "@/components/obra/PlanejamentoTab";
@@ -1517,7 +1518,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes] = await Promise.all([
+  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, sessaoOttoRaw] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
@@ -1525,6 +1526,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     listCentrosCustoByEmpresa(empresaId, { take: 50 }),
     listFornecedoresByEmpresa(empresaId, { take: 100 }),
     listMedicoesByProjeto(empresaId, id),
+    getOttoSessaoAtiva(empresaId, id),
   ]);
 
   const itensOrcamento = itensOrcamentoRaw.map((i) => ({
@@ -1548,6 +1550,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       bdi: i.bdi ? Number(i.bdi) : null,
       produtos: i.produtos ? Number(i.produtos) : null,
       servicos: i.servicos ? Number(i.servicos) : null,
+      statusItem: i.statusItem ?? null,
     })),
     projetoId: projeto.id,
     bibliotecaItens: bibliotecaItens.map((b) => ({
@@ -1561,6 +1564,43 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       editarItem: editarItemOrcamento,
       excluirItem: excluirItemOrcamento,
     },
+    sessaoOtto: sessaoOttoRaw ? {
+      id: sessaoOttoRaw.id,
+      projetoId: sessaoOttoRaw.projetoId,
+      estado: sessaoOttoRaw.estado,
+      leituraTecnica: sessaoOttoRaw.leituraTecnica,
+      documentos: sessaoOttoRaw.documentos.map((d) => ({
+        id: d.id,
+        tipo: d.tipo,
+        titulo: d.titulo,
+        conteudo: d.conteudo,
+        url: d.url,
+      })),
+      decisoes: sessaoOttoRaw.decisoes.map((d) => ({
+        id: d.id,
+        pergunta: d.pergunta,
+        resposta: d.resposta,
+        impacto: d.impacto,
+        status: d.status,
+        posicao: d.posicao,
+      })),
+      itensEAP: sessaoOttoRaw.itensEAP.map((i) => ({
+        id: i.id,
+        parentId: i.parentId,
+        posicao: i.posicao,
+        nivelEAP: i.nivelEAP,
+        nome: i.nome,
+        descricao: i.descricao,
+        unidade: i.unidade,
+        quantidade: i.quantidade != null ? Number(i.quantidade) : null,
+        statusEscopo: i.statusEscopo,
+        natureza: i.natureza,
+        confianca: i.confianca,
+        fonte: i.fonte,
+        aprovado: i.aprovado,
+        exportado: i.exportado,
+      })),
+    } : null,
   };
 
   const financeiroFormLists = {

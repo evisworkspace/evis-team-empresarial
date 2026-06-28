@@ -21,12 +21,14 @@ export function createItemOrcamento(
     posicao?: number
     grupo?: string
     itemBibliotecaId?: string
+    fornecedorId?: string
     unidade?: string
     quantidade?: number
     custoServicos?: number
     bdi?: number
     produtos?: number
     servicos?: number
+    statusItem?: string | null
   },
 ) {
   return prisma.projetoItemOrcamento.create({
@@ -47,6 +49,8 @@ export function updateItemOrcamento(
     produtos?: number | null
     servicos?: number | null
     itemBibliotecaId?: string | null
+    fornecedorId?: string | null
+    statusItem?: string | null
     posicao?: number
   },
 ) {

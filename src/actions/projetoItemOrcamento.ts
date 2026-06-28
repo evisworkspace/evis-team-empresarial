@@ -58,12 +58,14 @@ export async function criarItemOrcamento(formData: FormData) {
     parentId: str(formData.get("parentId")) ?? undefined,
     grupo: str(formData.get("grupo")) ?? undefined,
     itemBibliotecaId: str(formData.get("itemBibliotecaId")) ?? undefined,
+    fornecedorId: str(formData.get("fornecedorId")) ?? undefined,
     unidade: str(formData.get("unidade")) ?? undefined,
     quantidade: dec(formData.get("quantidade")),
     custoServicos,
     bdi,
     produtos,
     servicos,
+    statusItem: str(formData.get("statusItem")),
   })
   revalidatePath(path(projetoId))
 }
@@ -93,6 +95,8 @@ export async function editarItemOrcamento(formData: FormData) {
     produtos,
     servicos,
     itemBibliotecaId: str(formData.get("itemBibliotecaId")),
+    fornecedorId: str(formData.get("fornecedorId")),
+    statusItem: str(formData.get("statusItem")),
   })
   revalidatePath(path(projetoId))
 }

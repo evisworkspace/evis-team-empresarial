@@ -2,6 +2,7 @@
 import { useState, useTransition, useEffect } from "react"
 import { SugestaoCard } from "@/components/triagem/SugestaoCard"
 import { sugerirTarefasOrcamento, criarTarefasSugeridas } from "@/actions/tarefa"
+import { OttoPanel, type SessaoOtto } from "@/components/orcamento/OttoPanel"
 
 type Item = {
   id: string
@@ -16,6 +17,7 @@ type Item = {
   bdi: number | null
   produtos: number | null
   servicos: number | null
+  statusItem: string | null
   itemBiblioteca: { id: string; nome: string; codigo: string | null } | null
 }
 
@@ -33,6 +35,7 @@ type Props = {
   projetoId: string
   bibliotecaItens: BibItem[]
   actions: Actions
+  sessaoOtto?: SessaoOtto | null
 }
 
 function fmt(v: number | null): string {
@@ -42,6 +45,18 @@ function fmt(v: number | null): string {
 
 function calcServicos(cs: number, bdi: number, prod: number): number {
   return (cs + prod) * (1 + bdi / 100)
+}
+
+const statusItemLabel: Record<string, string> = {
+  para_aprovar: "Para aprovar",
+  aprovado: "Aprovado",
+  nao_aprovado: "Nao aprovado",
+}
+
+const statusItemClass: Record<string, string> = {
+  para_aprovar: "badge-previsto",
+  aprovado: "badge-fechado",
+  nao_aprovado: "badge-perdido",
 }
 
 // ─── ComposicaoRow ────────────────────────────────────────────────────────────
@@ -63,7 +78,7 @@ function ComposicaoRow({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "32px 1fr 70px 50px 80px 60px 70px 80px 30px 30px",
+        gridTemplateColumns: "32px 1fr 70px 50px 80px 60px 70px 80px 86px 30px 30px",
         gap: 4,
         alignItems: "center",
         padding: "5px 8px",
@@ -87,6 +102,13 @@ function ComposicaoRow({
       <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11 }}>{fmt(item.custoServicos)}</span>
       <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--clr-success)" }}>
         {fmt(item.servicos)}
+      </span>
+      <span>
+        {item.statusItem && (
+          <span className={`badge ${statusItemClass[item.statusItem] ?? "badge-previsto"}`} style={{ fontSize: 10, whiteSpace: "nowrap" }}>
+            {statusItemLabel[item.statusItem] ?? item.statusItem}
+          </span>
+        )}
       </span>
       <button
         type="button"
@@ -337,7 +359,7 @@ function TableHeader() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "32px 1fr 70px 50px 80px 60px 70px 80px 30px 30px",
+        gridTemplateColumns: "32px 1fr 70px 50px 80px 60px 70px 80px 86px 30px 30px",
         gap: 4,
         padding: "4px 8px",
         fontSize: 10,
@@ -357,6 +379,7 @@ function TableHeader() {
       <span style={{ textAlign: "right" }}>BDI</span>
       <span style={{ textAlign: "right" }}>Custo</span>
       <span style={{ textAlign: "right" }}>Serviços</span>
+      <span>Status</span>
       <span />
       <span />
     </div>
@@ -365,12 +388,14 @@ function TableHeader() {
 
 // ─── OrcamentoTab ─────────────────────────────────────────────────────────────
 
-export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Props) {
+export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions, sessaoOtto }: Props) {
   const [pending, startTransition] = useTransition()
   const [addingCompTo, setAddingCompTo] = useState<string | null>(null)
   const [addingSubTo, setAddingSubTo] = useState<string | null>(null)
   const [showAddNivel, setShowAddNivel] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showOtto, setShowOtto] = useState(false)
+  const [statusFilter, setStatusFilter] = useState("")
 
   // D4: Motor Semântico de Tarefas
   const [sugestaoTarefas, setSugestaoTarefas] = useState<{ nome: string; telefone: string; narrativa: string } | null>(null)
@@ -413,6 +438,10 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
     return items
       .filter((i) => i.parentId === parentId)
       .sort((a, b) => a.posicao - b.posicao || a.nome.localeCompare(b.nome))
+  }
+
+  function statusVisible(item: Item) {
+    return !statusFilter || item.statusItem === statusFilter
   }
 
   function groupTotal(id: string): number {
@@ -480,6 +509,25 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
               {fmt(totalGeral)}
             </span>
           )}
+          <select
+            className="form-input form-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ width: 132, height: 30, fontSize: 12 }}
+          >
+            <option value="">Todos status</option>
+            <option value="para_aprovar">Para aprovar</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="nao_aprovado">Nao aprovado</option>
+          </select>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 12 }}
+            onClick={() => setShowOtto((v) => !v)}
+          >
+            Otto
+          </button>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -491,6 +539,8 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
           </button>
         </div>
       </div>
+
+      {showOtto && <OttoPanel projetoId={projetoId} sessao={sessaoOtto ?? null} />}
 
       {showAddNivel && (
         <div style={{ marginBottom: 12 }}>
@@ -658,7 +708,7 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
                   </div>
 
                   {/* Composicoes do subnivel */}
-                  {subComps.map((comp) =>
+                  {subComps.filter(statusVisible).map((comp) =>
                     editingId === comp.id ? (
                       <ComposicaoForm
                         key={comp.id}
@@ -695,7 +745,7 @@ export function OrcamentoTab({ items, projetoId, bibliotecaItens, actions }: Pro
             })}
 
             {/* Composicoes diretas do nivel */}
-            {nivelComps.map((comp) =>
+            {nivelComps.filter(statusVisible).map((comp) =>
               editingId === comp.id ? (
                 <ComposicaoForm
                   key={comp.id}
