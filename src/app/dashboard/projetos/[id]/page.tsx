@@ -52,8 +52,8 @@ export const metadata: Metadata = { title: "Projeto" };
 
 const FUNIL = [
   { value: "novo", label: "Novo lead" },
-  { value: "em_negociacao", label: "Em negociação" },
   { value: "proposta_enviada", label: "Proposta enviada" },
+  { value: "em_negociacao", label: "Em negociação" },
   { value: "ganho", label: "Ganho ✓" },
 ];
 
