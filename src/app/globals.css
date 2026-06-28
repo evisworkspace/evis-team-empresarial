@@ -2294,6 +2294,76 @@ table.evis-table {
   cursor: default;
 }
 
+.lia-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 14px 8px;
+  border-bottom: 1px solid var(--clr-border);
+  background: var(--clr-surface);
+}
+
+.lia-atalho-pill {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--clr-bg);
+  border: 1.5px solid var(--clr-border);
+  border-radius: 14px;
+  overflow: hidden;
+  max-width: 150px;
+  transition: border-color 0.15s;
+}
+
+.lia-atalho-pill:hover {
+  border-color: var(--clr-primary);
+}
+
+.lia-atalho-pill--active {
+  border-color: var(--clr-primary);
+}
+
+.lia-atalho-name {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 4px 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--clr-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.lia-atalho-pill--active .lia-atalho-name {
+  color: var(--clr-primary);
+}
+
+.lia-atalho-pill:hover .lia-atalho-name {
+  color: var(--clr-primary);
+}
+
+.lia-atalho-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px 4px 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--clr-text-muted);
+  opacity: 0.55;
+}
+
+.lia-atalho-remove:hover {
+  opacity: 1;
+  color: var(--clr-danger);
+}
+
 .lia-input-area {
   display: flex;
   flex-direction: column;

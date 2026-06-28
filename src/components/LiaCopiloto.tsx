@@ -45,10 +45,14 @@ type LiaContext = {
   stage: string | null;
 };
 
+type LiaAtalho = { id: string; titulo: string; stage: string };
+
 const ACTION_RE = /<!--ACTION:(.*?)-->/g;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
+const ATALHOS_KEY = "evis_cache_v1_lia_atalhos";
+const MAX_ATALHOS = 5;
 const ACCEPTED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -66,6 +70,10 @@ const ACCEPTED_MIME_TYPES = new Set([
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function nowTimestamp() {
+  return Date.now();
 }
 
 function formatBytes(value: number) {
@@ -167,7 +175,7 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
     role: "lia",
     content,
     actions: [],
-    timestamp: Date.now(),
+    timestamp: nowTimestamp(),
   };
 }
 
@@ -189,6 +197,7 @@ export default function LiaCopiloto() {
     stage: null,
   });
   const [isPending, startTransition] = useTransition();
+  const [atalhos, setAtalhos] = useState<LiaAtalho[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -204,6 +213,20 @@ export default function LiaCopiloto() {
 
     queueMicrotask(() => {
       setContext(nextContext);
+
+      if (nextContext.projetoId && nextContext.projetoTitulo) {
+        const novoAtalho: LiaAtalho = {
+          id: nextContext.projetoId,
+          titulo: nextContext.projetoTitulo,
+          stage: nextContext.stage ?? "obra",
+        };
+        setAtalhos((prev) => {
+          if (prev.some((atalho) => atalho.id === novoAtalho.id)) return prev;
+          const next = [novoAtalho, ...prev].slice(0, MAX_ATALHOS);
+          try { localStorage.setItem(ATALHOS_KEY, JSON.stringify(next)); } catch {}
+          return next;
+        });
+      }
 
       if (shouldOpen && autoOpenedRef.current !== autoOpenKey) {
         autoOpenedRef.current = autoOpenKey;
@@ -225,6 +248,29 @@ export default function LiaCopiloto() {
       mediaRecorderRef.current?.stop();
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const stored = localStorage.getItem(ATALHOS_KEY);
+        if (!stored) return;
+        const parsed = JSON.parse(stored) as unknown;
+        if (!Array.isArray(parsed)) return;
+        setAtalhos(
+          parsed
+            .filter(
+              (item): item is LiaAtalho =>
+                typeof item === "object" &&
+                item !== null &&
+                typeof (item as LiaAtalho).id === "string" &&
+                typeof (item as LiaAtalho).titulo === "string" &&
+                typeof (item as LiaAtalho).stage === "string",
+            )
+            .slice(0, MAX_ATALHOS),
+        );
+      } catch {}
+    });
   }, []);
 
   async function addFiles(files: File[]) {
@@ -366,7 +412,7 @@ export default function LiaCopiloto() {
       content,
       attachments: files,
       actions: [],
-      timestamp: Date.now(),
+      timestamp: nowTimestamp(),
     };
     const nextMessages = [...messages, userMsg];
 
@@ -420,7 +466,7 @@ export default function LiaCopiloto() {
           role: "lia",
           content: responseText || "Certo. Quer que eu transforme isso em uma tarefa ou registro?",
           actions,
-          timestamp: Date.now(),
+          timestamp: nowTimestamp(),
         },
       ]);
       setStreamingText("");
@@ -432,7 +478,7 @@ export default function LiaCopiloto() {
           role: "lia",
           content: "Erro na conexão com a Lia. Tente novamente.",
           actions: [],
-          timestamp: Date.now(),
+          timestamp: nowTimestamp(),
         },
       ]);
     } finally {
@@ -470,7 +516,7 @@ export default function LiaCopiloto() {
         role: "lia",
         content: responseText || "Projeto carregado. O que precisa?",
         actions,
-        timestamp: Date.now(),
+        timestamp: nowTimestamp(),
         quickReplies: actions.length === 0 ? ["Sim, avançar", "Tenho outro assunto"] : undefined,
       }]);
       setStreamingText("");
@@ -480,7 +526,7 @@ export default function LiaCopiloto() {
         role: "lia",
         content: "Estou aqui. O que precisa?",
         actions: [],
-        timestamp: Date.now(),
+        timestamp: nowTimestamp(),
       }]);
     } finally {
       setIsLoading(false);
@@ -530,7 +576,7 @@ export default function LiaCopiloto() {
         role: "lia",
         content,
         actions: [],
-        timestamp: Date.now(),
+        timestamp: nowTimestamp(),
       },
     ]);
   }
@@ -630,6 +676,27 @@ export default function LiaCopiloto() {
     addLiaNote("Tudo bem. Não criei nada.");
   }
 
+  function removerAtalho(id: string) {
+    setAtalhos((prev) => {
+      const next = prev.filter((atalho) => atalho.id !== id);
+      try { localStorage.setItem(ATALHOS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  function ativarAtalho(atalho: LiaAtalho) {
+    if (context.projetoId === atalho.id) return;
+    const novoContext: LiaContext = {
+      pathname: context.pathname,
+      projetoId: atalho.id,
+      projetoTitulo: atalho.titulo,
+      stage: atalho.stage,
+    };
+    setContext(novoContext);
+    setMessages([]);
+    autoAssessedRef.current = null;
+  }
+
   function getActionEvidence(messageId: string) {
     const actionMessageIndex = messages.findIndex((message) => message.id === messageId);
     const sourceMessage = messages
@@ -680,12 +747,42 @@ export default function LiaCopiloto() {
         </div>
 
         <div className="lia-context-bar">
-          {context.stage === "oportunidade"
-            ? "Contexto: oportunidade comercial"
-            : context.stage === "obra"
-              ? "Contexto: obra em andamento"
-              : "Contexto: visão geral"}
+          {context.projetoTitulo
+            ? `${context.projetoTitulo} · ${context.stage === "oportunidade" ? "oportunidade" : "obra"}`
+            : context.stage === "oportunidade"
+              ? "Contexto: oportunidade comercial"
+              : context.stage === "obra"
+                ? "Contexto: obra em andamento"
+                : "Contexto: visão geral"}
         </div>
+
+        {atalhos.length > 0 && (
+          <div className="lia-atalhos">
+            {atalhos.map((atalho) => (
+              <div
+                key={atalho.id}
+                className={`lia-atalho-pill${context.projetoId === atalho.id ? " lia-atalho-pill--active" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="lia-atalho-name"
+                  onClick={() => ativarAtalho(atalho)}
+                  title={atalho.titulo}
+                >
+                  {atalho.titulo}
+                </button>
+                <button
+                  type="button"
+                  className="lia-atalho-remove"
+                  aria-label={`Remover atalho ${atalho.titulo}`}
+                  onClick={() => removerAtalho(atalho.id)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="lia-messages">
           {messages.map((message) => (
