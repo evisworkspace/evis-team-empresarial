@@ -358,11 +358,10 @@ export async function POST(request: Request) {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    // gemini-2.0-flash: não-thinking, rápido, correto para interface conversacional.
-    // 2.5-flash rejeita thinkingConfig em certos contextos e é lento demais para chat em tempo real.
-    const model = process.env.GEMINI_MODEL_CHAT?.trim()
-      || process.env.GEMINI_MODEL?.trim()?.replace("2.5", "2.0")
-      || "gemini-2.0-flash";
+    // gemini-2.0-flash: modelo correto para chat em tempo real — não-thinking, rápido.
+    // GEMINI_MODEL_CHAT permite override explícito. GEMINI_MODEL é ignorado aqui para evitar
+    // que um modelo 2.5 (thinking) seja usado no chat e cause erros de thinkingConfig.
+    const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
     const requestNow = new Date();
 
     const operationalContext = await buildOperationalContext(empresaId, context);
