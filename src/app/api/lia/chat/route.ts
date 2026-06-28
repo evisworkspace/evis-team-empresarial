@@ -364,7 +364,12 @@ export async function POST(request: Request) {
     const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
     const requestNow = new Date();
 
-    const operationalContext = await buildOperationalContext(empresaId, context);
+    let operationalContext = "Contexto operacional indisponível no momento.";
+    try {
+      operationalContext = await buildOperationalContext(empresaId, context);
+    } catch (ctxError) {
+      console.error("[LiaChat:context]", ctxError);
+    }
 
     const streamResult = await ai.models.generateContentStream({
       model,
