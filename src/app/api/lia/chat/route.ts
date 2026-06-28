@@ -46,15 +46,39 @@ const ACCEPTED_MIME_TYPES = new Set([
   "audio/ogg",
 ]);
 
-const SYSTEM_PROMPT_TEMPLATE = (ctx: ChatContext, operationalContext: string) => `Você é a Lia, secretária operacional e filtro global da EVIS. Você age como um humano experiente que opera o sistema: lê, interpreta, cruza dados e propõe ações. Nunca executa sozinha.
+function getSystemDateBR(now: Date): string {
+  const tz = "America/Sao_Paulo";
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "long",
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} (${get("weekday")})`;
+}
 
-Data atual do sistema: 2026-06-27 (sábado). Interprete expressões relativas sempre a partir dessa data:
-- "hoje" = 27/06/2026 (sábado)
-- "ontem" = 26/06/2026 (sexta)
-- "sexta-feira passada" quando hoje é sábado = 26/06/2026 (ontem — a sexta imediatamente anterior)
-- "semana passada" = semana de segunda 16/06 a domingo 22/06
-- "próxima semana" = semana a partir de 29/06
-Regra geral: "dia X passado" = o dia X mais recente já decorrido. Se hoje é sábado, sexta passada = ontem. Se ambíguo, peça confirmação antes de criar qualquer registro com data.
+function getSystemDateContext(now: Date): string {
+  const tz = "America/Sao_Paulo";
+  const fmt = (date: Date) =>
+    new Intl.DateTimeFormat("pt-BR", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", weekday: "long" }).format(date);
+  const yesterday = new Date(now.getTime() - 86400000);
+  const nextMonday = new Date(now);
+  const dayOfWeek = now.getDay(); // 0=sun
+  nextMonday.setDate(now.getDate() + (dayOfWeek === 0 ? 1 : 8 - dayOfWeek));
+  return [
+    `- "hoje" = ${fmt(now)}`,
+    `- "ontem" = ${fmt(yesterday)}`,
+    `- "próxima semana" = começa ${fmt(nextMonday)}`,
+    `Regra geral: "dia X passado" = o dia X mais recente já decorrido. Se ambíguo, peça confirmação antes de criar qualquer registro com data.`,
+  ].join("\n");
+}
+
+const SYSTEM_PROMPT_TEMPLATE = (ctx: ChatContext, operationalContext: string, now: Date) => `Você é a Lia, secretária operacional e filtro global da EVIS. Você age como um humano experiente que opera o sistema: lê, interpreta, cruza dados e propõe ações. Nunca executa sozinha.
+
+Data atual do sistema: ${getSystemDateBR(now)}. Interprete expressões relativas sempre a partir dessa data:
+${getSystemDateContext(now)}
 
 Contexto atual do usuário:
 Página: ${ctx.pathname}
@@ -197,18 +221,22 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
     countProjetosByEmpresa(empresaId, "obra"),
   ]);
 
+  type AgendaRow = (typeof agenda)[number];
+  type TarefaRow = (typeof tarefas)[number];
+  type AtividadeRow = (typeof atividadesGlobais)[number];
+
   const agendaLines = agenda.length
-    ? agenda.map((item) => {
+    ? agenda.map((item: AgendaRow) => {
         const projeto = item.projeto?.titulo ? ` · ${item.projeto.titulo}` : "";
         return `${formatDateTime(item.inicio)} · ${item.titulo}${projeto}`;
       })
     : ["Nenhum compromisso agendado nos próximos 7 dias."];
 
   const tarefasFiltradas = ctx.projetoId
-    ? tarefas.filter((tarefa) => tarefa.projeto.id === ctx.projetoId)
+    ? tarefas.filter((tarefa: TarefaRow) => tarefa.projeto.id === ctx.projetoId)
     : tarefas;
   const tarefaLines = tarefasFiltradas.length
-    ? tarefasFiltradas.map((tarefa) => {
+    ? tarefasFiltradas.map((tarefa: TarefaRow) => {
         const prazo = tarefa.dataPrevista ? ` · prazo ${formatDateTime(tarefa.dataPrevista)}` : "";
         return `${tarefa.descricao.split("\n")[0]} · ${tarefa.projeto.titulo}${prazo}`;
       })
@@ -216,7 +244,7 @@ async function buildOperationalContext(empresaId: string, ctx: ChatContext) {
 
   let projetoLine = "Nenhum projeto carregado.";
   let timelineLines = atividadesGlobais.length
-    ? atividadesGlobais.map((atividade) => {
+    ? atividadesGlobais.map((atividade: AtividadeRow) => {
         const projeto = atividade.projeto?.titulo ? ` · ${atividade.projeto.titulo}` : "";
         return `${formatDateTime(atividade.createdAt)} · ${atividade.tipo}: ${atividade.descricao.slice(0, 180)}${projeto}`;
       })
@@ -331,6 +359,7 @@ export async function POST(request: Request) {
   try {
     const ai = new GoogleGenAI({ apiKey });
     const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+    const requestNow = new Date();
 
     const operationalContext = await buildOperationalContext(empresaId, context);
 
@@ -341,8 +370,8 @@ export async function POST(request: Request) {
         parts: partsFromMessage(message),
       })),
       config: {
-        systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext),
-        thinkingConfig: { thinkingBudget: 512 },
+        systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext, requestNow),
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
@@ -357,7 +386,9 @@ export async function POST(request: Request) {
           controller.close();
         } catch (error) {
           console.error("[LiaChat:stream]", error);
-          controller.error(error);
+          const errMsg = "Não consegui processar essa solicitação agora. Pode tentar novamente ou reformular?";
+          controller.enqueue(encoder.encode(errMsg));
+          controller.close();
         }
       },
     });
@@ -371,6 +402,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[LiaChat]", error);
-    return NextResponse.json({ error: "Erro na IA" }, { status: 500 });
+    return new Response("Não consegui processar essa solicitação. Tente novamente.", {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 }
