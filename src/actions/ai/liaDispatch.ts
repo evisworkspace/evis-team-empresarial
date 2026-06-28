@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createPartFromBase64, GoogleGenAI, type Part } from "@google/genai";
+import { pickGeminiKey } from "@/lib/gemini";
 
 const SYSTEM_PROMPT = `Você é a Lia, secretária operacional da EVIS.
 
@@ -113,7 +114,7 @@ export async function processarEntradaLia(formData: FormData) {
     }
   }
 
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = pickGeminiKey();
   if (!apiKey) {
     redirect(`${base}?erro=${encodeURIComponent("API Gemini não configurada.")}`);
   }
