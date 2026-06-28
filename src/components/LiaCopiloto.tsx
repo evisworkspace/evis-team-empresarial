@@ -184,10 +184,10 @@ function readContextFromWindow(): LiaContext {
 
 function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual"): LiaMessage {
   const content = source === "autoOpportunity"
-    ? "Oportunidade criada! Quer que eu sugira os próximos passos para avançar com este projeto?"
+    ? "Oportunidade criada. Escreva aqui para registrar os próximos passos, uma tarefa ou uma visita."
     : context.projetoId
-      ? "Estou lendo o contexto deste projeto para sugerir o próximo passo."
-    : "Olá! Estou aqui para ajudar. O que você precisa fazer agora?";
+      ? "Pronto. Escreva sua solicitação para este projeto."
+    : "Olá. O que você precisa fazer agora?";
 
   return {
     id: makeId("lia"),
@@ -224,7 +224,6 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const autoOpenedRef = useRef<string | null>(null);
-  const autoAssessedRef = useRef<string | null>(null);
 
   // Contextual mode: init context from prop + DOM on mount and navigation
   useEffect(() => {
@@ -502,67 +501,6 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     }
   }
 
-  async function sendSilentAssessment() {
-    setIsLoading(true);
-    setStreamingText("");
-    const assessmentPrompt = "Contexto carregado. Avalie o estado atual e sugira a próxima ação.";
-    try {
-      const res = await fetch("/api/lia/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: assessmentPrompt }],
-          context,
-        }),
-      });
-      if (!res.ok) throw new Error(await readLiaErrorResponse(res));
-      if (!res.body) throw new Error("A API da Lia não retornou corpo de resposta.");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let full = "";
-      while (true) {
-        const { done, value: chunk } = await reader.read();
-        if (done) break;
-        full += decoder.decode(chunk, { stream: true });
-        setStreamingText(sanitizeVisibleText(full));
-      }
-      full += decoder.decode();
-      const { text: responseText, actions } = parseActionsFromText(full);
-      setMessages([{
-        id: makeId("lia"),
-        role: "lia",
-        content: responseText || "Projeto carregado. O que precisa?",
-        actions,
-        timestamp: nowTimestamp(),
-        quickReplies: actions.length === 0 ? ["Sim, avançar", "Tenho outro assunto"] : undefined,
-      }]);
-      setStreamingText("");
-    } catch (error) {
-      const message = error instanceof Error && error.message.trim()
-        ? error.message
-        : "Estou aqui, mas não consegui avaliar o contexto automaticamente.";
-      setMessages([{
-        id: makeId("lia"),
-        role: "lia",
-        content: message,
-        actions: [],
-        timestamp: nowTimestamp(),
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  // Auto-assessment: only for contextual mode, only when no messages loaded
-  useEffect(() => {
-    if (mode === "global") return;
-    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
-    if (autoAssessedRef.current === context.projetoId) return;
-    autoAssessedRef.current = context.projetoId;
-    void sendSilentAssessment();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, context.projetoId, mode]);
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
@@ -605,7 +543,6 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
 
   function limparChat() {
     setMessages([]);
-    autoAssessedRef.current = null;
     try { localStorage.removeItem(HISTORY_KEY); } catch {}
   }
 

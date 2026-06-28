@@ -4,6 +4,11 @@ const KEY_ENV_NAMES = [
   "GEMINI_API_KEY_3",
   "GEMINI_API_KEY_4",
   "GEMINI_API_KEY_5",
+  "GEMINI_API_KEY_6",
+  "GEMINI_API_KEY_7",
+  "GEMINI_API_KEY_8",
+  "GEMINI_API_KEY_9",
+  "GEMINI_API_KEY_10",
 ];
 
 export function pickGeminiKey(): string | undefined {
