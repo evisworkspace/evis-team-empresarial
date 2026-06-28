@@ -82,12 +82,13 @@ function isUnavailable(error: unknown) {
 }
 
 async function chamarGemini(ai: GoogleGenAI, parts: Part[], model: string) {
+  const supportsThinking = model.includes("2.5");
   return ai.models.generateContent({
     model,
     contents: [{ role: "user", parts }],
     config: {
       systemInstruction: SYSTEM_PROMPT,
-      thinkingConfig: { thinkingBudget: 1024 },
+      ...(supportsThinking && { thinkingConfig: { thinkingBudget: 1024 } }),
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
     },
