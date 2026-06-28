@@ -122,12 +122,16 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
     try {
       const parsed = JSON.parse(json) as Partial<LiaAction>;
       const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade", "nova_oportunidade"];
-      if (typeof parsed.tipo === "string" && tiposValidos.includes(parsed.tipo) && typeof parsed.descricao === "string" && parsed.descricao.trim()) {
+      const isNovaOportunidade = parsed.tipo === "nova_oportunidade";
+      const hasRequiredField = isNovaOportunidade
+        ? typeof parsed.clienteNome === "string" && parsed.clienteNome.trim().length > 0
+        : typeof parsed.descricao === "string" && parsed.descricao.trim().length > 0;
+      if (typeof parsed.tipo === "string" && tiposValidos.includes(parsed.tipo) && hasRequiredField) {
         actions.push({
           id: makeId(parsed.tipo),
           tipo: parsed.tipo as LiaAction["tipo"],
           titulo: typeof parsed.titulo === "string" ? parsed.titulo.trim() : undefined,
-          descricao: parsed.descricao.trim(),
+          descricao: typeof parsed.descricao === "string" ? parsed.descricao.trim() : "",
           dataPrevista: typeof parsed.dataPrevista === "string" ? parsed.dataPrevista : undefined,
           tipoAgenda: typeof parsed.tipoAgenda === "string" ? parsed.tipoAgenda : undefined,
           tipoAtividade: typeof parsed.tipoAtividade === "string" ? parsed.tipoAtividade : undefined,
@@ -187,7 +191,12 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
     ? "Oportunidade criada. Escreva aqui para registrar os próximos passos, uma tarefa ou uma visita."
     : context.projetoId
       ? "Pronto. Escreva sua solicitação para este projeto."
-    : "Olá. O que você precisa fazer agora?";
+      : "Olá. Como posso ajudar?";
+
+  const quickReplies =
+    !context.projetoId && source === "manual"
+      ? ["Ver minha agenda", "Ver tarefas abertas", "Novo lead"]
+      : undefined;
 
   return {
     id: makeId("lia"),
@@ -195,6 +204,7 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
     content,
     actions: [],
     timestamp: nowTimestamp(),
+    quickReplies,
   };
 }
 

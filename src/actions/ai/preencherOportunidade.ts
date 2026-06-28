@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createPartFromBase64, GoogleGenAI, type Part } from "@google/genai";
-import { pickGeminiKey } from "@/lib/gemini";
+import { withGeminiKeyRotation } from "@/lib/gemini";
 
 const SYSTEM_PROMPT = `Você é o assistente operacional do EVIS, sistema de gestão para construtoras.
 
@@ -194,15 +194,9 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
     }
   }
 
-  const apiKey = pickGeminiKey();
-  if (!apiKey) {
-    redirect(`${base}&erro=${encodeURIComponent("API Gemini não configurada.")}`);
-  }
-
   let redirectTo = base;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const parts: Part[] = [];
 
     if (texto) {
@@ -216,7 +210,10 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
       parts.push(createPartFromBase64(bytes.toString("base64"), imgFile.type));
     }
 
-    const response = await chamarGeminiComFallback(ai, parts);
+    const response = await withGeminiKeyRotation(async (apiKey) => {
+      const ai = new GoogleGenAI({ apiKey });
+      return chamarGeminiComFallback(ai, parts);
+    });
 
     const rawResponse = response.text?.trim();
     if (!rawResponse) {
