@@ -30,15 +30,20 @@ function shuffled<T>(arr: T[]): T[] {
   return copy;
 }
 
-function isQuotaError(error: unknown): boolean {
+function isRetryableKeyError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return msg.includes("429") || msg.toLowerCase().includes("resource_exhausted") || msg.toLowerCase().includes("quota");
+  const lower = msg.toLowerCase();
+  // Pula para a próxima chave em: cota esgotada OU autenticação inválida
+  // Chaves AQ. são OAuth tokens temporários que expiram — auth error = chave inválida, tenta próxima
+  const isQuota = msg.includes("429") || lower.includes("resource_exhausted") || lower.includes("quota");
+  const isAuth = msg.includes("401") || msg.includes("403") || lower.includes("permission_denied") || lower.includes("unauthenticated") || lower.includes("api_key_invalid");
+  return isQuota || isAuth;
 }
 
 /**
  * Tenta fn() com cada chave Gemini disponível em ordem aleatória.
- * Só avança para a próxima chave em erros de cota (429/RESOURCE_EXHAUSTED).
- * Erros de outro tipo lançam imediatamente.
+ * Avança para a próxima chave em erro de cota (429) ou auth (401/403/API_KEY_INVALID).
+ * Erros de payload ou provider lançam imediatamente.
  */
 export async function withGeminiKeyRotation<T>(
   fn: (apiKey: string) => Promise<T>,
@@ -54,7 +59,7 @@ export async function withGeminiKeyRotation<T>(
       return await fn(key);
     } catch (error) {
       lastError = error;
-      if (!isQuotaError(error)) throw error;
+      if (!isRetryableKeyError(error)) throw error;
     }
   }
 

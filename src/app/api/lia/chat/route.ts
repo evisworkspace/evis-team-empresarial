@@ -1,8 +1,11 @@
 import { createPartFromBase64, GoogleGenAI, type Part } from "@google/genai";
+import Groq from "groq-sdk";
+import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { withGeminiKeyRotation } from "@/lib/gemini";
+import { withGroqKeyRotation } from "@/lib/groq";
 import { listAgendaByEmpresa } from "@/data/agenda";
 import { countClientesByEmpresa } from "@/data/cliente";
 import { listTarefasByEmpresa } from "@/data/tarefa";
@@ -32,6 +35,7 @@ interface ChatContext {
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 const DEV = process.env.NODE_ENV !== "production";
+const GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile";
 const ACCEPTED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -93,7 +97,7 @@ function classifyLiaError(error: unknown): LiaErrorInfo {
   const code = parsed.code ?? (rawMessage.includes("429") ? 429 : undefined);
   const normalized = `${status ?? ""} ${message}`.toLowerCase();
 
-  if (code === 429 || normalized.includes("resource_exhausted") || normalized.includes("quota")) {
+  if (code === 429 || normalized.includes("resource_exhausted") || normalized.includes("rate_limit_exceeded") || normalized.includes("quota")) {
     return { category: "quota", code: code ?? 429, status: status ?? "RESOURCE_EXHAUSTED", message };
   }
   if (code === 401 || code === 403 || normalized.includes("permission_denied") || normalized.includes("unauthenticated")) {
@@ -121,9 +125,9 @@ function logLiaError(scope: string, error: unknown, meta: Record<string, unknown
 function userMessageForLiaError(error: unknown, meta: { route: string; model: string; context: ChatContext }) {
   const info = classifyLiaError(error);
   const base = info.category === "quota"
-    ? "Não consegui processar porque a API Gemini retornou limite de uso ou cota esgotada. Erro registrado para análise."
+    ? "Não consegui processar porque a IA retornou limite de uso ou cota esgotada. Erro registrado para análise."
     : info.category === "auth"
-      ? "Não consegui processar porque a autenticação da API Gemini falhou. Erro registrado para análise."
+      ? "Não consegui processar porque a autenticação da IA falhou. Erro registrado para análise."
       : "Não consegui processar essa solicitação agora. Erro registrado para análise.";
 
   if (!DEV) return base;
@@ -421,6 +425,39 @@ function partsFromMessage(message: ChatMessage): Part[] {
   return parts.length > 0 ? parts : [{ text: "Mensagem vazia." }];
 }
 
+function textFromMessageForGroq(message: ChatMessage): string {
+  const textParts: string[] = [];
+  if (message.content.trim()) {
+    textParts.push(message.content.trim());
+  }
+
+  const attachments = (message.attachments ?? [])
+    .filter(isChatAttachment)
+    .slice(0, MAX_ATTACHMENTS_PER_MESSAGE);
+
+  for (const attachment of attachments) {
+    const mimeType = attachment.mimeType.split(";")[0];
+    if (mimeType === "text/plain" || mimeType === "text/csv" || mimeType === "application/json") {
+      const text = Buffer.from(attachment.data, "base64").toString("utf8").slice(0, 20000);
+      if (text.trim()) {
+        textParts.push(`Arquivo anexado: ${attachment.name}\n${text}`);
+      }
+    }
+  }
+
+  return textParts.length > 0 ? textParts.join("\n\n") : "Mensagem sem texto.";
+}
+
+function groqMessagesFromChat(messages: ChatMessage[], systemInstruction: string): ChatCompletionMessageParam[] {
+  return [
+    { role: "system", content: systemInstruction },
+    ...messages.map((message): ChatCompletionMessageParam => ({
+      role: message.role === "model" ? "assistant" : "user",
+      content: textFromMessageForGroq(message),
+    })),
+  ];
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -446,20 +483,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Mensagem obrigatória" }, { status: 400 });
   }
 
-  // gemini-2.0-flash: não-thinking, rápido, correto para chat em tempo real.
-  // GEMINI_MODEL_CHAT permite override. 2.5+ rejeitam thinkingConfig em certos contextos.
+  // gemini-2.0-flash: rápido, correto para chat em tempo real.
+  // GEMINI_MODEL_CHAT permite override sem configurar recursos extras do modelo.
   const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
+  const requestNow = new Date();
+
+  let operationalContext = "Contexto operacional indisponível no momento.";
+  try {
+    operationalContext = await buildOperationalContext(empresaId, context);
+  } catch (ctxError) {
+    console.error("[LiaChat:context]", ctxError);
+  }
+
+  const systemInstruction = SYSTEM_PROMPT_TEMPLATE(context, operationalContext, requestNow);
 
   try {
-    const requestNow = new Date();
-
-    let operationalContext = "Contexto operacional indisponível no momento.";
-    try {
-      operationalContext = await buildOperationalContext(empresaId, context);
-    } catch (ctxError) {
-      console.error("[LiaChat:context]", ctxError);
-    }
-
     // withGeminiKeyRotation: tenta cada chave em ordem aleatória;
     // avança para a próxima somente em erro de cota (429/RESOURCE_EXHAUSTED).
     const streamResult = await withGeminiKeyRotation(async (apiKey) => {
@@ -471,7 +509,7 @@ export async function POST(request: Request) {
           parts: partsFromMessage(message),
         })),
         config: {
-          systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext, requestNow),
+          systemInstruction,
         },
       });
     });
@@ -512,12 +550,77 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    const errorInfo = classifyLiaError(error);
+
     logLiaError("[LiaChat]", error, {
       route: "/api/lia/chat",
       pathname: context.pathname,
       projetoId: context.projetoId ?? null,
       messageCount: messages.length,
     });
+
+    if (errorInfo.category === "quota") {
+      try {
+        const groqStreamResult = await withGroqKeyRotation(async (apiKey) => {
+          const groq = new Groq({ apiKey });
+          return groq.chat.completions.create({
+            model: GROQ_FALLBACK_MODEL,
+            stream: true,
+            messages: groqMessagesFromChat(messages, systemInstruction),
+          });
+        });
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            try {
+              for await (const chunk of groqStreamResult) {
+                const text = chunk.choices[0]?.delta.content ?? "";
+                if (text) controller.enqueue(encoder.encode(text));
+              }
+              controller.close();
+            } catch (groqStreamError) {
+              logLiaError("[LiaChat:groq-stream]", groqStreamError, {
+                route: "/api/lia/chat",
+                model: GROQ_FALLBACK_MODEL,
+                pathname: context.pathname,
+                projetoId: context.projetoId ?? null,
+                messageCount: messages.length,
+              });
+              controller.enqueue(encoder.encode("Todos os provedores de IA indisponíveis no momento."));
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "X-Content-Type-Options": "nosniff",
+            "X-Empresa-Id": empresaId,
+          },
+        });
+      } catch (groqError) {
+        logLiaError("[LiaChat:groq]", groqError, {
+          route: "/api/lia/chat",
+          model: GROQ_FALLBACK_MODEL,
+          pathname: context.pathname,
+          projetoId: context.projetoId ?? null,
+          messageCount: messages.length,
+        });
+
+        return new Response("Todos os provedores de IA indisponíveis no momento.", {
+          status: 502,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "X-Content-Type-Options": "nosniff",
+          },
+        });
+      }
+    }
+
     return new Response(userMessageForLiaError(error, {
       route: "/api/lia/chat",
       model,
