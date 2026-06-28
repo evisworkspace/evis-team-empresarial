@@ -358,7 +358,11 @@ export async function POST(request: Request) {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+    // gemini-2.0-flash: não-thinking, rápido, correto para interface conversacional.
+    // 2.5-flash rejeita thinkingConfig em certos contextos e é lento demais para chat em tempo real.
+    const model = process.env.GEMINI_MODEL_CHAT?.trim()
+      || process.env.GEMINI_MODEL?.trim()?.replace("2.5", "2.0")
+      || "gemini-2.0-flash";
     const requestNow = new Date();
 
     const operationalContext = await buildOperationalContext(empresaId, context);
@@ -371,7 +375,6 @@ export async function POST(request: Request) {
       })),
       config: {
         systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext, requestNow),
-        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
