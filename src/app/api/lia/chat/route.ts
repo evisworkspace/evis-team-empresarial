@@ -2,7 +2,7 @@ import { createPartFromBase64, GoogleGenAI, type Part } from "@google/genai";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
-import { pickGeminiKey } from "@/lib/gemini";
+import { withGeminiKeyRotation } from "@/lib/gemini";
 import { listAgendaByEmpresa } from "@/data/agenda";
 import { countClientesByEmpresa } from "@/data/cliente";
 import { listTarefasByEmpresa } from "@/data/tarefa";
@@ -430,11 +430,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Empresa não encontrada" }, { status: 403 });
   }
 
-  const apiKey = pickGeminiKey();
-  if (!apiKey) {
-    return NextResponse.json({ error: "API Gemini não configurada" }, { status: 500 });
-  }
-
   let body: { messages?: unknown; context?: ChatContext };
   try {
     body = await request.json();
@@ -451,12 +446,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Mensagem obrigatória" }, { status: 400 });
   }
 
+  // gemini-2.0-flash: não-thinking, rápido, correto para chat em tempo real.
+  // GEMINI_MODEL_CHAT permite override. 2.5+ rejeitam thinkingConfig em certos contextos.
+  const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
+
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    // gemini-2.0-flash: modelo correto para chat em tempo real — não-thinking, rápido.
-    // GEMINI_MODEL_CHAT permite override explícito. GEMINI_MODEL é ignorado aqui para evitar
-    // que um modelo 2.5 (thinking) seja usado no chat e cause erros de thinkingConfig.
-    const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
     const requestNow = new Date();
 
     let operationalContext = "Contexto operacional indisponível no momento.";
@@ -466,15 +460,20 @@ export async function POST(request: Request) {
       console.error("[LiaChat:context]", ctxError);
     }
 
-    const streamResult = await ai.models.generateContentStream({
-      model,
-      contents: messages.map((message) => ({
-        role: message.role,
-        parts: partsFromMessage(message),
-      })),
-      config: {
-        systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext, requestNow),
-      },
+    // withGeminiKeyRotation: tenta cada chave em ordem aleatória;
+    // avança para a próxima somente em erro de cota (429/RESOURCE_EXHAUSTED).
+    const streamResult = await withGeminiKeyRotation(async (apiKey) => {
+      const ai = new GoogleGenAI({ apiKey });
+      return ai.models.generateContentStream({
+        model,
+        contents: messages.map((message) => ({
+          role: message.role,
+          parts: partsFromMessage(message),
+        })),
+        config: {
+          systemInstruction: SYSTEM_PROMPT_TEMPLATE(context, operationalContext, requestNow),
+        },
+      });
     });
 
     const stream = new ReadableStream({
@@ -519,7 +518,6 @@ export async function POST(request: Request) {
       projetoId: context.projetoId ?? null,
       messageCount: messages.length,
     });
-    const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
     return new Response(userMessageForLiaError(error, {
       route: "/api/lia/chat",
       model,
