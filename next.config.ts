@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // @google/genai é ESM puro — webpack não consegue bundlar; precisa ser external
+  serverExternalPackages: ["@google/genai"],
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb",
