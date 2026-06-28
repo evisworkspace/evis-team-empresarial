@@ -45,14 +45,17 @@ type LiaContext = {
   stage: string | null;
 };
 
-type LiaAtalho = { id: string; titulo: string; stage: string };
+interface LiaCopilotoProps {
+  mode: "global" | "contextual";
+  storageKey: string;
+  projetoId?: string;
+}
 
 const ACTION_RE = /<!--ACTION:(.*?)-->/g;
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024;
-const ATALHOS_KEY = "evis_cache_v1_lia_atalhos";
-const MAX_ATALHOS = 5;
+const MAX_HISTORY = 30;
 const ACCEPTED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -179,7 +182,9 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
   };
 }
 
-export default function LiaCopiloto() {
+export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp }: LiaCopilotoProps) {
+  const HISTORY_KEY = `evis_cache_v1_lia_history_${storageKey}`;
+
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<LiaMessage[]>([]);
@@ -197,7 +202,6 @@ export default function LiaCopiloto() {
     stage: null,
   });
   const [isPending, startTransition] = useTransition();
-  const [atalhos, setAtalhos] = useState<LiaAtalho[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -206,38 +210,43 @@ export default function LiaCopiloto() {
   const autoOpenedRef = useRef<string | null>(null);
   const autoAssessedRef = useRef<string | null>(null);
 
+  // Contextual mode: init context from prop + DOM on mount and navigation
   useEffect(() => {
-    const nextContext = readContextFromWindow();
+    if (mode !== "contextual" || !projetoIdProp) return;
+    const fromWindow = readContextFromWindow();
+    setContext(prev => ({
+      ...prev,
+      projetoId: projetoIdProp,
+      projetoTitulo: fromWindow.projetoTitulo ?? prev.projetoTitulo,
+      stage: fromWindow.stage ?? prev.stage,
+      pathname: fromWindow.pathname,
+    }));
+  }, [mode, projetoIdProp, pathname]);
+
+  // Handle pathname changes (global mode: skip; contextual: handle lia=1 auto-open)
+  useEffect(() => {
+    if (mode === "global") return;
     const shouldOpen = window.location.search.includes("lia=1");
     const autoOpenKey = `${window.location.pathname}${window.location.search}`;
 
     queueMicrotask(() => {
-      setContext(nextContext);
-
-      if (nextContext.projetoId && nextContext.projetoTitulo) {
-        const novoAtalho: LiaAtalho = {
-          id: nextContext.projetoId,
-          titulo: nextContext.projetoTitulo,
-          stage: nextContext.stage ?? "obra",
-        };
-        setAtalhos((prev) => {
-          if (prev.some((atalho) => atalho.id === novoAtalho.id)) return prev;
-          const next = [novoAtalho, ...prev].slice(0, MAX_ATALHOS);
-          try { localStorage.setItem(ATALHOS_KEY, JSON.stringify(next)); } catch {}
-          return next;
-        });
-      }
-
       if (shouldOpen && autoOpenedRef.current !== autoOpenKey) {
         autoOpenedRef.current = autoOpenKey;
         setIsOpen(true);
-        // Não definir mensagem estática quando há projeto — a avaliação automática assume
-        if (!nextContext.projetoId) {
-          setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(nextContext, "autoOpportunity")]));
+        if (!projetoIdProp) {
+          setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(context, "autoOpportunity")]));
         }
       }
     });
-  }, [pathname]);
+  }, [pathname, mode, projetoIdProp, context]);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (!isOpen || messages.length === 0) return;
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-MAX_HISTORY)));
+    } catch {}
+  }, [messages, HISTORY_KEY, isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -250,28 +259,15 @@ export default function LiaCopiloto() {
     };
   }, []);
 
+  // Auto-assessment: only for contextual mode, only when no messages loaded
   useEffect(() => {
-    queueMicrotask(() => {
-      try {
-        const stored = localStorage.getItem(ATALHOS_KEY);
-        if (!stored) return;
-        const parsed = JSON.parse(stored) as unknown;
-        if (!Array.isArray(parsed)) return;
-        setAtalhos(
-          parsed
-            .filter(
-              (item): item is LiaAtalho =>
-                typeof item === "object" &&
-                item !== null &&
-                typeof (item as LiaAtalho).id === "string" &&
-                typeof (item as LiaAtalho).titulo === "string" &&
-                typeof (item as LiaAtalho).stage === "string",
-            )
-            .slice(0, MAX_ATALHOS),
-        );
-      } catch {}
-    });
-  }, []);
+    if (mode === "global") return;
+    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
+    if (autoAssessedRef.current === context.projetoId) return;
+    autoAssessedRef.current = context.projetoId;
+    void sendSilentAssessment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, context.projetoId, mode]);
 
   async function addFiles(files: File[]) {
     if (files.length === 0) return;
@@ -533,14 +529,6 @@ export default function LiaCopiloto() {
     }
   }
 
-  useEffect(() => {
-    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
-    if (autoAssessedRef.current === context.projetoId) return;
-    autoAssessedRef.current = context.projetoId;
-    void sendSilentAssessment();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, context.projetoId]);
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
@@ -581,13 +569,31 @@ export default function LiaCopiloto() {
     ]);
   }
 
+  function limparChat() {
+    setMessages([]);
+    autoAssessedRef.current = null;
+    try { localStorage.removeItem(HISTORY_KEY); } catch {}
+  }
+
   function openRail() {
-    const nextContext = readContextFromWindow();
-    setContext(nextContext);
     setIsOpen(true);
     setMessages((prev) => {
       if (prev.length > 0) return prev;
-      return nextContext.projetoId ? [] : [initialMessage(nextContext, "manual")];
+      // Try restoring history from localStorage
+      try {
+        const stored = localStorage.getItem(HISTORY_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as unknown;
+          if (Array.isArray(parsed) && (parsed as LiaMessage[]).length > 0) {
+            return parsed as LiaMessage[];
+          }
+        }
+      } catch {}
+      // No history: show initial message for global, let assessment handle contextual
+      if (mode === "global") {
+        return [initialMessage({ pathname: "", projetoId: null, projetoTitulo: null, stage: null }, "manual")];
+      }
+      return [];
     });
   }
 
@@ -676,27 +682,6 @@ export default function LiaCopiloto() {
     addLiaNote("Tudo bem. Não criei nada.");
   }
 
-  function removerAtalho(id: string) {
-    setAtalhos((prev) => {
-      const next = prev.filter((atalho) => atalho.id !== id);
-      try { localStorage.setItem(ATALHOS_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }
-
-  function ativarAtalho(atalho: LiaAtalho) {
-    if (context.projetoId === atalho.id) return;
-    const novoContext: LiaContext = {
-      pathname: context.pathname,
-      projetoId: atalho.id,
-      projetoTitulo: atalho.titulo,
-      stage: atalho.stage,
-    };
-    setContext(novoContext);
-    setMessages([]);
-    autoAssessedRef.current = null;
-  }
-
   function getActionEvidence(messageId: string) {
     const actionMessageIndex = messages.findIndex((message) => message.id === messageId);
     const sourceMessage = messages
@@ -714,21 +699,23 @@ export default function LiaCopiloto() {
     };
   }
 
+  const triggerLabel = mode === "global" ? "Lia" : "Lia";
+
   return (
     <>
       <button
         type="button"
-        className={`lia-trigger-btn${isOpen ? " lia-trigger-btn--open" : ""}`}
+        className={`lia-trigger-btn lia-trigger-btn--${mode}${isOpen ? " lia-trigger-btn--open" : ""}`}
         onClick={openRail}
-        aria-label="Abrir Lia"
+        aria-label={mode === "global" ? "Abrir Lia global" : "Abrir Lia do projeto"}
       >
-        Lia
+        {triggerLabel}
       </button>
 
       {isOpen && <div className="lia-overlay" onClick={() => setIsOpen(false)} />}
 
       <aside
-        className={`lia-rail${isOpen ? " lia-rail--open" : ""}${isDraggingFile ? " lia-rail--dragging" : ""}`}
+        className={`lia-rail lia-rail--${mode}${isOpen ? " lia-rail--open" : ""}${isDraggingFile ? " lia-rail--dragging" : ""}`}
         aria-label="Copiloto Lia"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -738,12 +725,23 @@ export default function LiaCopiloto() {
           <div>
             <div className="lia-rail-kicker">Lia · EVIS</div>
             <div className="lia-rail-title">
-              {context.projetoTitulo ?? "Copiloto operacional"}
+              {context.projetoTitulo ?? (mode === "global" ? "Copiloto operacional" : "Carregando...")}
             </div>
           </div>
-          <button type="button" className="lia-close-btn" onClick={() => setIsOpen(false)} aria-label="Fechar Lia">
-            ×
-          </button>
+          <div className="lia-rail-header-actions">
+            <button
+              type="button"
+              className="lia-header-btn"
+              onClick={limparChat}
+              title="Nova conversa"
+              aria-label="Limpar conversa"
+            >
+              ↺
+            </button>
+            <button type="button" className="lia-close-btn" onClick={() => setIsOpen(false)} aria-label="Fechar Lia">
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="lia-context-bar">
@@ -755,34 +753,6 @@ export default function LiaCopiloto() {
                 ? "Contexto: obra em andamento"
                 : "Contexto: visão geral"}
         </div>
-
-        {atalhos.length > 0 && (
-          <div className="lia-atalhos">
-            {atalhos.map((atalho) => (
-              <div
-                key={atalho.id}
-                className={`lia-atalho-pill${context.projetoId === atalho.id ? " lia-atalho-pill--active" : ""}`}
-              >
-                <button
-                  type="button"
-                  className="lia-atalho-name"
-                  onClick={() => ativarAtalho(atalho)}
-                  title={atalho.titulo}
-                >
-                  {atalho.titulo}
-                </button>
-                <button
-                  type="button"
-                  className="lia-atalho-remove"
-                  aria-label={`Remover atalho ${atalho.titulo}`}
-                  onClick={() => removerAtalho(atalho.id)}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
 
         <div className="lia-messages">
           {messages.map((message) => (

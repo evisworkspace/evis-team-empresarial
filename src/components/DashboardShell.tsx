@@ -61,9 +61,22 @@ export function DashboardShell({ children, userName, companyName }: DashboardShe
         <main className="page-content">{children}</main>
       </div>
 
+      {/* Lia global — sempre visível, contexto geral */}
       <Suspense fallback={null}>
-        <LiaCopiloto />
+        <LiaCopiloto mode="global" storageKey="global" />
       </Suspense>
+
+      {/* Lia contextual — apenas em páginas de projeto */}
+      {(() => {
+        const projetoMatch = pathname.match(/\/dashboard\/projetos\/([^/]+)(?:\/|$)/);
+        const projetoId = projetoMatch?.[1] ?? null;
+        if (!projetoId) return null;
+        return (
+          <Suspense key={projetoId} fallback={null}>
+            <LiaCopiloto mode="contextual" storageKey={projetoId} projetoId={projetoId} />
+          </Suspense>
+        );
+      })()}
     </div>
   );
 }
