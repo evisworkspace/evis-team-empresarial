@@ -598,81 +598,88 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
   }
 
   function confirmarAcao(messageId: string, action: LiaAction) {
+    // Em modo contextual, projetoIdProp é sempre a fonte correta (URL) — context pode estar desatualizado
+    const effectiveProjetoId = projetoIdProp ?? context.projetoId ?? null;
+
     if (action.tipo === "agenda" && !action.dataPrevista) {
       addLiaNote("Para criar um item de agenda preciso da data e hora. Quando será esse compromisso?");
       return;
     }
-    if (action.tipo !== "agenda" && action.tipo !== "nova_oportunidade" && !context.projetoId) {
+    if (action.tipo !== "agenda" && action.tipo !== "nova_oportunidade" && !effectiveProjetoId) {
       addLiaNote("Para confirmar, abra um projeto primeiro.");
       return;
     }
 
     startTransition(async () => {
-      const evidencia = getActionEvidence(messageId);
-      const result = action.tipo === "agenda"
-        ? await executarAcaoLia({
-            tipo: "agenda",
-            titulo: action.titulo,
-            descricao: action.descricao,
-            dataPrevista: action.dataPrevista ?? "",
-            tipoAgenda: action.tipoAgenda,
-            projetoId: context.projetoId ?? undefined,
-            ...evidencia,
-          })
-        : action.tipo === "visita_tecnica"
+      try {
+        const evidencia = getActionEvidence(messageId);
+        const result = action.tipo === "agenda"
           ? await executarAcaoLia({
-              tipo: "visita_tecnica",
+              tipo: "agenda",
+              titulo: action.titulo,
               descricao: action.descricao,
-              dataPrevista: action.dataPrevista,
-              projetoId: context.projetoId!,
+              dataPrevista: action.dataPrevista ?? "",
+              tipoAgenda: action.tipoAgenda,
+              projetoId: effectiveProjetoId ?? undefined,
               ...evidencia,
             })
-          : action.tipo === "tarefa"
+          : action.tipo === "visita_tecnica"
             ? await executarAcaoLia({
-                tipo: "tarefa",
+                tipo: "visita_tecnica",
                 descricao: action.descricao,
                 dataPrevista: action.dataPrevista,
-                projetoId: context.projetoId!,
+                projetoId: effectiveProjetoId!,
                 ...evidencia,
               })
-            : action.tipo === "nova_oportunidade"
+            : action.tipo === "tarefa"
               ? await executarAcaoLia({
-                  tipo: "nova_oportunidade",
-                  clienteNome: action.clienteNome || "",
-                  clienteTelefone: action.clienteTelefone,
-                  titulo: action.titulo || "",
+                  tipo: "tarefa",
                   descricao: action.descricao,
-                  enderecoObra: action.enderecoObra,
-                  tipoObra: action.tipoObra,
-                  origem: action.origem,
+                  dataPrevista: action.dataPrevista,
+                  projetoId: effectiveProjetoId!,
                   ...evidencia,
                 })
-              : await executarAcaoLia({
-                  tipo: "atividade",
-                  descricao: action.descricao,
-                  tipoAtividade: action.tipoAtividade,
-                  projetoId: context.projetoId!,
-                  ...evidencia,
-                });
+              : action.tipo === "nova_oportunidade"
+                ? await executarAcaoLia({
+                    tipo: "nova_oportunidade",
+                    clienteNome: action.clienteNome || "",
+                    clienteTelefone: action.clienteTelefone,
+                    titulo: action.titulo || "",
+                    descricao: action.descricao,
+                    enderecoObra: action.enderecoObra,
+                    tipoObra: action.tipoObra,
+                    origem: action.origem,
+                    ...evidencia,
+                  })
+                : await executarAcaoLia({
+                    tipo: "atividade",
+                    descricao: action.descricao,
+                    tipoAtividade: action.tipoAtividade,
+                    projetoId: effectiveProjetoId!,
+                    ...evidencia,
+                  });
 
-      if (result.ok) {
-        updateActionStatus(messageId, action.id, "confirmed");
-        if (result.projetoId) {
-          setContext(prev => ({ ...prev, projetoId: result.projetoId! }));
+        if (result.ok) {
+          updateActionStatus(messageId, action.id, "confirmed");
+          if (result.projetoId) {
+            setContext((prev) => ({ ...prev, projetoId: result.projetoId! }));
+          }
+          const doneMessage =
+            action.tipo === "agenda"
+              ? "Feito. Compromisso criado na Agenda."
+              : action.tipo === "visita_tecnica"
+                ? "Feito. Visita técnica registrada na linha do tempo."
+                : action.tipo === "tarefa"
+                  ? "Feito. Tarefa criada com badge IA."
+                  : action.tipo === "nova_oportunidade"
+                    ? "Cliente e oportunidade criados. Acesse a oportunidade para continuar."
+                    : "Feito. Atividade registrada.";
+          addLiaNote(doneMessage);
+        } else {
+          addLiaNote(result.erro ?? "Não consegui executar essa ação.");
         }
-        const doneMessage =
-          action.tipo === "agenda"
-            ? "Feito. Compromisso criado na Agenda."
-            : action.tipo === "visita_tecnica"
-              ? "Feito. Visita técnica registrada na linha do tempo."
-              : action.tipo === "tarefa"
-                ? "Feito. Tarefa criada com badge IA."
-                : action.tipo === "nova_oportunidade"
-                  ? "Cliente e oportunidade criados. Acesse a oportunidade para continuar."
-                  : "Feito. Atividade registrada.";
-        addLiaNote(doneMessage);
-      } else {
-        addLiaNote(result.erro ?? "Não consegui executar essa ação.");
+      } catch {
+        addLiaNote("Erro inesperado ao executar a ação. Tente novamente.");
       }
     });
   }
