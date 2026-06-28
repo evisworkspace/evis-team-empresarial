@@ -260,7 +260,7 @@ export async function atualizarStatusFunil(formData: FormData) {
   const projetoId = formData.get("projetoId") as string;
   const novoStatus = formData.get("statusInterno") as string;
 
-  const statusValidos = ["novo", "fila_espera", "em_andamento", "em_negociacao", "proposta_enviada", "ganho", "perdido"];
+  const statusValidos = ["novo", "fila_espera", "orcamento", "proposta_enviada", "em_negociacao", "ganho", "perdido", "em_andamento"];
   if (!projetoId || !novoStatus || !statusValidos.includes(novoStatus)) {
     throw new Error("Dados inválidos.");
   }
@@ -472,7 +472,7 @@ export async function moverEtapaKanban(projetoId: string, novoStatus: string) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
 
-  const statusValidos = ["novo", "fila_espera", "em_andamento", "em_negociacao", "proposta_enviada", "ganho", "perdido"];
+  const statusValidos = ["novo", "fila_espera", "orcamento", "proposta_enviada", "em_negociacao", "ganho", "perdido", "em_andamento"];
   if (!projetoId || !novoStatus || !statusValidos.includes(novoStatus)) {
     throw new Error("Dados inválidos.");
   }

@@ -51,8 +51,10 @@ import {
 export const metadata: Metadata = { title: "Projeto" };
 
 const FUNIL = [
-  { value: "novo", label: "Novo lead" },
-  { value: "proposta_enviada", label: "Proposta enviada" },
+  { value: "fila_espera", label: "Fila Espera" },
+  { value: "novo", label: "Agendar Visita" },
+  { value: "orcamento", label: "Montando Orçamento" },
+  { value: "proposta_enviada", label: "Montando Proposta" },
   { value: "em_negociacao", label: "Em negociação" },
   { value: "ganho", label: "Ganho ✓" },
 ];
@@ -65,8 +67,9 @@ function getFunilIndex(status: string) {
 
 function oportunidadeStatusLabel(status: string) {
   const map: Record<string, string> = {
-    novo: "Novo lead", aberta: "Novo lead", em_negociacao: "Em negociação",
-    proposta_enviada: "Proposta enviada", ganho: "Ganho", perdido: "Perdida",
+    fila_espera: "Fila Espera", novo: "Agendar Visita", aberta: "Agendar Visita",
+    orcamento: "Montando Orçamento", proposta_enviada: "Montando Proposta",
+    em_negociacao: "Em negociação", ganho: "Ganho", perdido: "Perdida",
   };
   return map[status] ?? status;
 }
@@ -164,7 +167,8 @@ function DetailItem({ label, value, highlight }: { label: string; value: React.R
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  novo: "Novo lead", em_negociacao: "Em negociação", proposta_enviada: "Proposta enviada",
+  fila_espera: "Fila Espera", novo: "Agendar Visita", orcamento: "Montando Orçamento",
+  proposta_enviada: "Montando Proposta", em_negociacao: "Em negociação",
   ganho: "Ganho", perdido: "Perdida", abertura: "Abertura", planejamento: "Planejamento",
   em_andamento: "Em andamento", pausada: "Pausada", concluida: "Concluída",
   entregue: "Entregue", encerrada: "Encerrada",

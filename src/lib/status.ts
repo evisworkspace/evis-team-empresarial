@@ -5,13 +5,13 @@ export type StatusConfig = {
 }
 
 export const STATUS_OPORTUNIDADE: Record<string, StatusConfig> = {
-  novo:             { label: "Agendar Visita",   cor: "#0ea5e9", grupo: "ativo" },
-  fila_espera:      { label: "Fila Espera",      cor: "#7c3aed", grupo: "ativo" },
-  em_andamento:     { label: "Em andamento",     cor: "#059669", grupo: "ativo" },
-  proposta_enviada: { label: "Proposta enviada", cor: "#d97706", grupo: "ativo" },
-  em_negociacao:    { label: "Em negociação",    cor: "#dc2626", grupo: "ativo" },
-  ganho:            { label: "Ganho",            cor: "#10b981", grupo: "fechado" },
-  perdido:          { label: "Arquivado",        cor: "#6b7280", grupo: "fechado" },
+  fila_espera:      { label: "Fila Espera",        cor: "#7c3aed", grupo: "ativo" },
+  novo:             { label: "Agendar Visita",      cor: "#0ea5e9", grupo: "ativo" },
+  orcamento:        { label: "Montando Orçamento",  cor: "#059669", grupo: "ativo" },
+  proposta_enviada: { label: "Montando Proposta",   cor: "#d97706", grupo: "ativo" },
+  em_negociacao:    { label: "Em negociação",       cor: "#dc2626", grupo: "ativo" },
+  ganho:            { label: "Ganho",               cor: "#10b981", grupo: "fechado" },
+  perdido:          { label: "Arquivado",           cor: "#6b7280", grupo: "fechado" },
 }
 
 export const STATUS_OBRA: Record<string, StatusConfig> = {
