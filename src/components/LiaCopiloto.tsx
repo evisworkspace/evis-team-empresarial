@@ -148,6 +148,22 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
   return { text: sanitizeVisibleText(text), actions };
 }
 
+async function readLiaErrorResponse(res: Response) {
+  const contentType = res.headers.get("Content-Type") ?? "";
+  try {
+    if (contentType.includes("application/json")) {
+      const data = await res.json() as { error?: unknown };
+      return typeof data.error === "string" && data.error.trim()
+        ? data.error.trim()
+        : "Erro na API da Lia.";
+    }
+    const text = await res.text();
+    return text.trim() || "Erro na API da Lia.";
+  } catch {
+    return "Erro na API da Lia.";
+  }
+}
+
 function readContextFromWindow(): LiaContext {
   if (typeof window === "undefined") {
     return { pathname: "", projetoId: null, projetoTitulo: null, stage: null };
@@ -214,13 +230,20 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
   useEffect(() => {
     if (mode !== "contextual" || !projetoIdProp) return;
     const fromWindow = readContextFromWindow();
-    setContext(prev => ({
-      ...prev,
-      projetoId: projetoIdProp,
-      projetoTitulo: fromWindow.projetoTitulo ?? prev.projetoTitulo,
-      stage: fromWindow.stage ?? prev.stage,
-      pathname: fromWindow.pathname,
-    }));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setContext(prev => ({
+        ...prev,
+        projetoId: projetoIdProp,
+        projetoTitulo: fromWindow.projetoTitulo ?? prev.projetoTitulo,
+        stage: fromWindow.stage ?? prev.stage,
+        pathname: fromWindow.pathname,
+      }));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [mode, projetoIdProp, pathname]);
 
   // Handle pathname changes (global mode: skip; contextual: handle lia=1 auto-open)
@@ -258,16 +281,6 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
-
-  // Auto-assessment: only for contextual mode, only when no messages loaded
-  useEffect(() => {
-    if (mode === "global") return;
-    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
-    if (autoAssessedRef.current === context.projetoId) return;
-    autoAssessedRef.current = context.projetoId;
-    void sendSilentAssessment();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, context.projetoId, mode]);
 
   async function addFiles(files: File[]) {
     if (files.length === 0) return;
@@ -438,8 +451,12 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error("Erro na API da Lia");
+      if (!res.ok) {
+        throw new Error(await readLiaErrorResponse(res));
+      }
+
+      if (!res.body) {
+        throw new Error("A API da Lia não retornou corpo de resposta.");
       }
 
       const reader = res.body.getReader();
@@ -466,13 +483,16 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         },
       ]);
       setStreamingText("");
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : "Erro na conexão com a Lia. Tente novamente.";
       setMessages((prev) => [
         ...prev,
         {
           id: makeId("lia-error"),
           role: "lia",
-          content: "Erro na conexão com a Lia. Tente novamente.",
+          content: message,
           actions: [],
           timestamp: nowTimestamp(),
         },
@@ -495,7 +515,8 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
           context,
         }),
       });
-      if (!res.ok || !res.body) throw new Error();
+      if (!res.ok) throw new Error(await readLiaErrorResponse(res));
+      if (!res.body) throw new Error("A API da Lia não retornou corpo de resposta.");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let full = "";
@@ -516,11 +537,14 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         quickReplies: actions.length === 0 ? ["Sim, avançar", "Tenho outro assunto"] : undefined,
       }]);
       setStreamingText("");
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : "Estou aqui, mas não consegui avaliar o contexto automaticamente.";
       setMessages([{
         id: makeId("lia"),
         role: "lia",
-        content: "Estou aqui. O que precisa?",
+        content: message,
         actions: [],
         timestamp: nowTimestamp(),
       }]);
@@ -528,6 +552,16 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
       setIsLoading(false);
     }
   }
+
+  // Auto-assessment: only for contextual mode, only when no messages loaded
+  useEffect(() => {
+    if (mode === "global") return;
+    if (!isOpen || !context.projetoId || messages.length > 0 || isLoading) return;
+    if (autoAssessedRef.current === context.projetoId) return;
+    autoAssessedRef.current = context.projetoId;
+    void sendSilentAssessment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, context.projetoId, mode]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

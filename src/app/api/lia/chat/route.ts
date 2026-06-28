@@ -31,6 +31,7 @@ interface ChatContext {
 
 const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const MAX_ATTACHMENTS_PER_MESSAGE = 5;
+const DEV = process.env.NODE_ENV !== "production";
 const ACCEPTED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -45,6 +46,100 @@ const ACCEPTED_MIME_TYPES = new Set([
   "audio/mp4",
   "audio/ogg",
 ]);
+
+type LiaErrorCategory = "quota" | "auth" | "provider" | "payload" | "unknown";
+
+interface LiaErrorInfo {
+  category: LiaErrorCategory;
+  code?: number;
+  status?: string;
+  message: string;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
+function readErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function parseNestedGoogleError(message: string): { code?: number; status?: string; message?: string } {
+  try {
+    const parsed = JSON.parse(message) as unknown;
+    const root = asRecord(parsed);
+    const nested = asRecord(root?.error);
+    return {
+      code: typeof nested?.code === "number" ? nested.code : undefined,
+      status: typeof nested?.status === "string" ? nested.status : undefined,
+      message: typeof nested?.message === "string" ? nested.message : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function classifyLiaError(error: unknown): LiaErrorInfo {
+  const rawMessage = readErrorMessage(error);
+  const parsed = parseNestedGoogleError(rawMessage);
+  const message = parsed.message ?? rawMessage;
+  const status = parsed.status ?? (rawMessage.match(/\b[A-Z_]{4,}\b/)?.[0]);
+  const code = parsed.code ?? (rawMessage.includes("429") ? 429 : undefined);
+  const normalized = `${status ?? ""} ${message}`.toLowerCase();
+
+  if (code === 429 || normalized.includes("resource_exhausted") || normalized.includes("quota")) {
+    return { category: "quota", code: code ?? 429, status: status ?? "RESOURCE_EXHAUSTED", message };
+  }
+  if (code === 401 || code === 403 || normalized.includes("permission_denied") || normalized.includes("unauthenticated")) {
+    return { category: "auth", code, status, message };
+  }
+  if (normalized.includes("invalid json") || normalized.includes("payload")) {
+    return { category: "payload", code, status, message };
+  }
+  if (status || code) return { category: "provider", code, status, message };
+  return { category: "unknown", code, status, message };
+}
+
+function logLiaError(scope: string, error: unknown, meta: Record<string, unknown>) {
+  const info = classifyLiaError(error);
+  console.error(scope, {
+    ...meta,
+    category: info.category,
+    code: info.code,
+    status: info.status,
+    message: info.message,
+    stack: DEV && error instanceof Error ? error.stack : undefined,
+  });
+}
+
+function userMessageForLiaError(error: unknown, meta: { route: string; model: string; context: ChatContext }) {
+  const info = classifyLiaError(error);
+  const base = info.category === "quota"
+    ? "Não consegui processar porque a API Gemini retornou limite de uso ou cota esgotada. Erro registrado para análise."
+    : info.category === "auth"
+      ? "Não consegui processar porque a autenticação da API Gemini falhou. Erro registrado para análise."
+      : "Não consegui processar essa solicitação agora. Erro registrado para análise.";
+
+  if (!DEV) return base;
+
+  return [
+    base,
+    "",
+    `DEV: ${meta.route} falhou no provider.`,
+    `Modelo: ${meta.model}`,
+    `Categoria: ${info.category}`,
+    `Status: ${info.status ?? "n/a"}`,
+    `Código: ${info.code ?? "n/a"}`,
+    `Contexto: ${meta.context.projetoId ? `projeto=${meta.context.projetoId}` : "global"}`,
+    `Erro: ${info.message.slice(0, 600)}`,
+  ].join("\n");
+}
 
 function getSystemDateBR(now: Date): string {
   const tz = "America/Sao_Paulo";
@@ -392,9 +487,18 @@ export async function POST(request: Request) {
           }
           controller.close();
         } catch (error) {
-          console.error("[LiaChat:stream]", error);
-          const errMsg = "Não consegui processar essa solicitação agora. Pode tentar novamente ou reformular?";
-          controller.enqueue(encoder.encode(errMsg));
+          logLiaError("[LiaChat:stream]", error, {
+            route: "/api/lia/chat",
+            model,
+            pathname: context.pathname,
+            projetoId: context.projetoId ?? null,
+            messageCount: messages.length,
+          });
+          controller.enqueue(encoder.encode(userMessageForLiaError(error, {
+            route: "/api/lia/chat",
+            model,
+            context,
+          })));
           controller.close();
         }
       },
@@ -404,14 +508,29 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
+        "X-Content-Type-Options": "nosniff",
         "X-Empresa-Id": empresaId,
       },
     });
   } catch (error) {
-    console.error("[LiaChat]", error);
-    return new Response("Não consegui processar essa solicitação. Tente novamente.", {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    logLiaError("[LiaChat]", error, {
+      route: "/api/lia/chat",
+      pathname: context.pathname,
+      projetoId: context.projetoId ?? null,
+      messageCount: messages.length,
+    });
+    const model = process.env.GEMINI_MODEL_CHAT?.trim() || "gemini-2.0-flash";
+    return new Response(userMessageForLiaError(error, {
+      route: "/api/lia/chat",
+      model,
+      context,
+    }), {
+      status: 502,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "X-Content-Type-Options": "nosniff",
+      },
     });
   }
 }
