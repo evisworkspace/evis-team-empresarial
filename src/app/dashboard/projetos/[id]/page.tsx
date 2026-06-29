@@ -25,9 +25,15 @@ import { MedicoesTab } from "@/components/obra/MedicoesTab";
 import { FisicoFinanceiroTab } from "@/components/obra/FisicoFinanceiroTab";
 import { CurvaSTab } from "@/components/obra/CurvaSTab";
 import { DiarioTab } from "@/components/obra/DiarioTab";
+import { AgendaTab } from "@/components/agenda/AgendaTab";
 import { salvarPlanejamentoItem } from "@/actions/planejamento";
 import { criarDiario, aprovarItemHITL, rejeitarItemHITL } from "@/actions/diarioObra";
 import { criarMedicao } from "@/actions/medicao";
+import {
+  criarAgendaItemAction,
+  marcarAgendaItemRealizadoAction,
+  cancelarAgendaItemAction,
+} from "@/actions/agenda";
 import { LancamentoFinanceiroForm } from "@/components/financeiro/LancamentoFinanceiroForm";
 import {
   BuildingIcon,
@@ -206,12 +212,14 @@ function isOverdue(t: ProjetoDetalhes["tarefas"][0], now: Date) {
 
 function OportunidadeView({
   projeto,
+  empresaId,
   financeiro,
   orcamento,
   financeiroFormLists,
   diariosObra,
 }: {
   projeto: ProjetoDetalhes;
+  empresaId: string;
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
@@ -346,6 +354,7 @@ function OportunidadeView({
         <input type="radio" name="op-tab" id="op-tab-propostas" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-anotacoes" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-diario" className="obra-tab-radio" />
+        <input type="radio" name="op-tab" id="op-tab-agenda" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-agentes" className="obra-tab-radio" />
 
         <div className="obra-tabs-nav">
@@ -365,6 +374,7 @@ function OportunidadeView({
             Anotações{projeto.anotacoes.length > 0 ? ` (${projeto.anotacoes.length})` : ""}
           </label>
           <label htmlFor="op-tab-diario" className="obra-tab-label">Diário</label>
+          <label htmlFor="op-tab-agenda" className="obra-tab-label">Agenda</label>
           <label htmlFor="op-tab-agentes" className="obra-tab-label">Agentes</label>
         </div>
 
@@ -827,6 +837,17 @@ function OportunidadeView({
             />
           </div>
 
+          {/* ── Agenda ───────────────────────────────────────────── */}
+          <div className="obra-tab-panel op-panel-agenda">
+            <AgendaTab
+              projetoId={projeto.id}
+              empresaId={empresaId}
+              criarAgendaItemAction={criarAgendaItemAction}
+              marcarAgendaItemRealizadoAction={marcarAgendaItemRealizadoAction}
+              cancelarAgendaItemAction={cancelarAgendaItemAction}
+            />
+          </div>
+
           {/* ── Agentes ───────────────────────────────────────────── */}
           <div className="obra-tab-panel op-panel-agentes">
             <div className="obra-card obra-card--full">
@@ -868,6 +889,7 @@ function OportunidadeView({
 
 function CentralDaObraView({
   projeto,
+  empresaId,
   financeiro,
   orcamento,
   financeiroFormLists,
@@ -876,6 +898,7 @@ function CentralDaObraView({
   diariosObra,
 }: {
   projeto: ProjetoDetalhes;
+  empresaId: string;
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
@@ -948,6 +971,7 @@ function CentralDaObraView({
         <input type="radio" name="obra-tab" id="tab-compras" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-anotacoes" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-diario" className="obra-tab-radio" />
+        <input type="radio" name="obra-tab" id="tab-agenda" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-agentes" className="obra-tab-radio" />
 
         <div className="obra-tabs-nav">
@@ -965,6 +989,7 @@ function CentralDaObraView({
             Anotações{projeto.anotacoes.length > 0 ? ` (${projeto.anotacoes.length})` : ""}
           </label>
           <label htmlFor="tab-diario" className="obra-tab-label">Diário</label>
+          <label htmlFor="tab-agenda" className="obra-tab-label">Agenda</label>
           <label htmlFor="tab-agentes" className="obra-tab-label">Agentes</label>
         </div>
 
@@ -1454,6 +1479,17 @@ function CentralDaObraView({
             />
           </div>
 
+          {/* Agenda */}
+          <div className="obra-tab-panel panel-agenda">
+            <AgendaTab
+              projetoId={projeto.id}
+              empresaId={empresaId}
+              criarAgendaItemAction={criarAgendaItemAction}
+              marcarAgendaItemRealizadoAction={marcarAgendaItemRealizadoAction}
+              cancelarAgendaItemAction={cancelarAgendaItemAction}
+            />
+          </div>
+
           {/* Agentes — Lote 10E */}
           <div className="obra-tab-panel panel-agentes">
             <div className="obra-card obra-card--full">
@@ -1629,6 +1665,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
     return (
       <OportunidadeView
         projeto={projeto}
+        empresaId={empresaId}
         financeiro={financeiro}
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
@@ -1647,6 +1684,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
   return (
     <CentralDaObraView
       projeto={projeto}
+      empresaId={empresaId}
       financeiro={financeiro}
       orcamento={orcamentoProps}
       financeiroFormLists={financeiroFormLists}

@@ -202,6 +202,19 @@ export default async function AgendaPage({
               />
             </div>
             <div>
+              <label className="form-label" htmlFor="ag-fim">
+                Fim (opcional)
+              </label>
+              <input
+                id="ag-fim"
+                name="fim"
+                type="datetime-local"
+                className="form-input"
+              />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
               <label className="form-label" htmlFor="ag-projeto">
                 Projeto (opcional)
               </label>
@@ -213,6 +226,18 @@ export default async function AgendaPage({
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="form-label" htmlFor="ag-localizacao">
+                Localização (opcional)
+              </label>
+              <input
+                id="ag-localizacao"
+                name="localizacao"
+                className="form-input"
+                placeholder="Endereço, obra ou escritório"
+                maxLength={500}
+              />
             </div>
           </div>
           <div>

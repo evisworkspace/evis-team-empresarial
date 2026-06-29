@@ -11,6 +11,9 @@ export function createAgendaItem(
     tipo?: string;
     inicio: Date;
     fim?: Date | null;
+    localizacao?: string | null;
+    diaInteiro?: boolean;
+    participantes?: string | null;
     status?: string;
     origem?: string;
   },
@@ -24,6 +27,9 @@ export function createAgendaItem(
       tipo: data.tipo ?? "compromisso",
       inicio: data.inicio,
       fim: data.fim ?? null,
+      localizacao: data.localizacao ?? null,
+      diaInteiro: data.diaInteiro ?? false,
+      participantes: data.participantes ?? null,
       status: data.status ?? "agendado",
       origem: data.origem ?? "manual",
     },

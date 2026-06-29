@@ -364,6 +364,9 @@ model AgendaItem {
   tipo      String    @default("compromisso") @db.VarChar(40) // compromisso | visita | reuniao | ligacao | follow_up | prazo | entrega | lembrete
   inicio    DateTime
   fim       DateTime?
+  localizacao       String?  @db.VarChar(500)
+  diaInteiro        Boolean  @default(false) @map("dia_inteiro")
+  participantes     String?  @db.VarChar(1000)
   status    String    @default("agendado") @db.VarChar(30) // agendado | concluido | cancelado
   origem    String    @default("manual") @db.VarChar(30) // manual | sugerida_ia
   createdAt DateTime  @default(now()) @map("created_at")
