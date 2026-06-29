@@ -76,6 +76,7 @@ type LiaContext = {
   projetoId: string | null;
   projetoTitulo: string | null;
   stage: string | null;
+  codigoSequencial: string | null;
 };
 
 interface LiaCopilotoProps {
@@ -239,7 +240,7 @@ async function readLiaErrorResponse(res: Response) {
 
 function readContextFromWindow(): LiaContext {
   if (typeof window === "undefined") {
-    return { pathname: "", projetoId: null, projetoTitulo: null, stage: null };
+    return { pathname: "", projetoId: null, projetoTitulo: null, stage: null, codigoSequencial: null };
   }
 
   const pathname = window.location.pathname;
@@ -251,8 +252,9 @@ function readContextFromWindow(): LiaContext {
     : document.querySelector(".badge-obra")
       ? "obra"
       : null;
+  const codigoSequencial = document.querySelector("[data-lia-codigo]")?.getAttribute("data-lia-codigo") || null;
 
-  return { pathname, projetoId, projetoTitulo, stage };
+  return { pathname, projetoId, projetoTitulo, stage, codigoSequencial };
 }
 
 function splitActionList(value?: string) {
@@ -383,6 +385,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     projetoId: null,
     projetoTitulo: null,
     stage: null,
+    codigoSequencial: null,
   });
   const [isPending, startTransition] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -405,6 +408,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         projetoTitulo: fromWindow.projetoTitulo ?? prev.projetoTitulo,
         stage: fromWindow.stage ?? prev.stage,
         pathname: fromWindow.pathname,
+        codigoSequencial: fromWindow.codigoSequencial ?? prev.codigoSequencial,
       }));
     });
     return () => {
@@ -428,6 +432,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
           projetoTitulo: fromWindow.projetoTitulo ?? context.projetoTitulo,
           stage: fromWindow.stage ?? context.stage,
           pathname: fromWindow.pathname,
+          codigoSequencial: fromWindow.codigoSequencial ?? context.codigoSequencial,
         };
         setContext(nextContext);
         setIsOpen(true);
@@ -767,7 +772,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
       } catch {}
       // No history: show initial message for global, let assessment handle contextual
       if (mode === "global") {
-        return [initialMessage({ pathname: "", projetoId: null, projetoTitulo: null, stage: null }, "manual")];
+        return [initialMessage({ pathname: "", projetoId: null, projetoTitulo: null, stage: null, codigoSequencial: null }, "manual")];
       }
       return [];
     });
@@ -959,8 +964,15 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         <div className="lia-rail-header">
           <div>
             <div className="lia-rail-kicker">Lia · EVIS</div>
-            <div className="lia-rail-title">
-              {context.projetoTitulo ?? (mode === "global" ? "Copiloto operacional" : "Carregando...")}
+            <div className="lia-rail-title" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: context.codigoSequencial ? "160px" : "100%" }}>
+                {context.projetoTitulo ?? (mode === "global" ? "Copiloto operacional" : "Carregando...")}
+              </span>
+              {context.codigoSequencial && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", opacity: 0.6, letterSpacing: "0.05em", flexShrink: 0 }}>
+                  {context.codigoSequencial}
+                </span>
+              )}
             </div>
           </div>
           <div className="lia-rail-header-actions">

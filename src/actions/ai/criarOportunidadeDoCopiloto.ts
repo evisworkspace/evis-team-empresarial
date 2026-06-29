@@ -6,6 +6,31 @@ import { createCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 
+interface ViaCepResponse {
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  erro?: boolean;
+}
+
+async function fetchViaCep(cep: string): Promise<ViaCepResponse | null> {
+  const digits = cep.replace(/\D/g, "");
+  if (digits.length !== 8) return null;
+  try {
+    const res = await Promise.race([
+      fetch(`https://viacep.com.br/ws/${digits}/json/`),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+    ]);
+    if (!res.ok) return null;
+    const data = await res.json() as ViaCepResponse;
+    if (data.erro) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export type CriarOportunidadeInput = {
   clienteNome: string;
   clienteTelefone?: string;
@@ -93,6 +118,28 @@ export async function criarOportunidadeDoCopiloto(
       ? "PJ"
       : "PF";
 
+    // Busca endereço canônico via ViaCEP — sempre tem precedência sobre o que a IA extraiu
+    const cepObraDigits = cepObra?.replace(/\D/g, "") ?? "";
+    const cepClienteDigits = clienteCep?.replace(/\D/g, "") ?? "";
+
+    const [obraViaCep, clienteViaCepRaw] = await Promise.all([
+      cepObraDigits.length === 8 ? fetchViaCep(cepObraDigits) : Promise.resolve(null),
+      cepClienteDigits.length === 8 && cepClienteDigits !== cepObraDigits
+        ? fetchViaCep(cepClienteDigits)
+        : Promise.resolve(null),
+    ]);
+    const clienteViaCep = cepClienteDigits === cepObraDigits ? obraViaCep : clienteViaCepRaw;
+
+    const obraLogradouro = obraViaCep?.logradouro || logradouroObra?.trim() || undefined;
+    const obraBairro     = obraViaCep?.bairro      || bairroObra?.trim()    || undefined;
+    const obraCidade     = obraViaCep?.localidade  || cidadeObra?.trim()    || undefined;
+    const obraEstado     = obraViaCep?.uf           || estadoObra?.trim()   || undefined;
+
+    const cliLogradouro = clienteViaCep?.logradouro || clienteRua?.trim()    || obraLogradouro || undefined;
+    const cliBairro     = clienteViaCep?.bairro      || clienteBairro?.trim() || obraBairro     || undefined;
+    const cliCidade     = clienteViaCep?.localidade  || clienteCidade?.trim() || obraCidade     || undefined;
+    const cliEstado     = clienteViaCep?.uf           || clienteEstado?.trim()|| obraEstado     || undefined;
+
     const novoCliente = await createCliente(empresaId, {
       nome: clienteNome.trim(),
       telefone: clienteTelefone?.trim() || undefined,
@@ -102,12 +149,12 @@ export async function criarOportunidadeDoCopiloto(
       email: clienteEmail?.trim() || undefined,
       cpfCnpj: clienteCpfCnpj?.trim() || undefined,
       cep: clienteCep?.trim() || cepObra?.trim() || undefined,
-      rua: clienteRua?.trim() || logradouroObra?.trim() || undefined,
+      rua: cliLogradouro,
       numero: clienteNumero?.trim() || numeroEnderecoObra?.trim() || undefined,
       complemento: clienteComplemento?.trim() || complementoObra?.trim() || undefined,
-      bairro: clienteBairro?.trim() || bairroObra?.trim() || undefined,
-      cidade: clienteCidade?.trim() || cidadeObra?.trim() || undefined,
-      estado: clienteEstado?.trim() || estadoObra?.trim() || undefined,
+      bairro: cliBairro,
+      cidade: cliCidade,
+      estado: cliEstado,
       observacoes: clienteObservacoes?.trim() || undefined,
       rg: clienteRg?.trim() || undefined,
       dataNascimento,
@@ -133,12 +180,12 @@ export async function criarOportunidadeDoCopiloto(
         origem: origem?.trim() || "copiloto_ia",
         enderecoObra: enderecoObra?.trim() || undefined,
         cepObra: cepObra?.trim() || clienteCep?.trim() || undefined,
-        logradouroObra: logradouroObra?.trim() || clienteRua?.trim() || undefined,
+        logradouroObra: obraLogradouro,
         numeroEnderecoObra: numeroEnderecoObra?.trim() || clienteNumero?.trim() || undefined,
         complementoObra: complementoObra?.trim() || clienteComplemento?.trim() || undefined,
-        bairroObra: bairroObra?.trim() || clienteBairro?.trim() || undefined,
-        cidadeObra: cidadeObra?.trim() || clienteCidade?.trim() || undefined,
-        estadoObra: estadoObra?.trim() || clienteEstado?.trim() || undefined,
+        bairroObra: obraBairro,
+        cidadeObra: obraCidade,
+        estadoObra: obraEstado,
         tipoObra: tipoObra?.trim() || undefined,
       },
       select: { id: true },
