@@ -6,6 +6,8 @@ import { getEmpresaId } from "@/lib/tenant";
 import { createTarefa } from "@/data/tarefa";
 import { createAtividade } from "@/data/projetoAtividade";
 import { createAgendaItem } from "@/data/agenda";
+import { createAnotacao } from "@/data/anotacao";
+import { createDiario, getNextNumero } from "@/data/diarioObra";
 import { createAuditEntry } from "@/lib/audit";
 
 type EvidenciaLia = {
@@ -86,7 +88,28 @@ interface AcaoNovaOportunidade {
   anexos?: EvidenciaLia["anexos"];
 }
 
-type Acao = AcaoTarefa | AcaoAgenda | AcaoVisitaTecnica | AcaoAtividade | AcaoNovaOportunidade;
+interface AcaoLeituraVisita {
+  tipo: "leitura_visita";
+  titulo?: string;
+  descricao: string;
+  visitaData?: string;
+  visitaHorario?: string;
+  visitaParticipantes?: string;
+  visitaLocal?: string;
+  visitaFatos?: string;
+  visitaPremissas?: string;
+  visitaPendencias?: string;
+  visitaEscopo?: string;
+  visitaRiscos?: string;
+  visitaTarefas?: string;
+  visitaAnotacaoRascunho?: string;
+  visitaDiarioRascunho?: string;
+  projetoId: string;
+  entradaOriginal?: string;
+  anexos?: EvidenciaLia["anexos"];
+}
+
+type Acao = AcaoTarefa | AcaoAgenda | AcaoVisitaTecnica | AcaoAtividade | AcaoNovaOportunidade | AcaoLeituraVisita;
 
 function parseDataPrevista(value?: string) {
   if (!value) return undefined;
@@ -116,7 +139,26 @@ function buildTimelineDescription(prefixo: string, acao: EvidenciaLia) {
   return linhas.join("\n");
 }
 
-export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?: string; projetoId?: string }> {
+function splitSerializedList(value?: string) {
+  return (value ?? "")
+    .split("|")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseDateOnly(value?: string) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date();
+  const [ano, mes, dia] = value.split("-").map(Number);
+  const data = new Date(ano, mes - 1, dia);
+  if (Number.isNaN(data.getTime())) return new Date();
+  return data;
+}
+
+function section(title: string, items: string[]) {
+  return items.length > 0 ? `${title}:\n${items.map((item) => `- ${item}`).join("\n")}` : "";
+}
+
+export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?: string; projetoId?: string; anotacaoId?: string; diarioId?: string; tarefasCriadas?: number }> {
   const session = await auth();
   const empresaId = getEmpresaId(session);
 
@@ -127,7 +169,7 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
     };
   }
 
-  if (acao.tipo !== "nova_oportunidade" && (!acao.descricao || acao.descricao.trim().length < 2)) {
+  if (acao.tipo !== "nova_oportunidade" && acao.tipo !== "leitura_visita" && (!acao.descricao || acao.descricao.trim().length < 2)) {
     return { ok: false, erro: "Descrição da ação inválida." };
   }
 
@@ -221,6 +263,106 @@ export async function executarAcaoLia(acao: Acao): Promise<{ ok: boolean; erro?:
       revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
       revalidatePath("/dashboard/diario");
       return { ok: true };
+    }
+
+    if (acao.tipo === "leitura_visita") {
+      const evidencia = buildEvidencia(acao);
+      const titulo = acao.titulo?.trim() || "Leitura de visita técnica";
+      const fatos = splitSerializedList(acao.visitaFatos);
+      const premissas = splitSerializedList(acao.visitaPremissas);
+      const pendencias = splitSerializedList(acao.visitaPendencias);
+      const escopo = splitSerializedList(acao.visitaEscopo);
+      const riscos = splitSerializedList(acao.visitaRiscos);
+      const tarefas = splitSerializedList(acao.visitaTarefas);
+      const meta = [
+        acao.visitaData?.trim(),
+        acao.visitaHorario?.trim(),
+        acao.visitaParticipantes?.trim(),
+        acao.visitaLocal?.trim(),
+      ].filter(Boolean).join(" · ");
+      const anotacaoConteudo = [
+        "[RASCUNHO LIA] Leitura de visita técnica",
+        meta,
+        acao.descricao?.trim(),
+        acao.visitaAnotacaoRascunho?.trim(),
+        section("Fatos confirmados", fatos),
+        section("Premissas", premissas),
+        section("Pendências", pendencias),
+        section("Escopo técnico", escopo),
+        section("Riscos", riscos),
+        section("Tarefas sugeridas", tarefas),
+        evidencia.entradaOriginal ? `Entrada original:\n${evidencia.entradaOriginal}` : "",
+      ].filter(Boolean).join("\n\n");
+
+      const anotacao = await createAnotacao(empresaId, {
+        projetoId: acao.projetoId,
+        titulo: `[Rascunho] ${titulo}`,
+        conteudo: anotacaoConteudo,
+      });
+
+      const numero = await getNextNumero(empresaId, acao.projetoId);
+      const diarioDescricao = [
+        "[RASCUNHO LIA] Visita técnica",
+        meta,
+        acao.visitaDiarioRascunho?.trim() || acao.descricao.trim(),
+        section("Fatos confirmados", fatos),
+        section("Pendências", pendencias),
+      ].filter(Boolean).join("\n\n");
+      const diario = await createDiario(empresaId, {
+        projetoId: acao.projetoId,
+        numero,
+        data: parseDateOnly(acao.visitaData),
+        descricao: diarioDescricao,
+      });
+
+      const tarefasCriadas = await Promise.all(
+        tarefas.map((descricao) =>
+          createTarefa(empresaId, {
+            projetoId: acao.projetoId,
+            descricao,
+            status: "aberta",
+            origem: "sugerida_ia",
+          }),
+        ),
+      );
+
+      await createAtividade(empresaId, {
+        projetoId: acao.projetoId,
+        tipo: "visita",
+        descricao: buildTimelineDescription(`[Lia] Leitura de visita confirmada: ${titulo}`, acao),
+      });
+
+      await createAuditEntry({
+        empresaId,
+        projetoId: acao.projetoId,
+        eventoTipo: "validacao_ia",
+        entidadeTipo: "leitura_visita",
+        entidadeId: anotacao.id,
+        conteudoPersistido: {
+          titulo,
+          anotacaoId: anotacao.id,
+          diarioId: diario.id,
+          tarefasCriadas: tarefasCriadas.length,
+          fatos,
+          premissas,
+          pendencias,
+          escopo,
+          riscos,
+          evidencia,
+        },
+        origemInformacao: "lia_leitura_visita",
+      });
+
+      revalidatePath(`/dashboard/projetos/${acao.projetoId}`);
+      revalidatePath("/dashboard/tarefas");
+      revalidatePath("/dashboard/diario");
+      return {
+        ok: true,
+        projetoId: acao.projetoId,
+        anotacaoId: anotacao.id,
+        diarioId: diario.id,
+        tarefasCriadas: tarefasCriadas.length,
+      };
     }
 
     if (acao.tipo === "nova_oportunidade") {

@@ -1,17 +1,29 @@
 "use client";
 
 import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { executarAcaoLia } from "@/actions/ai/executarAcaoLia";
 
 type LiaAction = {
   id: string;
-  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade" | "nova_oportunidade";
+  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade" | "nova_oportunidade" | "leitura_visita";
   titulo?: string;
   descricao: string;
   dataPrevista?: string;
   tipoAgenda?: string;
   tipoAtividade?: string;
+  visitaData?: string;
+  visitaHorario?: string;
+  visitaParticipantes?: string;
+  visitaLocal?: string;
+  visitaFatos?: string;
+  visitaPremissas?: string;
+  visitaPendencias?: string;
+  visitaEscopo?: string;
+  visitaRiscos?: string;
+  visitaTarefas?: string;
+  visitaAnotacaoRascunho?: string;
+  visitaDiarioRascunho?: string;
   clienteNome?: string;
   clienteTelefone?: string;
   clienteTipoPessoa?: string;
@@ -48,7 +60,7 @@ type LiaMessage = {
   attachments?: LiaAttachment[];
   actions: LiaAction[];
   timestamp: number;
-  quickReplies?: string[];
+  quickReplies?: Array<{ label: string; href?: string }>;
 };
 
 type LiaAttachment = {
@@ -142,11 +154,14 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
   const text = raw.replace(ACTION_RE, (_, json) => {
     try {
       const parsed = JSON.parse(json) as Partial<LiaAction>;
-      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade", "nova_oportunidade"];
+      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade", "nova_oportunidade", "leitura_visita"];
       const isNovaOportunidade = parsed.tipo === "nova_oportunidade";
+      const isLeituraVisita = parsed.tipo === "leitura_visita";
       const hasRequiredField = isNovaOportunidade
         ? typeof parsed.clienteNome === "string" && parsed.clienteNome.trim().length > 0
-        : typeof parsed.descricao === "string" && parsed.descricao.trim().length > 0;
+        : isLeituraVisita
+          ? typeof parsed.titulo === "string" && parsed.titulo.trim().length > 0
+          : typeof parsed.descricao === "string" && parsed.descricao.trim().length > 0;
       if (typeof parsed.tipo === "string" && tiposValidos.includes(parsed.tipo) && hasRequiredField) {
         actions.push({
           id: makeId(parsed.tipo),
@@ -156,6 +171,18 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
           dataPrevista: typeof parsed.dataPrevista === "string" ? parsed.dataPrevista : undefined,
           tipoAgenda: typeof parsed.tipoAgenda === "string" ? parsed.tipoAgenda : undefined,
           tipoAtividade: typeof parsed.tipoAtividade === "string" ? parsed.tipoAtividade : undefined,
+          visitaData: typeof parsed.visitaData === "string" ? parsed.visitaData : undefined,
+          visitaHorario: typeof parsed.visitaHorario === "string" ? parsed.visitaHorario : undefined,
+          visitaParticipantes: typeof parsed.visitaParticipantes === "string" ? parsed.visitaParticipantes : undefined,
+          visitaLocal: typeof parsed.visitaLocal === "string" ? parsed.visitaLocal : undefined,
+          visitaFatos: typeof parsed.visitaFatos === "string" ? parsed.visitaFatos : undefined,
+          visitaPremissas: typeof parsed.visitaPremissas === "string" ? parsed.visitaPremissas : undefined,
+          visitaPendencias: typeof parsed.visitaPendencias === "string" ? parsed.visitaPendencias : undefined,
+          visitaEscopo: typeof parsed.visitaEscopo === "string" ? parsed.visitaEscopo : undefined,
+          visitaRiscos: typeof parsed.visitaRiscos === "string" ? parsed.visitaRiscos : undefined,
+          visitaTarefas: typeof parsed.visitaTarefas === "string" ? parsed.visitaTarefas : undefined,
+          visitaAnotacaoRascunho: typeof parsed.visitaAnotacaoRascunho === "string" ? parsed.visitaAnotacaoRascunho : undefined,
+          visitaDiarioRascunho: typeof parsed.visitaDiarioRascunho === "string" ? parsed.visitaDiarioRascunho : undefined,
           clienteNome: typeof parsed.clienteNome === "string" ? parsed.clienteNome : undefined,
           clienteTelefone: typeof parsed.clienteTelefone === "string" ? parsed.clienteTelefone : undefined,
           clienteTipoPessoa: typeof parsed.clienteTipoPessoa === "string" ? parsed.clienteTipoPessoa : undefined,
@@ -228,6 +255,17 @@ function readContextFromWindow(): LiaContext {
   return { pathname, projetoId, projetoTitulo, stage };
 }
 
+function splitActionList(value?: string) {
+  return (value ?? "")
+    .split("|")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinActionMeta(items: Array<string | undefined>) {
+  return items.filter((item): item is string => Boolean(item && item.trim())).join(" · ");
+}
+
 function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual"): LiaMessage {
   const content = source === "autoOpportunity"
     ? "Oportunidade criada. Escreva aqui para registrar os próximos passos, uma tarefa ou uma visita."
@@ -235,9 +273,13 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
       ? "Pronto. Escreva sua solicitação para este projeto."
       : "Olá. Como posso ajudar?";
 
-  const quickReplies =
+  const quickReplies: Array<{ label: string; href?: string }> | undefined =
     !context.projetoId && source === "manual"
-      ? ["Ver minha agenda", "Ver tarefas abertas", "Novo lead"]
+      ? [
+          { label: "Ver minha agenda", href: "/dashboard/agenda" },
+          { label: "Ver tarefas abertas", href: "/dashboard/tarefas" },
+          { label: "Novo lead", href: "/dashboard/projetos/novo?stage=oportunidade" },
+        ]
       : undefined;
 
   return {
@@ -250,10 +292,47 @@ function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual
   };
 }
 
+function VisitListSection({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--clr-text)", marginBottom: 4 }}>
+        {title}
+      </div>
+      <ul style={{ margin: 0, paddingLeft: 18, color: "var(--clr-text-muted)", lineHeight: 1.45 }}>
+        {items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function VisitScopePills({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--clr-text)", marginBottom: 6 }}>
+        Escopo técnico
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {items.map((item) => (
+          <span
+            key={item}
+            className="badge"
+            style={{ fontSize: 10, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp }: LiaCopilotoProps) {
   const HISTORY_KEY = `evis_cache_v1_lia_history_${storageKey}`;
 
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<LiaMessage[]>([]);
   const [streamingText, setStreamingText] = useState("");
@@ -580,7 +659,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     );
   }
 
-  function addLiaNote(content: string) {
+  function addLiaNote(content: string, quickReplies?: LiaMessage["quickReplies"]) {
     setMessages((prev) => [
       ...prev,
       {
@@ -589,6 +668,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         content,
         actions: [],
         timestamp: nowTimestamp(),
+        quickReplies,
       },
     ]);
   }
@@ -654,6 +734,26 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                 projetoId: effectiveProjetoId!,
                 ...evidencia,
               })
+            : action.tipo === "leitura_visita"
+              ? await executarAcaoLia({
+                  tipo: "leitura_visita",
+                  titulo: action.titulo,
+                  descricao: action.descricao,
+                  visitaData: action.visitaData,
+                  visitaHorario: action.visitaHorario,
+                  visitaParticipantes: action.visitaParticipantes,
+                  visitaLocal: action.visitaLocal,
+                  visitaFatos: action.visitaFatos,
+                  visitaPremissas: action.visitaPremissas,
+                  visitaPendencias: action.visitaPendencias,
+                  visitaEscopo: action.visitaEscopo,
+                  visitaRiscos: action.visitaRiscos,
+                  visitaTarefas: action.visitaTarefas,
+                  visitaAnotacaoRascunho: action.visitaAnotacaoRascunho,
+                  visitaDiarioRascunho: action.visitaDiarioRascunho,
+                  projetoId: effectiveProjetoId!,
+                  ...evidencia,
+                })
             : action.tipo === "tarefa"
               ? await executarAcaoLia({
                   tipo: "tarefa",
@@ -713,12 +813,23 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
               ? "Feito. Compromisso criado na Agenda."
               : action.tipo === "visita_tecnica"
                 ? "Feito. Visita técnica registrada na linha do tempo."
-                : action.tipo === "tarefa"
-                  ? "Feito. Tarefa criada com badge IA."
-                  : action.tipo === "nova_oportunidade"
-                    ? "Cliente e oportunidade criados. Acesse a oportunidade para continuar."
-                    : "Feito. Atividade registrada.";
-          addLiaNote(doneMessage);
+                : action.tipo === "leitura_visita"
+                  ? `Feito. Criei a anotação rascunho, o diário rascunho e ${result.tarefasCriadas ?? 0} tarefa(s). Abra Anotações e Diário neste projeto para revisar.`
+                  : action.tipo === "tarefa"
+                    ? "Feito. Tarefa criada com badge IA."
+                    : action.tipo === "nova_oportunidade"
+                      ? "Cliente e oportunidade criados. Acesse a oportunidade para continuar."
+                      : "Feito. Atividade registrada.";
+          addLiaNote(
+            doneMessage,
+            action.tipo === "leitura_visita"
+              ? [
+                  { label: "Abrir projeto", href: `/dashboard/projetos/${effectiveProjetoId}` },
+                  { label: "Ver tarefas", href: "/dashboard/tarefas" },
+                  { label: "Ver diário", href: "/dashboard/diario" },
+                ]
+              : undefined,
+          );
         } else {
           addLiaNote(result.erro ?? "Não consegui executar essa ação.");
         }
@@ -825,13 +936,16 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                 <div className="lia-quick-replies">
                   {message.quickReplies.map((reply) => (
                     <button
-                      key={reply}
+                      key={reply.label}
                       type="button"
                       className="lia-quick-reply-btn"
                       disabled={isLoading}
-                      onClick={() => void sendMessage(reply)}
+                      onClick={() => {
+                        if (reply.href) router.push(reply.href);
+                        else void sendMessage(reply.label);
+                      }}
                     >
-                      {reply}
+                      {reply.label}
                     </button>
                   ))}
                 </div>
@@ -850,9 +964,33 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                           ? "Tarefa sugerida"
                           : action.tipo === "nova_oportunidade"
                             ? "NOVA OPORTUNIDADE"
-                            : "Atividade sugerida"}
+                            : action.tipo === "leitura_visita"
+                              ? "LEITURA DE VISITA"
+                              : "Atividade sugerida"}
                   </div>
-                  {action.tipo === "nova_oportunidade" ? (
+                  {action.tipo === "leitura_visita" ? (
+                    <div className="lia-action-card-body" style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
+                      <div style={{ fontWeight: 700, color: "var(--clr-text)", marginBottom: 4 }}>
+                        {action.titulo}
+                      </div>
+                      {joinActionMeta([action.visitaData, action.visitaHorario, action.visitaParticipantes, action.visitaLocal]) && (
+                        <div style={{ fontSize: 12, color: "var(--clr-text-muted)", marginBottom: 8 }}>
+                          {joinActionMeta([action.visitaData, action.visitaHorario, action.visitaParticipantes, action.visitaLocal])}
+                        </div>
+                      )}
+                      {action.descricao && (
+                        <div style={{ color: "var(--clr-text-muted)", lineHeight: 1.45 }}>
+                          {action.descricao}
+                        </div>
+                      )}
+                      <VisitListSection title="Fatos confirmados" items={splitActionList(action.visitaFatos)} />
+                      <VisitListSection title="Premissas" items={splitActionList(action.visitaPremissas)} />
+                      <VisitListSection title="Pendências" items={splitActionList(action.visitaPendencias)} />
+                      <VisitScopePills items={splitActionList(action.visitaEscopo)} />
+                      <VisitListSection title="Tarefas sugeridas" items={splitActionList(action.visitaTarefas)} />
+                      <VisitListSection title="Riscos" items={splitActionList(action.visitaRiscos)} />
+                    </div>
+                  ) : action.tipo === "nova_oportunidade" ? (
                     <div className="lia-action-card-body" style={{ fontSize: "0.85rem", marginTop: "0.5rem", color: "var(--text-secondary)" }}>
                       <p style={{ margin: "0 0 0.25rem" }}><strong>Cliente:</strong> {action.clienteNome}{action.clienteTelefone ? ` · ${action.clienteTelefone}` : ""}</p>
                       {action.clienteCpfCnpj && <p style={{ margin: "0 0 0.25rem" }}><strong>CPF/CNPJ:</strong> {action.clienteCpfCnpj}</p>}
@@ -881,8 +1019,18 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                       disabled={action.status !== "pending" || isPending}
                       onClick={() => confirmarAcao(message.id, action)}
                     >
-                      Confirmar
+                      {action.tipo === "leitura_visita" ? "Criar Anotação + Diário + Tarefas" : "Confirmar"}
                     </button>
+                    {action.tipo === "leitura_visita" && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        disabled={action.status !== "pending" || isPending}
+                        onClick={() => addLiaNote("Edite respondendo com os ajustes da leitura de visita. Eu gero um novo card antes de salvar.")}
+                      >
+                        Editar
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
