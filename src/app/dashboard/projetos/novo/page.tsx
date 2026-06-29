@@ -49,7 +49,7 @@ export default async function NovaOportunidade({
     clienteRua?: string; clienteNumero?: string; clienteComplemento?: string;
     clienteBairro?: string; clienteCidade?: string; clienteEstado?: string;
     clienteObservacoes?: string; pendencias?: string;
-    tarefas?: string; semDestino?: string;
+    semDestino?: string;
   }>;
 }) {
   const session = await auth();
@@ -68,7 +68,7 @@ export default async function NovaOportunidade({
     clienteRua: aClienteRua, clienteNumero: aClienteNumero, clienteComplemento: aClienteComplemento,
     clienteBairro: aClienteBairro, clienteCidade: aClienteCidade, clienteEstado: aClienteEstado,
     clienteObservacoes: aClienteObservacoes, pendencias: aPendencias,
-    tarefas: aTarefas, semDestino: aSemDestino,
+    semDestino: aSemDestino,
   } = await searchParams;
 
   const isObra = defaultStage === "obra";
@@ -146,7 +146,6 @@ export default async function NovaOportunidade({
           agenteFilled={agenteFilled}
           erro={erro}
           pendencias={aPendencias}
-          tarefas={aTarefas}
           semDestino={aSemDestino}
         />
       )}
@@ -155,9 +154,6 @@ export default async function NovaOportunidade({
       <form action={criarProjeto}>
         <input type="hidden" name="stage" value={defaultStage ?? "oportunidade"} />
         {statusInicial && <input type="hidden" name="statusInicial" value={statusInicial} />}
-        {agenteFilled === "1" && aTarefas && (
-          <input type="hidden" name="tarefasSugeridas" value={aTarefas} />
-        )}
         {agenteFilled === "1" && aPendencias && (
           <input type="hidden" name="pendenciasAgente" value={aPendencias} />
         )}

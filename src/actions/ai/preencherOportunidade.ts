@@ -19,11 +19,11 @@ Regras obrigatórias:
 - prioridade: use apenas baixa | media | alta | urgente — ou string vazia. Urgente se houver prazo imediato.
 - statusInicial: use apenas novo | fila_espera | em_andamento | proposta_enviada | em_negociacao | ganho | perdido — normalmente use "novo". Se houver visita a agendar ou visita agendada, ainda use "novo", pois no EVIS esse status aparece como Agendar Visita.
 - dataInicioEstimada: use formato YYYY-MM-DD. Se houver data sem ano, assuma 2026.
-- pendencias: liste em português o que faltou na entrada e precisa ser confirmado pelo usuário antes de salvar. Ex: "Endereço da obra não mencionado", "Prazo não definido".
-- tarefasSugeridas: liste ações operacionais percebidas, sem executar. Ex: "Confirmar visita com Ricardo", "Solicitar projeto executivo".
+- pendencias: liste em português apenas o que faltou para cadastrar a oportunidade/lead antes de salvar. Ex: "Endereço da obra não mencionado", "Telefone do cliente não mencionado".
+- tarefasSugeridas: nesta etapa, retorne sempre array vazio. A criação de oportunidade não gera plano operacional, RDI, Otto, relatório ou tarefas profundas. As próximas tarefas só são sugeridas depois que a oportunidade for criada e o usuário escolher esse caminho no Copiloto.
 - itensSemDestino: liste informações detectadas que ainda não têm módulo estruturado. Ex: "Documentos de projeto para futura aba Arquivos".
-- titulo: nome curto e objetivo para identificar a oportunidade. Ex: "Reforma Apartamento — Pedro", "Construção Residência Silva".
-- descricao: narrativa completa preservando o contexto original. Pode ser longa.
+- titulo: deve identificar a obra/local, nao o servico. Padrao preferencial: "Nome da obra, cliente ou estabelecimento | Local". Para restaurante, loja ou ponto comercial, use "Restaurante/Loja + nome principal | shopping/local/bairro". Nao inclua termos de demanda como regularizacao, documentacao, ART, cronograma, reforma ou execucao no titulo quando houver estabelecimento e local. Ex: "Restaurante Badida | Shopping Barigui", "Loja Sucao | Shopping Estacao", "Apartamento Pedro | Agua Verde".
+- descricao: narrativa inicial da oportunidade, preservando o contexto original como descrição. Se houver informações operacionais além do cadastro, use apenas como descrição inicial; não transforme em plano de execução.
 - Endereço: se o texto trouxer endereço completo, separe em cep, logradouro, número, complemento, bairro, cidade e estado quando possível.
 - clienteNome, clienteTelefone e demais campos cliente* alimentam o cadastro completo do Cliente/Lead dentro da oportunidade.
 - Se o endereço do cliente e o endereço da obra parecerem o mesmo, repita os dados nos campos de endereço da obra e nos campos clienteCep/clienteRua/clienteNumero/clienteComplemento/clienteBairro/clienteCidade/clienteEstado.
@@ -298,7 +298,6 @@ export async function preencherOportunidadeComAgente(formData: FormData) {
     setIf(p, "clienteEstado", data.clienteEstado);
     setIf(p, "clienteObservacoes", data.clienteObservacoes?.slice(0, 800));
     if (data.pendencias?.length > 0) p.set("pendencias", data.pendencias.join(" · "));
-    if (data.tarefasSugeridas?.length > 0) p.set("tarefas", data.tarefasSugeridas.join(" · "));
     if (data.itensSemDestino?.length > 0) p.set("semDestino", data.itensSemDestino.join(" · "));
 
     redirectTo = `/dashboard/projetos/novo?${p.toString()}`;

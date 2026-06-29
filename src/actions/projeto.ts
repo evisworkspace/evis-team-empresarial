@@ -7,33 +7,6 @@ import { createProjeto, listProjetosByEmpresa, updateProjeto, softDeleteProjeto 
 import { createCliente, updateCliente } from "@/data/cliente";
 import { createAuditEntry } from "@/lib/audit";
 import { createAtividade, editAtividade, deleteAtividade } from "@/data/projetoAtividade";
-import { createTarefa } from "@/data/tarefa";
-
-function extrairDataPrevistaTarefa(texto: string) {
-  const dataHoraMatch = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+(?:às\s+|as\s+)?(\d{1,2}):(\d{2})/i);
-  if (!dataHoraMatch) return undefined;
-
-  const [, diaRaw, mesRaw, anoRaw, horaRaw, minutoRaw] = dataHoraMatch;
-  const dia = Number(diaRaw);
-  const mes = Number(mesRaw);
-  const hora = Number(horaRaw);
-  const minuto = Number(minutoRaw);
-  const ano = anoRaw
-    ? Number(anoRaw.length === 2 ? `20${anoRaw}` : anoRaw)
-    : new Date().getFullYear();
-
-  const data = new Date(ano, mes - 1, dia, hora, minuto);
-  if (
-    Number.isNaN(data.getTime()) ||
-    data.getFullYear() !== ano ||
-    data.getMonth() !== mes - 1 ||
-    data.getDate() !== dia
-  ) {
-    return undefined;
-  }
-
-  return data;
-}
 
 export async function criarProjeto(formData: FormData) {
   const session = await auth();
@@ -156,41 +129,6 @@ export async function criarProjeto(formData: FormData) {
     entidadeId: projeto.id,
     conteudoPersistido: { titulo, stage, clienteId },
   });
-
-  if (stage === "oportunidade") {
-    await Promise.all([
-      createTarefa(empresaId, {
-        projetoId: projeto.id,
-        descricao: "Agendar reunião ou visita com o cliente",
-        origem: "sugerida_ia",
-      }),
-      createTarefa(empresaId, {
-        projetoId: projeto.id,
-        descricao: "Analisar documentação recebida e definir próximo passo",
-        origem: "sugerida_ia",
-      }),
-    ]);
-
-    const tarefasSugeridasRaw = (formData.get("tarefasSugeridas") as string | null)?.trim();
-    if (tarefasSugeridasRaw) {
-      const tarefasSugeridas = tarefasSugeridasRaw
-        .split(" · ")
-        .map((tarefa) => tarefa.trim())
-        .filter(Boolean);
-
-      await Promise.all(
-        tarefasSugeridas.map((descricao) =>
-          createTarefa(empresaId, {
-            projetoId: projeto.id,
-            descricao,
-            dataPrevista: extrairDataPrevistaTarefa(descricao),
-            status: "aberta",
-            origem: "sugerida_ia",
-          }),
-        ),
-      );
-    }
-  }
 
   if (stage === "oportunidade") {
     redirect(`/dashboard/projetos/${projeto.id}?lia=1`);

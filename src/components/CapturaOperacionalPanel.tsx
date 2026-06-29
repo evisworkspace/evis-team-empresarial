@@ -15,12 +15,11 @@ interface Props {
   agenteFilled?: string;
   erro?: string;
   pendencias?: string;
-  tarefas?: string;
   semDestino?: string;
 }
 
 export default function CapturaOperacionalPanel({
-  action, extraFields, description, agenteFilled, erro, pendencias, tarefas, semDestino,
+  action, extraFields, description, agenteFilled, erro, pendencias, semDestino,
 }: Props) {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -89,11 +88,6 @@ export default function CapturaOperacionalPanel({
           {pendencias && (
             <div style={{ marginTop: 6, color: "#854d0e", fontWeight: 500 }}>
               Pendências: {pendencias}
-            </div>
-          )}
-          {tarefas && (
-            <div style={{ marginTop: 6, color: "#14532d", fontWeight: 500 }}>
-              Ações sugeridas: {tarefas}
             </div>
           )}
           {semDestino && (

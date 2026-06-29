@@ -266,21 +266,57 @@ function joinActionMeta(items: Array<string | undefined>) {
   return items.filter((item): item is string => Boolean(item && item.trim())).join(" · ");
 }
 
+function newLeadNavigationMessage() {
+  return [
+    "Abri a página Nova oportunidade.",
+    "",
+    "Você pode seguir de dois jeitos: preencher os campos manualmente ou usar a Captura Operacional com IA.",
+    "",
+    "Se quiser usar IA, cole a conversa ou relato no bloco Captura Operacional e clique em Preencher campos com agente. Eu preparo os campos, mas nada é salvo antes da sua revisão.",
+  ].join("\n");
+}
+
+function opportunityCreatedMessage(context: LiaContext) {
+  const title = context.projetoTitulo ?? "esta oportunidade";
+  return [
+    `Oportunidade criada: ${title}.`,
+    "",
+    "Estou agora com o contexto desta oportunidade aberto.",
+    "",
+    "Como você quer conduzir os próximos passos?",
+    "",
+    "1. Montar manualmente as próximas tarefas",
+    "Você acessa a aba Tarefas e cria o que quiser, sem sugestão minha.",
+    "",
+    "2. Receber sugestões de tarefas",
+    "Eu proponho as próximas tarefas com base na semântica de oportunidade do EVIS. Você revisa, aceita, edita ou ignora.",
+    "",
+    "3. Enviar a narrativa de contextualização da obra",
+    "Você me passa sua análise como se estivesse explicando a demanda para sua equipe. Eu direciono para o RDI - Diário de Gestão Interna, onde o agente analisa o contexto e transforma em registros, tarefas, atividades e anotações.",
+  ].join("\n");
+}
+
 function initialMessage(context: LiaContext, source: "autoOpportunity" | "manual"): LiaMessage {
   const content = source === "autoOpportunity"
-    ? "Oportunidade criada. Escreva aqui para registrar os próximos passos, uma tarefa ou uma visita."
+    ? opportunityCreatedMessage(context)
     : context.projetoId
       ? "Pronto. Escreva sua solicitação para este projeto."
       : "Olá. Como posso ajudar?";
 
   const quickReplies: Array<{ label: string; href?: string }> | undefined =
-    !context.projetoId && source === "manual"
+    source === "autoOpportunity"
       ? [
-          { label: "Ver minha agenda", href: "/dashboard/agenda" },
-          { label: "Ver tarefas abertas", href: "/dashboard/tarefas" },
-          { label: "Novo lead", href: "/dashboard/projetos/novo?stage=oportunidade" },
+          { label: "Tarefas manuais" },
+          { label: "Sugerir tarefas" },
+          { label: "Enviar narrativa ao RDI" },
         ]
-      : undefined;
+      : !context.projetoId && source === "manual"
+        ? [
+            { label: "Ver minha agenda", href: "/dashboard/agenda" },
+            { label: "Ver tarefas abertas", href: "/dashboard/tarefas" },
+            { label: "Novo lead", href: "/dashboard/projetos/novo?stage=oportunidade" },
+          ]
+        : undefined;
 
   return {
     id: makeId("lia"),
@@ -385,10 +421,17 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     queueMicrotask(() => {
       if (shouldOpen && autoOpenedRef.current !== autoOpenKey) {
         autoOpenedRef.current = autoOpenKey;
+        const fromWindow = readContextFromWindow();
+        const nextContext = {
+          ...context,
+          projetoId: projetoIdProp ?? fromWindow.projetoId,
+          projetoTitulo: fromWindow.projetoTitulo ?? context.projetoTitulo,
+          stage: fromWindow.stage ?? context.stage,
+          pathname: fromWindow.pathname,
+        };
+        setContext(nextContext);
         setIsOpen(true);
-        if (!projetoIdProp) {
-          setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(context, "autoOpportunity")]));
-        }
+        setMessages((prev) => (prev.length > 0 ? prev : [initialMessage(nextContext, "autoOpportunity")]));
       }
     });
   }, [pathname, mode, projetoIdProp, context]);
@@ -673,6 +716,36 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     ]);
   }
 
+  function handleQuickReply(reply: { label: string; href?: string }) {
+    if (reply.label === "Novo lead" && reply.href) {
+      addLiaNote(newLeadNavigationMessage());
+      router.push(reply.href);
+      return;
+    }
+
+    if (reply.label === "Tarefas manuais") {
+      addLiaNote("Certo. Use a aba Tarefas desta oportunidade para criar manualmente as próximas ações. Não vou criar nenhuma sugestão automática.");
+      return;
+    }
+
+    if (reply.label === "Sugerir tarefas") {
+      void sendMessage("Sugira os próximos caminhos e tarefas desta oportunidade seguindo a semântica de oportunidades do EVIS. Não crie nada automaticamente; entregue sugestões para eu revisar.");
+      return;
+    }
+
+    if (reply.label === "Enviar narrativa ao RDI") {
+      addLiaNote("Certo. Envie aqui a narrativa de contextualização da oportunidade. Trate como uma explicação para a equipe: o que foi entendido, o que ficou pendente, limites da atuação, próximos passos e documentos citados. Eu vou analisar como RDI - Diário de Gestão Interna e separar em registros, tarefas, atividades e anotações para sua revisão.");
+      return;
+    }
+
+    if (reply.href) {
+      router.push(reply.href);
+      return;
+    }
+
+    void sendMessage(reply.label);
+  }
+
   function limparChat() {
     setMessages([]);
     try { localStorage.removeItem(HISTORY_KEY); } catch {}
@@ -940,10 +1013,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                       type="button"
                       className="lia-quick-reply-btn"
                       disabled={isLoading}
-                      onClick={() => {
-                        if (reply.href) router.push(reply.href);
-                        else void sendMessage(reply.label);
-                      }}
+                      onClick={() => handleQuickReply(reply)}
                     >
                       {reply.label}
                     </button>
