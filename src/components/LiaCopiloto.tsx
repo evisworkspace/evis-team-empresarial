@@ -3,10 +3,11 @@
 import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { executarAcaoLia } from "@/actions/ai/executarAcaoLia";
+import RdiPanel from "@/components/obra/RdiPanel";
 
 type LiaAction = {
   id: string;
-  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade" | "nova_oportunidade" | "leitura_visita";
+  tipo: "tarefa" | "agenda" | "visita_tecnica" | "atividade" | "nova_oportunidade" | "leitura_visita" | "abrir_rdi";
   titulo?: string;
   descricao: string;
   dataPrevista?: string;
@@ -155,12 +156,13 @@ function parseActionsFromText(raw: string): { text: string; actions: LiaAction[]
   const text = raw.replace(ACTION_RE, (_, json) => {
     try {
       const parsed = JSON.parse(json) as Partial<LiaAction>;
-      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade", "nova_oportunidade", "leitura_visita"];
+      const tiposValidos = ["tarefa", "agenda", "visita_tecnica", "atividade", "nova_oportunidade", "leitura_visita", "abrir_rdi"];
       const isNovaOportunidade = parsed.tipo === "nova_oportunidade";
       const isLeituraVisita = parsed.tipo === "leitura_visita";
+      const isAbrirRdi = parsed.tipo === "abrir_rdi";
       const hasRequiredField = isNovaOportunidade
         ? typeof parsed.clienteNome === "string" && parsed.clienteNome.trim().length > 0
-        : isLeituraVisita
+        : isLeituraVisita || isAbrirRdi
           ? typeof parsed.titulo === "string" && parsed.titulo.trim().length > 0
           : typeof parsed.descricao === "string" && parsed.descricao.trim().length > 0;
       if (typeof parsed.tipo === "string" && tiposValidos.includes(parsed.tipo) && hasRequiredField) {
@@ -388,6 +390,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     codigoSequencial: null,
   });
   const [isPending, startTransition] = useTransition();
+  const [showRdi, setShowRdi] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -739,7 +742,12 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     }
 
     if (reply.label === "Enviar narrativa ao RDI") {
-      addLiaNote("Certo. Envie aqui a narrativa de contextualização da oportunidade. Trate como uma explicação para a equipe: o que foi entendido, o que ficou pendente, limites da atuação, próximos passos e documentos citados. Eu vou analisar como RDI - Diário de Gestão Interna e separar em registros, tarefas, atividades e anotações para sua revisão.");
+      const effectiveProjetoId = projetoIdProp ?? context.projetoId;
+      if (!effectiveProjetoId) {
+        addLiaNote("Para usar o RDI é preciso ter um projeto aberto.");
+        return;
+      }
+      setShowRdi(true);
       return;
     }
 
@@ -781,6 +789,16 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
   function confirmarAcao(messageId: string, action: LiaAction) {
     // Em modo contextual, projetoIdProp é sempre a fonte correta (URL) — context pode estar desatualizado
     const effectiveProjetoId = projetoIdProp ?? context.projetoId ?? null;
+
+    if (action.tipo === "abrir_rdi") {
+      updateActionStatus(messageId, action.id, "confirmed");
+      if (!effectiveProjetoId) {
+        addLiaNote("Para usar o RDI é preciso ter um projeto aberto.");
+        return;
+      }
+      setShowRdi(true);
+      return;
+    }
 
     if (action.tipo === "agenda" && !action.dataPrevista) {
       addLiaNote("Para criar um item de agenda preciso da data e hora. Quando será esse compromisso?");
@@ -1048,7 +1066,9 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                             ? "NOVA OPORTUNIDADE"
                             : action.tipo === "leitura_visita"
                               ? "LEITURA DE VISITA"
-                              : "Atividade sugerida"}
+                              : action.tipo === "abrir_rdi"
+                                ? "RDI — GESTÃO INTERNA"
+                                : "Atividade sugerida"}
                   </div>
                   {action.tipo === "leitura_visita" ? (
                     <div className="lia-action-card-body" style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}>
@@ -1101,7 +1121,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
                       disabled={action.status !== "pending" || isPending}
                       onClick={() => confirmarAcao(message.id, action)}
                     >
-                      {action.tipo === "leitura_visita" ? "Criar Anotação + Diário + Tarefas" : "Confirmar"}
+                      {action.tipo === "leitura_visita" ? "Criar Anotação + Diário + Tarefas" : action.tipo === "abrir_rdi" ? "Abrir RDI" : "Confirmar"}
                     </button>
                     {action.tipo === "leitura_visita" && (
                       <button
@@ -1129,6 +1149,13 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
 
           {streamingText && <div className="lia-msg lia-msg--lia">{streamingText}</div>}
           {isLoading && !streamingText && <div className="lia-typing">Lia está digitando...</div>}
+          {showRdi && (projetoIdProp ?? context.projetoId) && (
+            <RdiPanel
+              projetoId={projetoIdProp ?? context.projetoId!}
+              projetoTitulo={context.projetoTitulo ?? ""}
+              onClose={() => setShowRdi(false)}
+            />
+          )}
           <div ref={messagesEndRef} />
         </div>
 
