@@ -3,7 +3,6 @@
 import { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { executarAcaoLia } from "@/actions/ai/executarAcaoLia";
-import RdiPanel from "@/components/obra/RdiPanel";
 
 type LiaAction = {
   id: string;
@@ -369,7 +368,7 @@ function VisitScopePills({ items }: { items: string[] }) {
 }
 
 export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp }: LiaCopilotoProps) {
-  const HISTORY_KEY = `evis_cache_v1_lia_history_${storageKey}`;
+  const HISTORY_KEY = `evis_cache_v2_lia_history_${storageKey}`;
 
   const pathname = usePathname();
   const router = useRouter();
@@ -390,7 +389,6 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     codigoSequencial: null,
   });
   const [isPending, startTransition] = useTransition();
-  const [showRdi, setShowRdi] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -652,7 +650,21 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
       }
 
       full += decoder.decode();
-      const { text: responseText, actions } = parseActionsFromText(full);
+      const { text: responseText, actions: parsedActions } = parseActionsFromText(full);
+      const hasAbrirRdi = parsedActions.some((action) => action.tipo === "abrir_rdi");
+      const actions = parsedActions.map((action) =>
+        action.tipo === "abrir_rdi" && (projetoIdProp ?? context.projetoId)
+          ? { ...action, status: "confirmed" as const }
+          : action,
+      );
+      if (hasAbrirRdi) {
+        const pid = projetoIdProp ?? context.projetoId;
+        if (pid) {
+          router.push(`/dashboard/projetos/${pid}?rdi=1`);
+        } else {
+          addLiaNote("Para usar o RDI é preciso ter um projeto aberto.");
+        }
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -747,7 +759,7 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         addLiaNote("Para usar o RDI é preciso ter um projeto aberto.");
         return;
       }
-      setShowRdi(true);
+      router.push(`/dashboard/projetos/${effectiveProjetoId}?rdi=1`);
       return;
     }
 
@@ -791,12 +803,12 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     const effectiveProjetoId = projetoIdProp ?? context.projetoId ?? null;
 
     if (action.tipo === "abrir_rdi") {
-      updateActionStatus(messageId, action.id, "confirmed");
       if (!effectiveProjetoId) {
         addLiaNote("Para usar o RDI é preciso ter um projeto aberto.");
         return;
       }
-      setShowRdi(true);
+      updateActionStatus(messageId, action.id, "confirmed");
+      router.push(`/dashboard/projetos/${effectiveProjetoId}?rdi=1`);
       return;
     }
 
@@ -1149,13 +1161,6 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
 
           {streamingText && <div className="lia-msg lia-msg--lia">{streamingText}</div>}
           {isLoading && !streamingText && <div className="lia-typing">Lia está digitando...</div>}
-          {showRdi && (projetoIdProp ?? context.projetoId) && (
-            <RdiPanel
-              projetoId={projetoIdProp ?? context.projetoId!}
-              projetoTitulo={context.projetoTitulo ?? ""}
-              onClose={() => setShowRdi(false)}
-            />
-          )}
           <div ref={messagesEndRef} />
         </div>
 

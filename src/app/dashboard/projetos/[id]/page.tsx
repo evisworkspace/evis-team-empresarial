@@ -25,6 +25,7 @@ import { MedicoesTab } from "@/components/obra/MedicoesTab";
 import { FisicoFinanceiroTab } from "@/components/obra/FisicoFinanceiroTab";
 import { CurvaSTab } from "@/components/obra/CurvaSTab";
 import { DiarioTab } from "@/components/obra/DiarioTab";
+import RdiTab from "@/components/obra/RdiTab";
 import { AgendaTab } from "@/components/agenda/AgendaTab";
 import { salvarPlanejamentoItem } from "@/actions/planejamento";
 import { criarDiario, aprovarItemHITL, rejeitarItemHITL } from "@/actions/diarioObra";
@@ -216,6 +217,7 @@ function OportunidadeView({
   financeiro,
   orcamento,
   financeiroFormLists,
+  openRdi,
   diariosObra,
 }: {
   projeto: ProjetoDetalhes;
@@ -223,6 +225,7 @@ function OportunidadeView({
   financeiro: Financeiro;
   orcamento: OrcamentoProps;
   financeiroFormLists: FinanceiroFormLists;
+  openRdi: boolean;
   diariosObra: React.ComponentProps<typeof DiarioTab>["diarios"];
 }) {
   const isPerdida = projeto.statusInterno === "perdido";
@@ -344,7 +347,8 @@ function OportunidadeView({
 
       {/* Tabs da oportunidade */}
       <div className="obra-tabs">
-        <input type="radio" name="op-tab" id="op-tab-geral" className="obra-tab-radio" defaultChecked />
+        <input type="radio" name="op-tab" id="op-tab-geral" className="obra-tab-radio" defaultChecked={!openRdi} />
+        <input type="radio" name="op-tab" id="op-tab-rdi" className="obra-tab-radio" defaultChecked={openRdi} />
         <input type="radio" name="op-tab" id="op-tab-cliente" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-atividades" className="obra-tab-radio" />
         <input type="radio" name="op-tab" id="op-tab-tarefas" className="obra-tab-radio" />
@@ -359,6 +363,7 @@ function OportunidadeView({
 
         <div className="obra-tabs-nav">
           <label htmlFor="op-tab-geral" className="obra-tab-label">Geral</label>
+          <label htmlFor="op-tab-rdi" className="obra-tab-label">RDI</label>
           <label htmlFor="op-tab-cliente" className="obra-tab-label">Cliente</label>
           <label htmlFor="op-tab-atividades" className="obra-tab-label">
             Atividades{projeto.atividades.length > 0 ? ` (${projeto.atividades.length})` : ""}
@@ -465,6 +470,11 @@ function OportunidadeView({
             </div>
 
 
+          </div>
+
+          {/* ── RDI ───────────────────────────────────────────────── */}
+          <div className="obra-tab-panel op-panel-rdi">
+            <RdiTab projetoId={projeto.id} projetoTitulo={projeto.titulo} />
           </div>
 
           {/* ── Cliente ───────────────────────────────────────────── */}
@@ -895,6 +905,7 @@ function CentralDaObraView({
   financeiroFormLists,
   itensOrcamento,
   medicoes,
+  openRdi,
   diariosObra,
 }: {
   projeto: ProjetoDetalhes;
@@ -904,6 +915,7 @@ function CentralDaObraView({
   financeiroFormLists: FinanceiroFormLists;
   itensOrcamento: React.ComponentProps<typeof PlanejamentoTab>["itens"];
   medicoes: React.ComponentProps<typeof MedicoesTab>["medicoes"];
+  openRdi: boolean;
   diariosObra: React.ComponentProps<typeof DiarioTab>["diarios"];
 }) {
   const now = new Date();
@@ -961,7 +973,8 @@ function CentralDaObraView({
 
       {/* Tabs CSS-only — Lote 10E */}
       <div className="obra-tabs">
-        <input type="radio" name="obra-tab" id="tab-geral" className="obra-tab-radio" defaultChecked />
+        <input type="radio" name="obra-tab" id="tab-geral" className="obra-tab-radio" defaultChecked={!openRdi} />
+        <input type="radio" name="obra-tab" id="tab-rdi" className="obra-tab-radio" defaultChecked={openRdi} />
         <input type="radio" name="obra-tab" id="tab-atividades" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-tarefas" className="obra-tab-radio" />
         <input type="radio" name="obra-tab" id="tab-financeiro" className="obra-tab-radio" />
@@ -976,6 +989,7 @@ function CentralDaObraView({
 
         <div className="obra-tabs-nav">
           <label htmlFor="tab-geral" className="obra-tab-label">Visão Geral</label>
+          <label htmlFor="tab-rdi" className="obra-tab-label">RDI</label>
           <label htmlFor="tab-atividades" className="obra-tab-label">
             Atividades{projeto.atividades.length > 0 ? ` (${projeto.atividades.length})` : ""}
           </label>
@@ -1128,6 +1142,11 @@ function CentralDaObraView({
             </div>
 
 
+          </div>
+
+          {/* RDI */}
+          <div className="obra-tab-panel panel-rdi">
+            <RdiTab projetoId={projeto.id} projetoTitulo={projeto.titulo} />
           </div>
 
           {/* Atividades */}
@@ -1550,10 +1569,12 @@ function CentralDaObraView({
 
 // Page
 
-export default async function ProjetoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjetoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string>> }) {
   const session = await auth();
   const empresaId = getEmpresaId(session!);
   const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const openRdi = sp.rdi === "1";
 
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
@@ -1669,6 +1690,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
         financeiro={financeiro}
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
+        openRdi={openRdi}
         diariosObra={(projeto.diariosObra ?? []).map((d) => ({
           ...d,
           itensHITL: d.itensHITL.map((i) => ({
@@ -1690,6 +1712,7 @@ export default async function ProjetoPage({ params }: { params: Promise<{ id: st
       financeiroFormLists={financeiroFormLists}
       itensOrcamento={itensOrcamento}
       medicoes={medicoesFormatadas}
+      openRdi={openRdi}
       diariosObra={(projeto.diariosObra ?? []).map((d) => ({
         ...d,
         itensHITL: d.itensHITL.map((i) => ({

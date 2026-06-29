@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { CSSProperties } from "react";
 import { processarRdi, type RdiOutput } from "@/actions/ai/processarRdi";
 import { confirmarRdi } from "@/actions/ai/confirmarRdi";
 
 interface RdiPanelProps {
   projetoId: string;
   projetoTitulo: string;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 type RdiState = "input" | "loading" | "review" | "saving" | "success";
@@ -53,7 +54,7 @@ const sectionLabel: React.CSSProperties = {
   marginBottom: 4,
 };
 
-const inputBase: React.CSSProperties = {
+const inputBase: CSSProperties = {
   display: "block",
   width: "100%",
   padding: "4px 8px",
@@ -66,18 +67,38 @@ const inputBase: React.CSSProperties = {
 };
 
 function ListEditor({ title, items, onChange }: { title: string; items: string[]; onChange: (items: string[]) => void }) {
-  if (items.length === 0) return null;
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={sectionLabel}>{title}</div>
-      {items.map((item, i) => (
-        <input
-          key={i}
-          value={item}
-          onChange={e => { const next = [...items]; next[i] = e.target.value; onChange(next); }}
-          style={{ ...inputBase, marginBottom: 3 }}
-        />
-      ))}
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--clr-text-muted)", marginBottom: 5 }}>Sem itens identificados.</div>
+      ) : (
+        items.map((item, i) => (
+          <div key={`${title}-${i}`} style={{ display: "flex", gap: 6, marginBottom: 3 }}>
+            <input
+              value={item}
+              onChange={e => { const next = [...items]; next[i] = e.target.value; onChange(next); }}
+              style={inputBase}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => onChange(items.filter((_, index) => index !== i))}
+              aria-label={`Remover item de ${title}`}
+              style={{ flexShrink: 0 }}
+            >
+              Remover
+            </button>
+          </div>
+        ))
+      )}
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        onClick={() => onChange([...items, ""])}
+      >
+        Adicionar item
+      </button>
     </div>
   );
 }
@@ -87,7 +108,7 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
   const [narrativa, setNarrativa] = useState("");
   const [draft, setDraft] = useState<RdiDraft | null>(null);
   const [error, setError] = useState("");
-  const [successInfo, setSuccessInfo] = useState<{ tarefasCriadas: number } | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ anotacaoId: string; diarioId: string; tarefasCriadas: number } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const isWorking = isPending || state === "loading" || state === "saving";
@@ -100,7 +121,7 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
     setError("");
     setState("loading");
     startTransition(async () => {
-      const result = await processarRdi(narrativa);
+      const result = await processarRdi({ narrativa, projetoId });
       if (!result.ok) {
         setError(result.error);
         setState("input");
@@ -129,7 +150,11 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
         setState("review");
         return;
       }
-      setSuccessInfo({ tarefasCriadas: result.tarefasCriadas });
+      setSuccessInfo({
+        anotacaoId: result.anotacaoId,
+        diarioId: result.diarioId,
+        tarefasCriadas: result.tarefasCriadas,
+      });
       setState("success");
     });
   }
@@ -167,7 +192,7 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
           <div style={{ fontWeight: 700, fontSize: 12, color: "var(--clr-text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             RDI — Diário de Gestão Interna
           </div>
-          <button type="button" style={closeBtn} onClick={onClose} aria-label="Fechar RDI">×</button>
+          {onClose && <button type="button" style={closeBtn} onClick={onClose} aria-label="Fechar RDI">×</button>}
         </div>
         <div style={{ fontSize: 12, color: "var(--clr-text-muted)", marginBottom: 8, lineHeight: 1.45 }}>
           {projetoTitulo} — descreva o contexto em texto livre: o que foi entendido, o que ficou pendente, próximos passos, documentos citados.
@@ -185,7 +210,7 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
           <button type="button" className="btn btn-primary btn-sm" disabled={isWorking} onClick={handleAnalisar}>
             {isWorking ? "Analisando..." : "Analisar"}
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancelar</button>
+          {onClose && <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancelar</button>}
         </div>
       </div>
     );
@@ -198,7 +223,7 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
           <div style={{ fontWeight: 700, fontSize: 12, color: "var(--clr-text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             RDI — Revisão
           </div>
-          <button type="button" style={closeBtn} onClick={onClose} aria-label="Fechar RDI">×</button>
+          {onClose && <button type="button" style={closeBtn} onClick={onClose} aria-label="Fechar RDI">×</button>}
         </div>
 
         <div style={{ marginBottom: 10 }}>
@@ -309,7 +334,7 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
           >
             Voltar
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={onClose}>Cancelar</button>
+          {onClose && <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={onClose}>Cancelar</button>}
         </div>
       </div>
     );
@@ -323,10 +348,21 @@ export default function RdiPanel({ projetoId, projetoTitulo, onClose }: RdiPanel
           Anotação e entrada no Diário criadas.
           {successInfo.tarefasCriadas > 0
             ? ` ${successInfo.tarefasCriadas} tarefa(s) sugerida(s) criada(s).`
-            : ""}
+          : ""}
           {" "}Confira nas abas Anotações e Diário deste projeto.
         </div>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Fechar</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a className="btn btn-secondary btn-sm" href={`/dashboard/projetos/${projetoId}`}>
+            Abrir projeto
+          </a>
+          <a className="btn btn-secondary btn-sm" href="/dashboard/diario">
+            Ver diário
+          </a>
+          <a className="btn btn-secondary btn-sm" href="/dashboard/tarefas">
+            Ver tarefas
+          </a>
+          {onClose && <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Fechar</button>}
+        </div>
       </div>
     );
   }

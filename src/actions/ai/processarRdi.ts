@@ -1,7 +1,10 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { withGeminiKeyRotation } from "@/lib/gemini";
+import { getEmpresaId } from "@/lib/tenant";
 
 export interface RdiOutput {
   titulo: string;
@@ -20,6 +23,11 @@ export interface RdiOutput {
 export type ProcessarRdiResult =
   | { ok: true; data: RdiOutput }
   | { ok: false; error: string };
+
+export interface ProcessarRdiInput {
+  narrativa: string;
+  projetoId: string;
+}
 
 const SYSTEM_PROMPT = `Você é um analisador semântico de narrativas operacionais para obras e oportunidades de construção civil.
 
@@ -64,17 +72,45 @@ const RESPONSE_SCHEMA = {
   ],
 };
 
-export async function processarRdi(narrativa: string): Promise<ProcessarRdiResult> {
+export async function processarRdi(input: ProcessarRdiInput): Promise<ProcessarRdiResult> {
+  const narrativa = input.narrativa?.trim() ?? "";
+  const projetoId = input.projetoId?.trim() ?? "";
+
   if (!narrativa?.trim() || narrativa.trim().length < 20) {
     return { ok: false, error: "Narrativa muito curta. Descreva o contexto com mais detalhes." };
   }
+  if (!projetoId) {
+    return { ok: false, error: "Projeto não identificado. Abra um projeto antes de usar o RDI." };
+  }
 
   try {
+    const session = await auth();
+    const empresaId = getEmpresaId(session);
+    const projeto = await prisma.projeto.findFirst({
+      where: { id: projetoId, empresaId, deletedAt: null },
+      select: { id: true, titulo: true, stage: true },
+    });
+
+    if (!projeto) {
+      return { ok: false, error: "Projeto não encontrado para esta empresa." };
+    }
+
     const response = await withGeminiKeyRotation(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey });
       return ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: "user", parts: [{ text: `Narrativa operacional:\n${narrativa.trim()}` }] }],
+        model: "gemini-2.5-flash",
+        contents: [{
+          role: "user",
+          parts: [{
+            text: [
+              `Projeto: ${projeto.titulo}`,
+              `Stage: ${projeto.stage}`,
+              "",
+              "Narrativa operacional:",
+              narrativa,
+            ].join("\n"),
+          }],
+        }],
         config: {
           systemInstruction: SYSTEM_PROMPT,
           responseMimeType: "application/json",
@@ -86,11 +122,25 @@ export async function processarRdi(narrativa: string): Promise<ProcessarRdiResul
     const raw = response.text?.trim();
     if (!raw) throw new Error("Gemini retornou resposta vazia.");
 
-    const data = JSON.parse(raw) as RdiOutput;
+    const parsed = JSON.parse(raw) as Partial<RdiOutput>;
+    const data: RdiOutput = {
+      titulo: parsed.titulo?.trim() || "RDI - Diario de Gestao Interna",
+      resumo: parsed.resumo?.trim() || "",
+      fatos: Array.isArray(parsed.fatos) ? parsed.fatos.filter(Boolean) : [],
+      premissas: Array.isArray(parsed.premissas) ? parsed.premissas.filter(Boolean) : [],
+      pendencias: Array.isArray(parsed.pendencias) ? parsed.pendencias.filter(Boolean) : [],
+      escopo: Array.isArray(parsed.escopo) ? parsed.escopo.filter(Boolean) : [],
+      riscos: Array.isArray(parsed.riscos) ? parsed.riscos.filter(Boolean) : [],
+      proximosPassos: Array.isArray(parsed.proximosPassos) ? parsed.proximosPassos.filter(Boolean) : [],
+      tarefasSugeridas: Array.isArray(parsed.tarefasSugeridas) ? parsed.tarefasSugeridas.filter(Boolean) : [],
+      anotacaoRascunho: parsed.anotacaoRascunho?.trim() || narrativa,
+      diarioRascunho: parsed.diarioRascunho?.trim() || parsed.resumo?.trim() || narrativa.slice(0, 500),
+    };
+
     return { ok: true, data };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro ao processar narrativa.";
     console.error("[processarRdi]", message);
-    return { ok: false, error: "Não consegui processar a narrativa. Tente novamente." };
+    return { ok: false, error: `Erro ao processar: ${message}` };
   }
 }
