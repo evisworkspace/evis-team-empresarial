@@ -20,20 +20,11 @@ function MoonIcon() {
   );
 }
 
-function MonitorIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" />
-      <path d="M8 21h8M12 17v4" />
-    </svg>
-  );
-}
 
-const THEMES = ["system", "light", "dark"] as const;
+const THEMES = ["light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
 
 const LABELS: Record<Theme, string> = {
-  system: "Sistema",
   light: "Claro",
   dark: "Escuro",
 };
@@ -46,7 +37,7 @@ export function ThemeSwitcher() {
 
   if (!mounted) return <div style={{ width: 32, height: 32 }} />;
 
-  const current = (theme as Theme) ?? "system";
+  const current: Theme = theme === "dark" ? "dark" : "light";
 
   function cycle() {
     const idx = THEMES.indexOf(current);
@@ -72,9 +63,7 @@ export function ThemeSwitcher() {
         flexShrink: 0,
       }}
     >
-      {current === "light" && <SunIcon />}
-      {current === "dark" && <MoonIcon />}
-      {current === "system" && <MonitorIcon />}
+      {current === "light" ? <SunIcon /> : <MoonIcon />}
     </button>
   );
 }
