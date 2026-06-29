@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { MenuIcon } from "@/components/Icons";
 import LiaCopiloto from "@/components/LiaCopiloto";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -51,6 +52,7 @@ export function DashboardShell({ children, userName, companyName }: DashboardShe
             <span className="topbar-title">{companyName}</span>
           </div>
           <div className="topbar-right">
+            <ThemeSwitcher />
             <span className="env-badge env-badge--dev">
               <span className="env-badge--dot" />
               Dev
