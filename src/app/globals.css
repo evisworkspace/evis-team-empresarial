@@ -1595,25 +1595,27 @@ table.evis-table {
 
 .obra-tab-panel { display: none; }
 
-/* Ordem: Geral(1) · Atividades(2) · Tarefas(3) · Financeiro(4) · Histórico(5) · Orçamento(6) · Planejamento(7) · Compras(8) · Anotações(9) · Diário(10) · Agenda(11) · Agentes(12) */
+/* Ordem: Geral(1) · RDI(2) · Atividades(3) · Tarefas(4) · Financeiro(5) · Histórico(6) · Orçamento(7) · Planejamento(8) · Compras(9) · Anotações(10) · Diário(11) · Agenda(12) · Agentes(13) */
 #tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
-#tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
-#tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
-#tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(4),
-#tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
-#tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
-#tab-planejamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
-#tab-compras:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
-#tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
-#tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10),
-#tab-agenda:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(11),
-#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(12) {
+#tab-rdi:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
+#tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
+#tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(4),
+#tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
+#tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
+#tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
+#tab-planejamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
+#tab-compras:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
+#tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10),
+#tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(11),
+#tab-agenda:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(12),
+#tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(13) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
 }
 
 #tab-geral:checked ~ .obra-tabs-panels .panel-geral { display: block; }
+#tab-rdi:checked ~ .obra-tabs-panels .panel-rdi { display: block; }
 #tab-atividades:checked ~ .obra-tabs-panels .panel-atividades { display: block; }
 #tab-tarefas:checked ~ .obra-tabs-panels .panel-tarefas { display: block; }
 #tab-financeiro:checked ~ .obra-tabs-panels .panel-financeiro { display: block; }
@@ -1971,25 +1973,27 @@ table.evis-table {
 #cm-novo:checked ~ .cm-section-novo { display: block; }
 
 /* ── Tabs da oportunidade (workspace comercial) ───────────── */
-/* Ordem: Geral(1) · Cliente(2) · Atividades(3) · Tarefas(4) · Financeiro(5) · Histórico(6) · Orçamento(7) · Propostas(8) · Anotações(9) · Diário(10) · Agenda(11) · Agentes(12) */
+/* Ordem: Geral(1) · RDI(2) · Cliente(3) · Atividades(4) · Tarefas(5) · Financeiro(6) · Histórico(7) · Orçamento(8) · Propostas(9) · Anotações(10) · Diário(11) · Agenda(12) · Agentes(13) */
 #op-tab-geral:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(1),
-#op-tab-cliente:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
-#op-tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
-#op-tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(4),
-#op-tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
-#op-tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
-#op-tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
-#op-tab-propostas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
-#op-tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
-#op-tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10),
-#op-tab-agenda:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(11),
-#op-tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(12) {
+#op-tab-rdi:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(2),
+#op-tab-cliente:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(3),
+#op-tab-atividades:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(4),
+#op-tab-tarefas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(5),
+#op-tab-financeiro:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(6),
+#op-tab-historico:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(7),
+#op-tab-orcamento:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(8),
+#op-tab-propostas:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(9),
+#op-tab-anotacoes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(10),
+#op-tab-diario:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(11),
+#op-tab-agenda:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(12),
+#op-tab-agentes:checked ~ .obra-tabs-nav .obra-tab-label:nth-child(13) {
   color: var(--clr-primary);
   border-bottom-color: var(--clr-primary);
   font-weight: 600;
 }
 
 #op-tab-geral:checked ~ .obra-tabs-panels .op-panel-geral { display: block; }
+#op-tab-rdi:checked ~ .obra-tabs-panels .op-panel-rdi { display: block; }
 #op-tab-cliente:checked ~ .obra-tabs-panels .op-panel-cliente { display: block; }
 #op-tab-atividades:checked ~ .obra-tabs-panels .op-panel-atividades { display: block; }
 #op-tab-tarefas:checked ~ .obra-tabs-panels .op-panel-tarefas { display: block; }
