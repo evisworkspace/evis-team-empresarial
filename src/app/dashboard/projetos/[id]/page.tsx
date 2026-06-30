@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getEmpresaId } from "@/lib/tenant";
 import { getProjetoWithDetails } from "@/data/projeto";
+import { getOrSeedStatuses, type StatusProjetoData } from "@/data/statusProjeto";
 import { sumLancamentosByProjeto } from "@/data/financeiro";
 import { listCategoriasByEmpresa } from "@/data/categoriaFinanceira";
 import { listCentrosCustoByEmpresa } from "@/data/centroDeCusto";
@@ -57,25 +58,46 @@ import {
 
 export const metadata: Metadata = { title: "Projeto" };
 
-const FUNIL = [
-  { value: "fila_espera", label: "Fila Espera" },
-  { value: "novo", label: "Agendar Visita" },
-  { value: "orcamento", label: "Montando Orçamento" },
-  { value: "proposta_enviada", label: "Montando Proposta" },
-  { value: "em_negociacao", label: "Em negociação" },
-  { value: "ganho", label: "Ganho ✓" },
-];
+type FunilStep = Pick<StatusProjetoData, "slug" | "label" | "cor" | "ativo">;
 
-function getFunilIndex(status: string) {
-  if (status === "aberta") return 0;
-  const idx = FUNIL.findIndex((s) => s.value === status);
+function normalizeOportunidadeStatus(status: string, steps: FunilStep[]) {
+  if (steps.some((s) => s.slug === status)) return status;
+  if (status === "aberta") return "novo";
+  if (status === "orcamento" && steps.some((s) => s.slug === "em_andamento")) return "em_andamento";
+  if (status === "em_andamento" && steps.some((s) => s.slug === "orcamento")) return "orcamento";
+  return status;
+}
+
+function buildFunilOportunidade(statuses: StatusProjetoData[], currentStatus: string): FunilStep[] {
+  const current = normalizeOportunidadeStatus(currentStatus, statuses);
+  const steps = statuses.filter((s) =>
+    s.slug !== "perdido" && (s.ativo || s.slug === "ganho" || s.slug === current),
+  );
+  return steps.length > 0
+    ? steps
+    : [
+        { slug: "fila_espera", label: "Fila Espera", cor: "#7c3aed", ativo: true },
+        { slug: "novo", label: "Agendar Visita", cor: "#0ea5e9", ativo: true },
+        { slug: "em_andamento", label: "Montando Orçamento", cor: "#059669", ativo: true },
+        { slug: "proposta_enviada", label: "Montando Proposta", cor: "#d97706", ativo: true },
+        { slug: "em_negociacao", label: "Em negociação", cor: "#dc2626", ativo: true },
+        { slug: "ganho", label: "Ganho", cor: "#10b981", ativo: false },
+      ];
+}
+
+function getFunilIndex(status: string, steps: FunilStep[]) {
+  const normalized = normalizeOportunidadeStatus(status, steps);
+  const idx = steps.findIndex((s) => s.slug === normalized);
   return idx === -1 ? 0 : idx;
 }
 
-function oportunidadeStatusLabel(status: string) {
+function oportunidadeStatusLabel(status: string, steps?: FunilStep[]) {
+  const normalized = steps ? normalizeOportunidadeStatus(status, steps) : status;
+  const statusFromConfig = steps?.find((s) => s.slug === normalized);
+  if (statusFromConfig) return statusFromConfig.label;
   const map: Record<string, string> = {
     fila_espera: "Fila Espera", novo: "Agendar Visita", aberta: "Agendar Visita",
-    orcamento: "Montando Orçamento", proposta_enviada: "Montando Proposta",
+    orcamento: "Montando Orçamento", em_andamento: "Montando Orçamento", proposta_enviada: "Montando Proposta",
     em_negociacao: "Em negociação", ganho: "Ganho", perdido: "Perdida",
   };
   return map[status] ?? status;
@@ -219,6 +241,7 @@ function OportunidadeView({
   financeiroFormLists,
   openRdi,
   diariosObra,
+  statusOportunidade,
 }: {
   projeto: ProjetoDetalhes;
   empresaId: string;
@@ -227,10 +250,12 @@ function OportunidadeView({
   financeiroFormLists: FinanceiroFormLists;
   openRdi: boolean;
   diariosObra: React.ComponentProps<typeof DiarioTab>["diarios"];
+  statusOportunidade: StatusProjetoData[];
 }) {
   const isPerdida = projeto.statusInterno === "perdido";
   const isGanho = projeto.statusInterno === "ganho";
-  const currentIdx = getFunilIndex(projeto.statusInterno);
+  const funil = buildFunilOportunidade(statusOportunidade, projeto.statusInterno);
+  const currentIdx = getFunilIndex(projeto.statusInterno, funil);
   const now = new Date();
   const tarefasConcluidas = projeto.tarefas.filter((t) => t.status === "concluida").length;
 
@@ -282,21 +307,22 @@ function OportunidadeView({
         <div className="funil-bar">
           <form action={atualizarStatusFunil} style={{ display: "contents" }}>
             <input type="hidden" name="projetoId" value={projeto.id} />
-            {FUNIL.map((step, idx) => {
+            {funil.map((step, idx) => {
               const isCurrent = idx === currentIdx;
               const isPast = idx < currentIdx;
+              const label = step.slug === "ganho" && !step.label.includes("✓") ? `${step.label} ✓` : step.label;
               return (
-                <Fragment key={step.value}>
+                <Fragment key={step.slug}>
                   {idx > 0 && <div className={`funil-connector ${isPast || isCurrent ? "funil-connector--done" : ""}`} />}
                   <button
                     type="submit"
                     name="statusInterno"
-                    value={step.value}
+                    value={step.slug}
                     disabled={isCurrent}
                     className={`funil-step ${isCurrent ? "funil-step--active" : ""} ${isPast ? "funil-step--past" : ""}`}
                   >
-                    <span className="funil-step-dot" />
-                    {step.label}
+                    <span className="funil-step-dot" style={{ backgroundColor: step.cor }} />
+                    {label}
                   </button>
                 </Fragment>
               );
@@ -407,7 +433,7 @@ function OportunidadeView({
                   </Link>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-                  <DetailItem label="Status" value={oportunidadeStatusLabel(projeto.statusInterno)} />
+                  <DetailItem label="Status" value={oportunidadeStatusLabel(projeto.statusInterno, funil)} />
                   <DetailItem label="Tipo de obra" value={tipoObraLabel(projeto.tipoObra)} />
                   <DetailItem label="Prioridade" value={
                     <span style={prioridadeStyle(projeto.prioridade)}>{prioridadeLabel(projeto.prioridade)}</span>
@@ -1579,7 +1605,7 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, sessaoOttoRaw] = await Promise.all([
+  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, sessaoOttoRaw, statusProjeto] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
@@ -1588,6 +1614,7 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
     listFornecedoresByEmpresa(empresaId, { take: 100 }),
     listMedicoesByProjeto(empresaId, id),
     getOttoSessaoAtiva(empresaId, id),
+    getOrSeedStatuses(empresaId, projeto.stage),
   ]);
 
   const itensOrcamento = itensOrcamentoRaw.map((i) => ({
@@ -1691,6 +1718,7 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
         orcamento={orcamentoProps}
         financeiroFormLists={financeiroFormLists}
         openRdi={openRdi}
+        statusOportunidade={statusProjeto}
         diariosObra={(projeto.diariosObra ?? []).map((d) => ({
           ...d,
           itensHITL: d.itensHITL.map((i) => ({

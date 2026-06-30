@@ -3,20 +3,39 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { atualizarStatusProjeto } from "@/actions/projeto";
 import { STATUS_OPORTUNIDADE, STATUS_OBRA, type StatusConfig } from "@/lib/status";
 
+type StatusOptionData = {
+  slug: string;
+  label: string;
+  cor: string;
+  ativo: boolean;
+};
+
 type Props = {
   projetoId: string;
   stage: string;
   statusAtual: string;
+  statusOptions?: StatusOptionData[];
 };
 
-export default function StatusDropdown({ projetoId, stage, statusAtual }: Props) {
+export default function StatusDropdown({ projetoId, stage, statusAtual, statusOptions = [] }: Props) {
   const [open, setOpen] = useState(false);
   const [dropPos, setDropPos] = useState<{ top: number; left: number } | null>(null);
   const [isPending, startTransition] = useTransition();
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
-  const statusMap = stage === "obra" ? STATUS_OBRA : STATUS_OPORTUNIDADE;
+  const statusMap = statusOptions.length > 0
+    ? Object.fromEntries(
+        statusOptions.map((status) => [
+          status.slug,
+          {
+            label: status.label,
+            cor: status.cor,
+            grupo: status.ativo ? "ativo" : "fechado",
+          } satisfies StatusConfig,
+        ]),
+      )
+    : stage === "obra" ? STATUS_OBRA : STATUS_OPORTUNIDADE;
   const cfgAtual = statusMap[statusAtual] ?? { label: statusAtual || "—", cor: "#6b7280", grupo: "ativo" as const };
 
   const ativos   = Object.entries(statusMap).filter(([, cfg]) => cfg.grupo === "ativo");

@@ -110,6 +110,10 @@ export default async function ProjetosPage({
     stageFilter === "obra" || !stageFilter
       ? await getOrSeedStatuses(empresaId, "obra")
       : [];
+  const preOportunidadeStatuses =
+    stageFilter === "oportunidade" || !stageFilter
+      ? await getOrSeedStatuses(empresaId, "oportunidade")
+      : [];
   const obrasFechadasSlugs = preObraStatuses.filter((s) => !s.ativo).map((s) => s.slug);
   const showFechadas = showFechadasParam === "1";
   const excludeObrasFechadas =
@@ -138,8 +142,8 @@ export default async function ProjetosPage({
       : isObraKanban
       ? listProjetosByEmpresaWithCliente(empresaId, { stage: "obra", take: 200 })
       : Promise.resolve([]),
-    isObraKanban ? Promise.resolve(preObraStatuses) : (kanbanStage ? getOrSeedStatuses(empresaId, kanbanStage) : Promise.resolve([])),
-    stageFilter === "obra" ? Promise.resolve(preObraStatuses) : (filtroStage ? getOrSeedStatuses(empresaId, filtroStage) : Promise.resolve([])),
+    isObraKanban ? Promise.resolve(preObraStatuses) : isOportunidadeKanban ? Promise.resolve(preOportunidadeStatuses) : (kanbanStage ? getOrSeedStatuses(empresaId, kanbanStage) : Promise.resolve([])),
+    stageFilter === "obra" ? Promise.resolve(preObraStatuses) : stageFilter === "oportunidade" ? Promise.resolve(preOportunidadeStatuses) : (filtroStage ? getOrSeedStatuses(empresaId, filtroStage) : Promise.resolve([])),
     countProjetosByEmpresa(empresaId, "obra", obrasFechadasSlugs.length > 0 ? { excludeStatusInternoList: obrasFechadasSlugs } : undefined),
     obrasFechadasSlugs.length > 0
       ? countProjetosByEmpresa(empresaId, "obra", { statusInternoIn: obrasFechadasSlugs })
@@ -469,7 +473,12 @@ export default async function ProjetosPage({
                             {p.cliente?.nome ?? "—"}
                           </td>
                           <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                            <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
+                            <StatusDropdown
+                              projetoId={p.id}
+                              stage={p.stage}
+                              statusAtual={p.statusInterno}
+                              statusOptions={p.stage === "obra" ? preObraStatuses : preOportunidadeStatuses}
+                            />
                           </td>
                           <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", fontFamily: "var(--font-mono)", fontSize: 11, ...prioridadeStyle(pr.prioridade ?? null) }}>
                             {prioridadeLabel(pr.prioridade ?? null)}
@@ -547,7 +556,12 @@ export default async function ProjetosPage({
                           </span>
                         </td>
                         <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle" }}>
-                          <StatusDropdown projetoId={p.id} stage={p.stage} statusAtual={p.statusInterno} />
+                          <StatusDropdown
+                            projetoId={p.id}
+                            stage={p.stage}
+                            statusAtual={p.statusInterno}
+                            statusOptions={p.stage === "obra" ? preObraStatuses : preOportunidadeStatuses}
+                          />
                         </td>
                         <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--clr-border-light)", verticalAlign: "middle", color: "var(--clr-text-secondary)", fontSize: 13 }}>
                           {formatDate(p.dataInicioEstimada)}

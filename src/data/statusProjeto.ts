@@ -10,10 +10,10 @@ export type StatusProjetoData = {
 };
 
 const DEFAULTS_OPORTUNIDADE: Omit<StatusProjetoData, "id">[] = [
-  { slug: "novo",             label: "Agendar Visita",   cor: "#0ea5e9", ordem: 1, ativo: true },
-  { slug: "fila_espera",      label: "Fila Espera",      cor: "#7c3aed", ordem: 2, ativo: true },
-  { slug: "em_andamento",     label: "Em andamento",     cor: "#059669", ordem: 3, ativo: true },
-  { slug: "proposta_enviada", label: "Proposta enviada", cor: "#d97706", ordem: 4, ativo: true },
+  { slug: "fila_espera",      label: "Fila Espera",        cor: "#7c3aed", ordem: 1, ativo: true },
+  { slug: "novo",             label: "Agendar Visita",     cor: "#0ea5e9", ordem: 2, ativo: true },
+  { slug: "em_andamento",     label: "Montando Orçamento", cor: "#059669", ordem: 3, ativo: true },
+  { slug: "proposta_enviada", label: "Montando Proposta",  cor: "#d97706", ordem: 4, ativo: true },
   { slug: "em_negociacao",    label: "Em negociação",    cor: "#dc2626", ordem: 5, ativo: true },
   { slug: "ganho",            label: "Ganho",            cor: "#10b981", ordem: 6, ativo: false },
   { slug: "perdido",          label: "Arquivado",        cor: "#6b7280", ordem: 7, ativo: false },
