@@ -367,6 +367,11 @@ function VisitScopePills({ items }: { items: string[] }) {
   );
 }
 
+function getContextTriggerLabel(context: LiaContext) {
+  const firstTitleWord = context.projetoTitulo?.trim().split(/\s+/)[0];
+  return firstTitleWord || "Lia";
+}
+
 export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp }: LiaCopilotoProps) {
   const HISTORY_KEY = `evis_cache_v2_lia_history_${storageKey}`;
 
@@ -969,7 +974,9 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
     };
   }
 
-  const triggerLabel = mode === "global" ? "Lia" : "Lia";
+  const triggerLabel = mode === "global"
+    ? "Lia"
+    : getContextTriggerLabel(context);
 
   return (
     <>
