@@ -14,7 +14,7 @@ import { listFornecedoresByEmpresa } from "@/data/fornecedor";
 import { criarTarefa, toggleTarefaStatus, editarTarefa, deletarTarefa } from "@/actions/tarefa";
 import { criarLancamento, marcarLancamentoPago } from "@/actions/financeiro";
 import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, editarAtividade, deletarAtividade } from "@/actions/projeto";
-import { criarAnotacao, excluirAnotacao } from "@/actions/anotacao";
+import { criarAnotacao, editarAnotacao, excluirAnotacao } from "@/actions/anotacao";
 import { listItensOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
 import { listItensByEmpresa } from "@/data/itemBiblioteca";
@@ -622,8 +622,10 @@ function OportunidadeView({
                         <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 3 }}>
                           {new Date(a.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </div>
-                        <details style={{ marginTop: 6 }}>
-                          <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                        <details style={{ marginTop: 8 }}>
+                          <summary className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", listStyle: "none" }}>
+                            <EditIcon size={12} /> Editar atividade
+                          </summary>
                           <form action={editarAtividade} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                             <input type="hidden" name="atividadeId" value={a.id} />
                             <input type="hidden" name="projetoId" value={projeto.id} />
@@ -691,8 +693,10 @@ function OportunidadeView({
                           <button type="submit" title="Excluir" style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--clr-text-muted)", fontSize: 13, lineHeight: 1 }}>✕</button>
                         </form>
                       </div>
-                      <details style={{ width: "100%", marginTop: 4 }}>
-                        <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                      <details style={{ width: "100%", marginTop: 6 }}>
+                        <summary className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", listStyle: "none" }}>
+                          <EditIcon size={12} /> Editar tarefa
+                        </summary>
                         <form action={editarTarefa} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                           <input type="hidden" name="tarefaId" value={t.id} />
                           <input type="hidden" name="projetoId" value={projeto.id} />
@@ -849,6 +853,20 @@ function OportunidadeView({
                         </div>
                       </div>
                       <p style={{ fontSize: 13, color: "var(--clr-text-secondary)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>{a.conteudo}</p>
+                      <details style={{ marginTop: 10 }}>
+                        <summary className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", listStyle: "none" }}>
+                          <EditIcon size={12} /> Editar anotação
+                        </summary>
+                        <form action={editarAnotacao} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                          <input type="hidden" name="anotacaoId" value={a.id} />
+                          <input type="hidden" name="projetoId" value={projeto.id} />
+                          <input name="titulo" type="text" className="form-input" defaultValue={a.titulo ?? ""} placeholder="Título (opcional)..." maxLength={200} />
+                          <textarea name="conteudo" className="form-input" defaultValue={a.conteudo} required minLength={1} rows={4} style={{ resize: "vertical" }} />
+                          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                            <button type="submit" className="btn btn-primary btn-sm">Salvar alterações</button>
+                          </div>
+                        </form>
+                      </details>
                     </div>
                   ))}
                 </div>
@@ -1241,8 +1259,10 @@ function CentralDaObraView({
                         <div style={{ fontSize: 11, color: "var(--clr-text-muted)", marginTop: 3 }}>
                           {new Date(a.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </div>
-                        <details style={{ marginTop: 6 }}>
-                          <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                        <details style={{ marginTop: 8 }}>
+                          <summary className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", listStyle: "none" }}>
+                            <EditIcon size={12} /> Editar atividade
+                          </summary>
                           <form action={editarAtividade} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                             <input type="hidden" name="atividadeId" value={a.id} />
                             <input type="hidden" name="projetoId" value={projeto.id} />
@@ -1301,8 +1321,10 @@ function CentralDaObraView({
                           <button type="submit" title="Excluir" style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px", color: "var(--clr-text-muted)", fontSize: 13, lineHeight: 1 }}>✕</button>
                         </form>
                       </div>
-                      <details style={{ width: "100%", marginTop: 4 }}>
-                        <summary style={{ fontSize: 12, color: "var(--clr-primary)", cursor: "pointer", listStyle: "none", padding: "2px 0" }}>Editar</summary>
+                      <details style={{ width: "100%", marginTop: 6 }}>
+                        <summary className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", listStyle: "none" }}>
+                          <EditIcon size={12} /> Editar tarefa
+                        </summary>
                         <form action={editarTarefa} style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                           <input type="hidden" name="tarefaId" value={t.id} />
                           <input type="hidden" name="projetoId" value={projeto.id} />
@@ -1500,6 +1522,20 @@ function CentralDaObraView({
                         </div>
                       </div>
                       <p style={{ fontSize: 13, color: "var(--clr-text-secondary)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>{a.conteudo}</p>
+                      <details style={{ marginTop: 10 }}>
+                        <summary className="btn btn-secondary btn-sm" style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", listStyle: "none" }}>
+                          <EditIcon size={12} /> Editar anotação
+                        </summary>
+                        <form action={editarAnotacao} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                          <input type="hidden" name="anotacaoId" value={a.id} />
+                          <input type="hidden" name="projetoId" value={projeto.id} />
+                          <input name="titulo" type="text" className="form-input" defaultValue={a.titulo ?? ""} placeholder="Título (opcional)..." maxLength={200} />
+                          <textarea name="conteudo" className="form-input" defaultValue={a.conteudo} required minLength={1} rows={4} style={{ resize: "vertical" }} />
+                          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                            <button type="submit" className="btn btn-primary btn-sm">Salvar alterações</button>
+                          </div>
+                        </form>
+                      </details>
                     </div>
                   ))}
                 </div>
