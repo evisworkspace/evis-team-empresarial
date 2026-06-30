@@ -368,8 +368,31 @@ function VisitScopePills({ items }: { items: string[] }) {
 }
 
 function getContextTriggerLabel(context: LiaContext) {
-  const firstTitleWord = context.projetoTitulo?.trim().split(/\s+/)[0];
-  return firstTitleWord || "Lia";
+  const title = context.projetoTitulo?.trim();
+  if (!title) return "Lia";
+
+  const primaryTitle = title.split("|")[0]?.trim() || title;
+  const words = primaryTitle.split(/\s+/).filter(Boolean);
+  const genericLeadingWords = new Set([
+    "apartamento",
+    "apto",
+    "bar",
+    "casa",
+    "churrascaria",
+    "clinica",
+    "clínica",
+    "condominio",
+    "condomínio",
+    "escritorio",
+    "escritório",
+    "loja",
+    "obra",
+    "oportunidade",
+    "restaurante",
+    "sala",
+  ]);
+  const firstUsefulWord = words.find((word) => !genericLeadingWords.has(word.toLowerCase()));
+  return firstUsefulWord || words[0] || "Lia";
 }
 
 export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp }: LiaCopilotoProps) {
@@ -404,10 +427,10 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
   // Contextual mode: init context from prop + DOM on mount and navigation
   useEffect(() => {
     if (mode !== "contextual" || !projetoIdProp) return;
-    const fromWindow = readContextFromWindow();
     let cancelled = false;
-    queueMicrotask(() => {
+    const syncContext = () => {
       if (cancelled) return;
+      const fromWindow = readContextFromWindow();
       setContext(prev => ({
         ...prev,
         projetoId: projetoIdProp,
@@ -416,9 +439,16 @@ export default function LiaCopiloto({ mode, storageKey, projetoId: projetoIdProp
         pathname: fromWindow.pathname,
         codigoSequencial: fromWindow.codigoSequencial ?? prev.codigoSequencial,
       }));
-    });
+    };
+
+    queueMicrotask(syncContext);
+    const raf = requestAnimationFrame(syncContext);
+    const timer = window.setTimeout(syncContext, 100);
+
     return () => {
       cancelled = true;
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
     };
   }, [mode, projetoIdProp, pathname]);
 
