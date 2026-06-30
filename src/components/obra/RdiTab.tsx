@@ -11,7 +11,7 @@ export default function RdiTab({ projetoId, projetoTitulo }: RdiTabProps) {
   return (
     <div className="obra-card obra-card--full">
       <div className="obra-card-header">
-        <span>RDI — Registro de Gestão Interna</span>
+        <span>Registro Operacional</span>
       </div>
       <div style={{ padding: "0 0 16px" }}>
         <RdiPanel projetoId={projetoId} projetoTitulo={projetoTitulo} />

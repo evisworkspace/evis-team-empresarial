@@ -1,0 +1,10 @@
+-- Feat: Registro Operacional — mensagem como destino semântico
+--
+-- ProjetoAtividade.tipo (campo String) agora inclui "mensagem" como valor válido.
+-- Nenhuma alteração de schema é necessária — o campo já aceita strings arbitrárias.
+--
+-- Valores válidos após esta migration:
+--   ligacao | visita | email | reuniao | nota | outro | mensagem
+--
+-- Referência: src/actions/ai/confirmarRdi.ts — bloco mensagens
+-- Origem: Registro Operacional Fase 1 (2026-06-30)

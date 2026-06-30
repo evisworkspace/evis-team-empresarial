@@ -229,7 +229,7 @@ model ProjetoAtividade {
   id        String @id @default(uuid()) @db.Uuid
   empresaId String @map("empresa_id") @db.Uuid
   projetoId String @map("projeto_id") @db.Uuid
-  tipo      String // ligacao | visita | email | reuniao | nota | outro
+  tipo      String // ligacao | visita | email | reuniao | nota | outro | mensagem
   descricao String
 
   createdAt DateTime @default(now()) @map("created_at")

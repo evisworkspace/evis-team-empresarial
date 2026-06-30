@@ -389,7 +389,7 @@ function OportunidadeView({
 
         <div className="obra-tabs-nav">
           <label htmlFor="op-tab-geral" className="obra-tab-label">Geral</label>
-          <label htmlFor="op-tab-rdi" className="obra-tab-label">RDI</label>
+          <label htmlFor="op-tab-rdi" className="obra-tab-label">Registro</label>
           <label htmlFor="op-tab-cliente" className="obra-tab-label">Cliente</label>
           <label htmlFor="op-tab-atividades" className="obra-tab-label">
             Atividades{projeto.atividades.length > 0 ? ` (${projeto.atividades.length})` : ""}
@@ -1033,7 +1033,7 @@ function CentralDaObraView({
 
         <div className="obra-tabs-nav">
           <label htmlFor="tab-geral" className="obra-tab-label">Visão Geral</label>
-          <label htmlFor="tab-rdi" className="obra-tab-label">RDI</label>
+          <label htmlFor="tab-rdi" className="obra-tab-label">Registro</label>
           <label htmlFor="tab-atividades" className="obra-tab-label">
             Atividades{projeto.atividades.length > 0 ? ` (${projeto.atividades.length})` : ""}
           </label>
