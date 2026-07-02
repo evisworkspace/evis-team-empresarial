@@ -7,6 +7,8 @@ export function listItensOrcamentoByProjeto(empresaId: string, projetoId: string
     take: 500,
     include: {
       itemBiblioteca: { select: { id: true, nome: true, codigo: true } },
+      fornecedor: { select: { id: true, nome: true } },
+      categoriaItem: { select: { id: true, nome: true } },
     },
   })
 }
@@ -19,15 +21,22 @@ export function createItemOrcamento(
     nome: string
     parentId?: string
     posicao?: number
-    grupo?: string
-    itemBibliotecaId?: string
-    fornecedorId?: string
-    unidade?: string
-    quantidade?: number
-    custoServicos?: number
-    bdi?: number
-    produtos?: number
-    servicos?: number
+    grupo?: string | null
+    tipoItem?: string | null
+    categoriaItemId?: string | null
+    classe?: string | null
+    itemBibliotecaId?: string | null
+    fornecedorId?: string | null
+    unidade?: string | null
+    quantidade?: number | null
+    custoUnitario?: number | null
+    custoServicos?: number | null
+    produtos?: number | null
+    custoTotal?: number | null
+    bdi?: number | null
+    precoUnitario?: number | null
+    servicos?: number | null
+    precoTotal?: number | null
     statusItem?: string | null
   },
 ) {
@@ -42,12 +51,19 @@ export function updateItemOrcamento(
   data: {
     nome?: string
     grupo?: string | null
+    tipoItem?: string | null
+    categoriaItemId?: string | null
+    classe?: string | null
     unidade?: string | null
     quantidade?: number | null
+    custoUnitario?: number | null
     custoServicos?: number | null
-    bdi?: number | null
     produtos?: number | null
+    custoTotal?: number | null
+    bdi?: number | null
+    precoUnitario?: number | null
     servicos?: number | null
+    precoTotal?: number | null
     itemBibliotecaId?: string | null
     fornecedorId?: string | null
     statusItem?: string | null

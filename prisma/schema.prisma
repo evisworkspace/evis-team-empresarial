@@ -249,19 +249,28 @@ model ProjetoItemOrcamento {
   projetoId String  @map("projeto_id") @db.Uuid
   parentId  String? @map("parent_id") @db.Uuid
   posicao   Int     @default(0)
-  tipo      String  @db.VarChar(20) // nivel | subnivel | composicao
+  tipo      String  @db.VarChar(20) // nivel | subnivel | composicao (estrutural)
   nome      String  @db.VarChar(300)
   grupo     String? @db.VarChar(100)
+
+  // Semântica do item (apenas para tipo=composicao)
+  tipoItem        String? @map("tipo_item") @db.VarChar(20)  // produto | servico | composicao
+  categoriaItemId String? @map("categoria_item_id") @db.Uuid
+  classe          String? @db.VarChar(100)
 
   itemBibliotecaId String? @map("item_biblioteca_id") @db.Uuid
   fornecedorId     String? @map("fornecedor_id") @db.Uuid
 
   unidade       String?  @db.VarChar(20)
   quantidade    Decimal? @db.Decimal(15, 4)
-  custoServicos Decimal? @map("custo_servicos") @db.Decimal(15, 4)
+  custoUnitario Decimal? @map("custo_unitario") @db.Decimal(15, 4)  // custo por unidade (pre-BDI)
+  custoServicos Decimal? @map("custo_servicos") @db.Decimal(15, 4)  // custo de serviços total
+  produtos      Decimal? @db.Decimal(15, 4)                          // custo de produtos total
+  custoTotal    Decimal? @map("custo_total") @db.Decimal(15, 4)      // produtos + custoServicos
   bdi           Decimal? @db.Decimal(10, 5)
-  produtos      Decimal? @db.Decimal(15, 4)
-  servicos      Decimal? @db.Decimal(15, 4) // calculado: (custoServicos + produtos) × (1 + bdi/100)
+  precoUnitario Decimal? @map("preco_unitario") @db.Decimal(15, 4)   // custoUnitario * (1 + bdi/100)
+  servicos      Decimal? @db.Decimal(15, 4)                           // preço total legado: (custoServicos + produtos) × (1 + bdi/100)
+  precoTotal    Decimal? @map("preco_total") @db.Decimal(15, 4)       // = servicos (campo canônico novo)
 
   dataInicioPlano DateTime? @map("data_inicio_plano") @db.Date
   dataFimPlano    DateTime? @map("data_fim_plano") @db.Date
@@ -277,6 +286,7 @@ model ProjetoItemOrcamento {
   projeto        Projeto                @relation(fields: [projetoId], references: [id])
   itemBiblioteca ItemBiblioteca?        @relation(fields: [itemBibliotecaId], references: [id])
   fornecedor     Fornecedor?            @relation(fields: [fornecedorId], references: [id])
+  categoriaItem  CategoriaItem?         @relation(fields: [categoriaItemId], references: [id])
   parent         ProjetoItemOrcamento?  @relation("SubItens", fields: [parentId], references: [id])
   children       ProjetoItemOrcamento[] @relation("SubItens")
   medicaoItens   MedicaoItem[]
@@ -286,6 +296,8 @@ model ProjetoItemOrcamento {
   @@index([parentId])
   @@index([fornecedorId])
   @@index([statusItem])
+  @@index([tipoItem])
+  @@index([categoriaItemId])
   @@map("projeto_item_orcamento")
 }
 
@@ -406,8 +418,9 @@ model CategoriaItem {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  empresa Empresa          @relation(fields: [empresaId], references: [id])
-  itens   ItemBiblioteca[]
+  empresa        Empresa                @relation(fields: [empresaId], references: [id])
+  itens          ItemBiblioteca[]
+  itensOrcamento ProjetoItemOrcamento[]
 
   @@index([empresaId])
   @@map("categoria_item")

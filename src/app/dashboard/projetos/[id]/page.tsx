@@ -17,6 +17,9 @@ import { atualizarStatusFunil, atualizarStatusObra, criarAtividadeProjeto, edita
 import { criarAnotacao, editarAnotacao, excluirAnotacao } from "@/actions/anotacao";
 import { listItensOrcamentoByProjeto } from "@/data/projetoItemOrcamento";
 import { criarGrupoOrcamento, criarItemOrcamento, editarItemOrcamento, excluirItemOrcamento } from "@/actions/projetoItemOrcamento";
+import { salvarProjetoConfig } from "@/actions/projetoConfig";
+import { getProjetoConfig } from "@/data/projetoConfig";
+import { listCategoriasByEmpresa as listCategoriasItemByEmpresa } from "@/data/categoriaItem";
 import { listItensByEmpresa } from "@/data/itemBiblioteca";
 import { getOttoSessaoAtiva } from "@/data/otto";
 import { OrcamentoTab } from "@/components/orcamento/OrcamentoTab";
@@ -1641,7 +1644,7 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
   const projeto = await getProjetoWithDetails(empresaId, id);
   if (!projeto) notFound();
 
-  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, sessaoOttoRaw, statusProjeto] = await Promise.all([
+  const [financeiro, itensOrcamentoRaw, bibliotecaItens, categorias, centrosCusto, fornecedores, medicoes, sessaoOttoRaw, statusProjeto, categoriasItem, projetoConfig] = await Promise.all([
     sumLancamentosByProjeto(empresaId, id),
     listItensOrcamentoByProjeto(empresaId, id),
     listItensByEmpresa(empresaId),
@@ -1651,6 +1654,8 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
     listMedicoesByProjeto(empresaId, id),
     getOttoSessaoAtiva(empresaId, id),
     getOrSeedStatuses(empresaId, projeto.stage),
+    listCategoriasItemByEmpresa(empresaId),
+    getProjetoConfig(empresaId, id),
   ]);
 
   const itensOrcamento = itensOrcamentoRaw.map((i) => ({
@@ -1670,11 +1675,20 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
     items: itensOrcamentoRaw.map((i) => ({
       ...i,
       quantidade: i.quantidade ? Number(i.quantidade) : null,
+      custoUnitario: i.custoUnitario ? Number(i.custoUnitario) : null,
       custoServicos: i.custoServicos ? Number(i.custoServicos) : null,
-      bdi: i.bdi ? Number(i.bdi) : null,
       produtos: i.produtos ? Number(i.produtos) : null,
+      custoTotal: i.custoTotal ? Number(i.custoTotal) : null,
+      bdi: i.bdi ? Number(i.bdi) : null,
+      precoUnitario: i.precoUnitario ? Number(i.precoUnitario) : null,
       servicos: i.servicos ? Number(i.servicos) : null,
+      precoTotal: i.precoTotal ? Number(i.precoTotal) : null,
       statusItem: i.statusItem ?? null,
+      tipoItem: i.tipoItem ?? null,
+      categoriaItemId: i.categoriaItemId ?? null,
+      classe: i.classe ?? null,
+      categoriaItem: i.categoriaItem ?? null,
+      fornecedor: i.fornecedor ?? null,
     })),
     projetoId: projeto.id,
     bibliotecaItens: bibliotecaItens.map((b) => ({
@@ -1682,11 +1696,15 @@ export default async function ProjetoPage({ params, searchParams }: { params: Pr
       nome: b.nome,
       codigo: b.codigo ?? null,
     })),
+    categoriasItem: categoriasItem.map((c) => ({ id: c.id, nome: c.nome })),
+    bdiPadraoProdutos: projetoConfig?.bdiPadraoP ? Number(projetoConfig.bdiPadraoP) : 10,
+    bdiPadraoServicos: projetoConfig?.bdiPadraoS ? Number(projetoConfig.bdiPadraoS) : 15,
     actions: {
       criarGrupo: criarGrupoOrcamento,
       criarItem: criarItemOrcamento,
       editarItem: editarItemOrcamento,
       excluirItem: excluirItemOrcamento,
+      salvarConfig: salvarProjetoConfig,
     },
     sessaoOtto: sessaoOttoRaw ? {
       id: sessaoOttoRaw.id,
