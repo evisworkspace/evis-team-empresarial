@@ -437,6 +437,8 @@ export function OrcamentoTab({
   const [statusFilter, setStatusFilter] = useState("")
   const [categoriaFilter, setCategoriaFilter] = useState("")
   const [fornecedorFilter, setFornecedorFilter] = useState("")
+  const [search, setSearch] = useState("")
+  const [grupoFilter, setGrupoFilter] = useState("")
 
   // Visualização
   const [viewMode, setViewMode] = useState<"lista" | "grupo" | "categoria" | "fornecedor">("lista")
@@ -448,10 +450,12 @@ export function OrcamentoTab({
   }
 
   function isVisible(item: Item) {
+    if (search && !item.nome.toLowerCase().includes(search.toLowerCase())) return false
     if (tipoFilter && item.tipoItem !== tipoFilter) return false
     if (statusFilter && item.statusItem !== statusFilter) return false
     if (categoriaFilter && item.categoriaItem?.id !== categoriaFilter) return false
     if (fornecedorFilter && item.fornecedor?.id !== fornecedorFilter) return false
+    if (grupoFilter && item.grupo !== grupoFilter) return false
     return true
   }
 
@@ -465,8 +469,15 @@ export function OrcamentoTab({
   const composicoes = items.filter((i) => i.tipo === "composicao")
   const totalGeral = composicoes.reduce((s, i) => s + ((i.precoTotal ?? i.servicos) ?? 0), 0)
 
-  function itemNum(id: string) {
-    return String(composicoes.findIndex((c) => c.id === id) + 1).padStart(2, "0")
+  function buildNum(id: string): string {
+    const item = items.find((i) => i.id === id)
+    if (!item) return ""
+    const siblings = items
+      .filter((i) => i.parentId === item.parentId)
+      .sort((a, b) => a.posicao - b.posicao || a.nome.localeCompare(b.nome))
+    const idx = siblings.findIndex((s) => s.id === id) + 1
+    if (!item.parentId) return String(idx)
+    return `${buildNum(item.parentId)}.${idx}`
   }
 
   function excluir(id: string) {
@@ -486,7 +497,8 @@ export function OrcamentoTab({
   const fornecedoresDisponiveis = Array.from(
     new Map(composicoes.filter((i) => i.fornecedor).map((i) => [i.fornecedor!.id, i.fornecedor!])).values()
   )
-  const activeFilters = [tipoFilter, statusFilter, categoriaFilter, fornecedorFilter].filter(Boolean).length
+  const gruposDisponiveis = Array.from(new Set(composicoes.filter((i) => i.grupo).map((i) => i.grupo!))).sort()
+  const activeFilters = [search, tipoFilter, statusFilter, categoriaFilter, fornecedorFilter, grupoFilter].filter(Boolean).length
 
   const roots = byParent(null)
 
@@ -560,7 +572,7 @@ export function OrcamentoTab({
                   <ComposicaoRow
                     key={comp.id}
                     item={comp}
-                    num={itemNum(comp.id)}
+                    num={buildNum(comp.id)}
                     onEdit={() => { setEditingId(comp.id); setAddingCompTo(null) }}
                     onExcluir={() => excluir(comp.id)}
                     pending={pending}
@@ -572,6 +584,17 @@ export function OrcamentoTab({
         })}
       </>
     )
+  }
+
+  const chipStyle: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center", gap: 4,
+    fontSize: 11, padding: "2px 8px", borderRadius: 12,
+    background: "var(--clr-primary-alpha, rgba(99,102,241,.12))",
+    color: "var(--clr-primary)", fontWeight: 600,
+  }
+  const chipBtnStyle: React.CSSProperties = {
+    background: "none", border: "none", cursor: "pointer",
+    color: "var(--clr-primary)", fontSize: 13, lineHeight: 1, padding: "0 1px",
   }
 
   const headerBtnStyle: React.CSSProperties = {
@@ -608,7 +631,7 @@ export function OrcamentoTab({
           </button>
           <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: 11 }}
             onClick={() => { setShowAddNivel(true); closeAll() }} disabled={pending}>
-            + Grupo
+            + Nível
           </button>
         </div>
       </div>
@@ -627,73 +650,148 @@ export function OrcamentoTab({
       {/* Otto */}
       {showOtto && <OttoPanel projetoId={projetoId} sessao={sessaoOtto ?? null} />}
 
-      {/* Barra de filtros */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
-        <select className="form-input form-select" value={viewMode}
-          onChange={(e) => setViewMode(e.target.value as typeof viewMode)}
-          style={{ height: 28, fontSize: 11, width: 130 }}>
-          <option value="lista">Lista</option>
-          <option value="grupo">Por grupo</option>
-          <option value="categoria">Por categoria</option>
-          <option value="fornecedor">Por fornecedor</option>
-        </select>
+      {/* Barra de filtros — linha 1 */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6, alignItems: "center" }}>
+        {/* Visualizar por */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--clr-border)", borderRadius: "var(--r-sm)", padding: "2px 8px", height: 28, background: "var(--clr-surface)", flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "var(--clr-text-muted)", whiteSpace: "nowrap" }}>Visualizar por:</span>
+          <select className="form-select" value={viewMode}
+            onChange={(e) => setViewMode(e.target.value as typeof viewMode)}
+            style={{ height: 22, fontSize: 11, border: "none", background: "transparent", padding: "0 2px", fontWeight: 600, color: "var(--clr-text)" }}>
+            <option value="lista">Lista</option>
+            <option value="grupo">Grupo</option>
+            <option value="categoria">Categoria</option>
+            <option value="fornecedor">Fornecedor</option>
+          </select>
+        </div>
 
+        {/* Busca por nome */}
+        <input
+          type="search"
+          className="form-input"
+          placeholder="🔍 Pesquisar por nome..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ height: 28, fontSize: 11, flex: "1 1 160px", minWidth: 140 }}
+        />
+
+        {/* Tipo */}
         <select className="form-input form-select" value={tipoFilter}
           onChange={(e) => setTipoFilter(e.target.value)}
-          style={{ height: 28, fontSize: 11, width: 120 }}>
-          <option value="">Todos os tipos</option>
+          style={{ height: 28, fontSize: 11, width: 110, flexShrink: 0 }}>
+          <option value="">Tipo</option>
           <option value="produto">Produto</option>
           <option value="servico">Serviço</option>
           <option value="composicao">Composição</option>
         </select>
 
+        {/* Status */}
         <select className="form-input form-select" value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ height: 28, fontSize: 11, width: 130 }}>
-          <option value="">Todos os status</option>
+          style={{ height: 28, fontSize: 11, width: 120, flexShrink: 0 }}>
+          <option value="">Status</option>
           <option value="para_aprovar">Para aprovar</option>
           <option value="aprovado">Aprovado</option>
           <option value="nao_aprovado">Não aprovado</option>
         </select>
 
+        {/* Grupos */}
+        {gruposDisponiveis.length > 0 && (
+          <select className="form-input form-select" value={grupoFilter}
+            onChange={(e) => setGrupoFilter(e.target.value)}
+            style={{ height: 28, fontSize: 11, width: 120, flexShrink: 0 }}>
+            <option value="">Grupo</option>
+            {gruposDisponiveis.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        )}
+
+        {/* Categoria */}
         {categoriasItem.length > 0 && (
           <select className="form-input form-select" value={categoriaFilter}
             onChange={(e) => setCategoriaFilter(e.target.value)}
-            style={{ height: 28, fontSize: 11, width: 140 }}>
-            <option value="">Todas categorias</option>
+            style={{ height: 28, fontSize: 11, width: 130, flexShrink: 0 }}>
+            <option value="">Categoria</option>
             {categoriasItem.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         )}
 
+        {/* Fornecedor */}
         {fornecedoresDisponiveis.length > 0 && (
           <select className="form-input form-select" value={fornecedorFilter}
             onChange={(e) => setFornecedorFilter(e.target.value)}
-            style={{ height: 28, fontSize: 11, width: 140 }}>
-            <option value="">Todos fornecedores</option>
+            style={{ height: 28, fontSize: 11, width: 130, flexShrink: 0 }}>
+            <option value="">Fornecedor</option>
             {fornecedoresDisponiveis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
           </select>
         )}
-
-        {activeFilters > 0 && (
-          <button type="button" onClick={() => { setTipoFilter(""); setStatusFilter(""); setCategoriaFilter(""); setFornecedorFilter("") }}
-            style={{ fontSize: 11, color: "var(--clr-text-muted)", background: "none", border: "none", cursor: "pointer", padding: "0 4px" }}>
-            ✕ Limpar filtros ({activeFilters})
-          </button>
-        )}
       </div>
+
+      {/* Chips de filtros ativos */}
+      {activeFilters > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
+          {search && (
+            <span style={chipStyle}>
+              Busca: &quot;{search}&quot;
+              <button type="button" onClick={() => setSearch("")} style={chipBtnStyle}>×</button>
+            </span>
+          )}
+          {tipoFilter && (
+            <span style={chipStyle}>
+              Tipo: {tipoItemLabel[tipoFilter] ?? tipoFilter}
+              <button type="button" onClick={() => setTipoFilter("")} style={chipBtnStyle}>×</button>
+            </span>
+          )}
+          {statusFilter && (
+            <span style={chipStyle}>
+              Status: {statusItemLabel[statusFilter] ?? statusFilter}
+              <button type="button" onClick={() => setStatusFilter("")} style={chipBtnStyle}>×</button>
+            </span>
+          )}
+          {grupoFilter && (
+            <span style={chipStyle}>
+              Grupo: {grupoFilter}
+              <button type="button" onClick={() => setGrupoFilter("")} style={chipBtnStyle}>×</button>
+            </span>
+          )}
+          {categoriaFilter && (
+            <span style={chipStyle}>
+              Categoria: {categoriasItem.find((c) => c.id === categoriaFilter)?.nome ?? categoriaFilter}
+              <button type="button" onClick={() => setCategoriaFilter("")} style={chipBtnStyle}>×</button>
+            </span>
+          )}
+          {fornecedorFilter && (
+            <span style={chipStyle}>
+              Fornecedor: {fornecedoresDisponiveis.find((f) => f.id === fornecedorFilter)?.nome ?? fornecedorFilter}
+              <button type="button" onClick={() => setFornecedorFilter("")} style={chipBtnStyle}>×</button>
+            </span>
+          )}
+          <button type="button"
+            onClick={() => { setSearch(""); setTipoFilter(""); setStatusFilter(""); setCategoriaFilter(""); setFornecedorFilter(""); setGrupoFilter("") }}
+            style={{ fontSize: 11, color: "var(--clr-text-muted)", background: "none", border: "none", cursor: "pointer", padding: "0 4px" }}>
+            Limpar todos
+          </button>
+        </div>
+      )}
 
       {/* Add nível */}
       {showAddNivel && (
         <div style={{ marginBottom: 12 }}>
           <AddGrupoForm projetoId={projetoId} parentId={null}
-            placeholder="Nome do grupo (ex: Estrutura, Acabamento, Cozinha)"
+            placeholder="Nome do nível (ex: 1. Demolições e Retiradas, 2. Estrutura)"
             actions={actions} onClose={() => setShowAddNivel(false)} />
         </div>
       )}
 
       {roots.length === 0 && !showAddNivel && (
-        <div className="placeholder-block">
-          Nenhum item de orçamento. Clique em &quot;+ Grupo&quot; para criar o primeiro nível.
+        <div style={{ textAlign: "center", padding: "48px 16px" }}>
+          <div style={{ fontSize: 32, marginBottom: 10, opacity: 0.4 }}>📋</div>
+          <p style={{ color: "var(--clr-text-muted)", fontSize: 13, marginBottom: 14, lineHeight: 1.5 }}>
+            Adicione o primeiro nível para iniciar a construção do seu orçamento
+          </p>
+          <button type="button" className="btn btn-primary"
+            onClick={() => { setShowAddNivel(true); closeAll() }}>
+            + Novo Nível
+          </button>
         </div>
       )}
 
@@ -717,6 +815,9 @@ export function OrcamentoTab({
                   background: "var(--clr-surface-hover)", borderRadius: "var(--r-sm)",
                   borderLeft: "3px solid var(--clr-primary)", marginBottom: 2,
                 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0, minWidth: 20 }}>
+                    {buildNum(nivel.id)}
+                  </span>
                   <span style={{ flex: 1, fontWeight: 700, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     {nivel.nome}
                   </span>
@@ -752,6 +853,9 @@ export function OrcamentoTab({
                         background: "var(--clr-surface)", borderRadius: "var(--r-sm)",
                         borderLeft: "2px solid var(--clr-border)", marginBottom: 2, marginTop: 2,
                       }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0, minWidth: 28 }}>
+                          {buildNum(sub.id)}
+                        </span>
                         <span style={{ flex: 1, fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--clr-text-secondary)" }}>
                           {sub.nome}
                         </span>
@@ -775,7 +879,7 @@ export function OrcamentoTab({
                           />
                         ) : (
                           <ComposicaoRow
-                            key={comp.id} item={comp} num={itemNum(comp.id)}
+                            key={comp.id} item={comp} num={buildNum(comp.id)}
                             onEdit={() => { setEditingId(comp.id); setAddingCompTo(null) }}
                             onExcluir={() => excluir(comp.id)} pending={pending}
                           />
@@ -803,7 +907,7 @@ export function OrcamentoTab({
                     />
                   ) : (
                     <ComposicaoRow
-                      key={comp.id} item={comp} num={itemNum(comp.id)}
+                      key={comp.id} item={comp} num={buildNum(comp.id)}
                       onEdit={() => { setEditingId(comp.id); setAddingCompTo(null) }}
                       onExcluir={() => excluir(comp.id)} pending={pending}
                     />
