@@ -51,7 +51,12 @@ export async function criarItemOrcamento(formData: FormData) {
   const bdi = dec(formData.get("bdi"))
   const quantidade = dec(formData.get("quantidade"))
 
-  const custoTotal = ((custoServicos ?? 0) + (produtos ?? 0)) || null
+  const csRaw = (custoServicos ?? 0) + (produtos ?? 0)
+  const custoTotal = csRaw > 0
+    ? csRaw
+    : custoUnitario != null && quantidade != null
+      ? custoUnitario * quantidade
+      : null
   const servicos = custoTotal != null && bdi != null
     ? custoTotal * (1 + bdi / 100)
     : null
@@ -101,7 +106,12 @@ export async function editarItemOrcamento(formData: FormData) {
   const bdi = dec(formData.get("bdi"))
   const quantidade = dec(formData.get("quantidade"))
 
-  const custoTotal = ((custoServicos ?? 0) + (produtos ?? 0)) || null
+  const csRaw = (custoServicos ?? 0) + (produtos ?? 0)
+  const custoTotal = csRaw > 0
+    ? csRaw
+    : custoUnitario != null && quantidade != null
+      ? custoUnitario * quantidade
+      : null
   const servicos = custoTotal != null && bdi != null
     ? custoTotal * (1 + bdi / 100)
     : null

@@ -86,6 +86,8 @@ const statusItemClass: Record<string, string> = {
 }
 
 // ─── ComposicaoRow ────────────────────────────────────────────────────────────
+// 10 colunas: N°+ícone | Nome | Grupo | Un | Qtd | BDI | Custo | Preço | Status | Ações
+const ROW_COLS = "52px 1fr 84px 44px 60px 52px 88px 90px 84px 56px"
 
 function ComposicaoRow({
   item,
@@ -101,56 +103,67 @@ function ComposicaoRow({
   pending: boolean
 }) {
   const precoDisplay = item.precoTotal ?? item.servicos
+  const custoDisplay = item.custoTotal ?? (((item.custoServicos ?? 0) + (item.produtos ?? 0)) || null)
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "28px 18px 1fr 80px 72px 48px 80px 54px 72px 84px 30px 30px",
-        gap: 4,
-        alignItems: "center",
-        padding: "5px 8px",
-        borderBottom: "1px solid var(--clr-border-light)",
-        fontSize: 12,
-        color: "var(--clr-text)",
-      }}
-    >
-      <span style={{ color: "var(--clr-text-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }}>{num}</span>
-      <span title={tipoItemLabel[item.tipoItem ?? ""] ?? ""} style={{ fontSize: 11, color: "var(--clr-text-muted)", cursor: "default" }}>
-        {tipoItemIcon[item.tipoItem ?? ""] ?? "·"}
-      </span>
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: ROW_COLS,
+      gap: 4, alignItems: "center", padding: "5px 8px",
+      borderBottom: "1px solid var(--clr-border-light)",
+      fontSize: 12, color: "var(--clr-text)",
+    }}>
+      {/* N° + ícone */}
+      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <span style={{ color: "var(--clr-text-muted)", fontFamily: "var(--font-mono)", fontSize: 11, minWidth: 24, flexShrink: 0 }}>{num}</span>
+        <span title={tipoItemLabel[item.tipoItem ?? ""] ?? "Item"} style={{ fontSize: 11, color: "var(--clr-text-muted)", flexShrink: 0 }}>
+          {tipoItemIcon[item.tipoItem ?? ""] ?? "·"}
+        </span>
+      </div>
+      {/* Nome */}
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.nome}>
         {item.nome}
-        {item.classe && <span style={{ marginLeft: 4, fontSize: 10, color: "var(--clr-text-muted)", fontFamily: "var(--font-mono)" }}>[{item.classe}]</span>}
       </span>
-      <span style={{ color: "var(--clr-text-muted)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.categoriaItem?.nome}>
-        {item.categoriaItem?.nome ?? "—"}
+      {/* Grupo */}
+      <span style={{ fontSize: 11, color: "var(--clr-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {item.grupo ?? "—"}
       </span>
-      <span style={{ color: "var(--clr-text-muted)", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.fornecedor?.nome}>
-        {item.fornecedor?.nome ?? "—"}
-      </span>
-      <span style={{ color: "var(--clr-text-muted)", fontSize: 11 }}>{item.unidade ?? "—"}</span>
+      {/* Un */}
+      <span style={{ color: "var(--clr-text-muted)", fontSize: 11, textAlign: "center" }}>{item.unidade ?? "—"}</span>
+      {/* Qtd */}
       <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         {item.quantidade != null ? item.quantidade.toLocaleString("pt-BR") : "—"}
       </span>
+      {/* BDI */}
       <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11 }}>
         {item.bdi != null ? `${item.bdi}%` : "—"}
       </span>
-      <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11 }}>{fmt(item.custoTotal ?? (((item.custoServicos ?? 0) + (item.produtos ?? 0)) || null))}</span>
-      <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--clr-success)" }}>
+      {/* Custo total */}
+      <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--clr-text-secondary)" }}>
+        {fmt(custoDisplay)}
+      </span>
+      {/* Preço total */}
+      <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--clr-success)" }}>
         {fmt(precoDisplay)}
       </span>
-      <span>
-        {item.statusItem && (
-          <span className={`badge ${statusItemClass[item.statusItem] ?? "badge-previsto"}`} style={{ fontSize: 10, whiteSpace: "nowrap" }}>
+      {/* Status */}
+      <div style={{ textAlign: "center" }}>
+        {item.statusItem && item.statusItem !== "para_aprovar" && (
+          <span className={`badge ${statusItemClass[item.statusItem] ?? "badge-previsto"}`} style={{ fontSize: 10 }}>
             {statusItemLabel[item.statusItem] ?? item.statusItem}
           </span>
         )}
-      </span>
-      <button type="button" onClick={onEdit} disabled={pending} title="Editar"
-        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clr-primary)", padding: "2px 4px", fontSize: 12 }}>✎</button>
-      <button type="button" onClick={onExcluir} disabled={pending} title="Excluir"
-        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clr-text-muted)", padding: "2px 4px", fontSize: 14, lineHeight: 1 }}>×</button>
+        {item.statusItem === "para_aprovar" && (
+          <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "var(--clr-warning, #f59e0b)", flexShrink: 0 }} title="Para aprovar" />
+        )}
+      </div>
+      {/* Ações — tudo numa célula */}
+      <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+        <button type="button" onClick={onEdit} disabled={pending} title="Editar"
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clr-primary)", padding: "2px 4px", fontSize: 12 }}>✎</button>
+        <button type="button" onClick={onExcluir} disabled={pending} title="Excluir"
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--clr-text-muted)", padding: "2px 4px", fontSize: 14, lineHeight: 1 }}>×</button>
+      </div>
     </div>
   )
 }
@@ -180,137 +193,113 @@ function ComposicaoForm({
 }) {
   const [pending, startTransition] = useTransition()
   const [tipoItem, setTipoItem] = useState(editItem?.tipoItem ?? "")
-  const [cs, setCS] = useState(editItem?.custoServicos?.toString() ?? "")
-  const [prod, setProd] = useState(editItem?.produtos?.toString() ?? "")
+  const [custo, setCusto] = useState(editItem?.custoUnitario?.toString() ?? "")
+  const [qtd, setQtd] = useState(editItem?.quantidade?.toString() ?? "1")
   const [bdi, setBDI] = useState(() => {
     if (editItem?.bdi != null) return editItem.bdi.toString()
     return bdiPadraoServicos.toString()
   })
 
-  // auto-fill BDI when tipoItem changes (only on create)
   useEffect(() => {
     if (editItem) return
     if (tipoItem === "produto") setBDI(bdiPadraoProdutos.toString())
     else if (tipoItem === "servico") setBDI(bdiPadraoServicos.toString())
   }, [tipoItem, editItem, bdiPadraoProdutos, bdiPadraoServicos])
 
-  const custoTotalPreview = (parseFloat(cs) || 0) + (parseFloat(prod) || 0)
-  const precoPreview = custoTotalPreview > 0 && parseFloat(bdi) >= 0
-    ? custoTotalPreview * (1 + parseFloat(bdi) / 100)
+  const custoTotal = (parseFloat(custo) || 0) * (parseFloat(qtd) || 1)
+  const precoPreview = custoTotal > 0 && parseFloat(bdi) >= 0
+    ? custoTotal * (1 + parseFloat(bdi) / 100)
     : null
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     startTransition(async () => {
-      if (editItem) {
-        await actions.editarItem(fd)
-      } else {
-        await actions.criarItem(fd)
-      }
+      if (editItem) await actions.editarItem(fd)
+      else await actions.criarItem(fd)
       onClose()
     })
   }
 
-  const inputStyle: React.CSSProperties = { height: 30, fontSize: 12 }
+  const inp: React.CSSProperties = { height: 32, fontSize: 12 }
 
   return (
     <form onSubmit={handleSubmit} style={{
-      display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 12px",
-      background: "var(--clr-surface)", borderRadius: "var(--r-sm)",
-      border: "1px solid var(--clr-border)", marginTop: 4, marginLeft: editItem ? 0 : 8,
+      display: "flex", flexDirection: "column", gap: 8,
+      padding: "12px 14px", background: "var(--clr-surface)",
+      borderRadius: "var(--r-sm)", border: "1px solid var(--clr-primary)",
+      marginTop: 4, marginLeft: editItem ? 0 : 8,
     }}>
       <input type="hidden" name="projetoId" value={projetoId} />
       <input type="hidden" name="parentId" value={parentId} />
       {editItem && <input type="hidden" name="id" value={editItem.id} />}
 
-      {/* Nome */}
-      <input name="nome" className="form-input" placeholder="Nome do item" required
-        defaultValue={editItem?.nome ?? ""} style={{ flex: "3 1 180px", minWidth: 0, ...inputStyle }} />
-
-      {/* Tipo semântico */}
-      <select name="tipoItem" className="form-input form-select" value={tipoItem}
-        onChange={(e) => setTipoItem(e.target.value)} style={{ width: 112, flexShrink: 0, ...inputStyle }}>
-        <option value="">Tipo</option>
-        <option value="produto">Produto</option>
-        <option value="servico">Serviço</option>
-        <option value="composicao">Composição</option>
-      </select>
-
-      {/* Categoria */}
-      <select name="categoriaItemId" className="form-input form-select"
-        defaultValue={editItem?.categoriaItem?.id ?? ""} style={{ flex: "2 1 110px", minWidth: 0, ...inputStyle }}>
-        <option value="">Categoria</option>
-        {categoriasItem.map((c) => (
-          <option key={c.id} value={c.id}>{c.nome}</option>
-        ))}
-      </select>
-
-      {/* Grupo */}
-      <input name="grupo" className="form-input" placeholder="Grupo/cômodo"
-        defaultValue={editItem?.grupo ?? ""} style={{ flex: "1 1 80px", minWidth: 0, ...inputStyle }} />
-
-      {/* Classe */}
-      <input name="classe" className="form-input" placeholder="Classe (ex: SINAPI)"
-        defaultValue={editItem?.classe ?? ""} style={{ width: 110, flexShrink: 0, ...inputStyle }} />
-
-      {/* Unidade */}
-      <input name="unidade" className="form-input" placeholder="Un"
-        defaultValue={editItem?.unidade ?? ""} style={{ width: 48, flexShrink: 0, ...inputStyle }} />
-
-      {/* Quantidade */}
-      <input name="quantidade" type="number" step="0.0001" min="0" className="form-input" placeholder="Qtd"
-        defaultValue={editItem?.quantidade?.toString() ?? ""} style={{ width: 72, flexShrink: 0, ...inputStyle }} />
-
-      {/* Custo unitário */}
-      <input name="custoUnitario" type="number" step="0.01" min="0" className="form-input" placeholder="Custo un."
-        defaultValue={editItem?.custoUnitario?.toString() ?? ""} style={{ width: 84, flexShrink: 0, ...inputStyle }} />
-
-      {/* Custo serviços */}
-      <input name="custoServicos" type="number" step="0.01" min="0" className="form-input" placeholder="C. serviços"
-        value={cs} onChange={(e) => setCS(e.target.value)} style={{ width: 90, flexShrink: 0, ...inputStyle }} />
-
-      {/* Custo produtos */}
-      <input name="produtos" type="number" step="0.01" min="0" className="form-input" placeholder="C. produtos"
-        value={prod} onChange={(e) => setProd(e.target.value)} style={{ width: 90, flexShrink: 0, ...inputStyle }} />
-
-      {/* BDI */}
-      <input name="bdi" type="number" step="0.01" min="0" className="form-input" placeholder="BDI %"
-        value={bdi} onChange={(e) => setBDI(e.target.value)} style={{ width: 70, flexShrink: 0, ...inputStyle }} />
-
-      {/* Status */}
-      <select name="statusItem" className="form-input form-select"
-        defaultValue={editItem?.statusItem ?? ""} style={{ width: 120, flexShrink: 0, ...inputStyle }}>
-        <option value="">Status</option>
-        <option value="para_aprovar">Para aprovar</option>
-        <option value="aprovado">Aprovado</option>
-        <option value="nao_aprovado">Não aprovado</option>
-      </select>
-
-      {/* Biblioteca */}
-      <select name="itemBibliotecaId" className="form-input form-select"
-        defaultValue={editItem?.itemBiblioteca?.id ?? ""} style={{ flex: "2 1 120px", minWidth: 0, ...inputStyle }}>
-        <option value="">Biblioteca (opcional)</option>
-        {bibliotecaItens.map((b) => (
-          <option key={b.id} value={b.id}>{b.codigo ? `[${b.codigo}] ` : ""}{b.nome}</option>
-        ))}
-      </select>
-
-      {/* Preview preço total */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 6, flexShrink: 0, fontSize: 12,
-        color: precoPreview != null ? "var(--clr-success)" : "var(--clr-text-muted)",
-        fontFamily: "var(--font-mono)", fontWeight: 600, minWidth: 110,
-      }}>
-        <span style={{ fontSize: 10, color: "var(--clr-text-muted)" }}>Preço total:</span>
-        {precoPreview != null
-          ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(precoPreview)
-          : "—"}
+      {/* Linha 1: Nome, Tipo, Status */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <input name="nome" className="form-input" placeholder="Nome do item *" required autoFocus
+          defaultValue={editItem?.nome ?? ""} style={{ flex: "3 1 220px", minWidth: 0, ...inp }} />
+        <select name="tipoItem" className="form-input form-select" value={tipoItem}
+          onChange={(e) => setTipoItem(e.target.value)} style={{ width: 130, flexShrink: 0, ...inp }}>
+          <option value="">Tipo</option>
+          <option value="produto">Produto</option>
+          <option value="servico">Serviço</option>
+          <option value="composicao">Composição</option>
+        </select>
+        <select name="statusItem" className="form-input form-select"
+          defaultValue={editItem?.statusItem ?? "para_aprovar"} style={{ width: 140, flexShrink: 0, ...inp }}>
+          <option value="para_aprovar">Para aprovar</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="nao_aprovado">Não aprovado</option>
+        </select>
       </div>
 
-      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>Salvar</button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={pending}>Cancelar</button>
+      {/* Linha 2: dimensões + financeiro + classificação */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>Un.</span>
+          <input name="unidade" className="form-input" placeholder="un"
+            defaultValue={editItem?.unidade ?? ""} style={{ width: 52, ...inp }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>Qtd</span>
+          <input name="quantidade" type="number" step="0.0001" min="0" className="form-input" placeholder="0"
+            value={qtd} onChange={(e) => setQtd(e.target.value)} style={{ width: 80, ...inp }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>Custo un.</span>
+          <input name="custoUnitario" type="number" step="0.01" min="0" className="form-input" placeholder="0,00"
+            value={custo} onChange={(e) => setCusto(e.target.value)} style={{ width: 96, ...inp }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: "var(--clr-text-muted)" }}>BDI %</span>
+          <input name="bdi" type="number" step="0.01" min="0" className="form-input" placeholder="0"
+            value={bdi} onChange={(e) => setBDI(e.target.value)} style={{ width: 72, ...inp }} />
+        </div>
+        <select name="categoriaItemId" className="form-input form-select"
+          defaultValue={editItem?.categoriaItem?.id ?? ""} style={{ flex: "2 1 130px", minWidth: 0, ...inp }}>
+          <option value="">Categoria</option>
+          {categoriasItem.map((c) => (
+            <option key={c.id} value={c.id}>{c.nome}</option>
+          ))}
+        </select>
+        <input name="grupo" className="form-input" placeholder="Grupo / cômodo"
+          defaultValue={editItem?.grupo ?? ""} style={{ flex: "1 1 100px", minWidth: 0, ...inp }} />
+      </div>
+
+      {/* Linha 3: preview + ações */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <span style={{
+          fontSize: 13, fontFamily: "var(--font-mono)", fontWeight: 700,
+          color: precoPreview != null ? "var(--clr-success)" : "var(--clr-text-muted)",
+        }}>
+          {precoPreview != null
+            ? `Preço total: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(precoPreview)}`
+            : "Preencha custo, qtd e BDI para calcular"}
+        </span>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>Salvar</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={pending}>Cancelar</button>
+        </div>
       </div>
     </form>
   )
@@ -399,21 +388,21 @@ function TableHeader() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "28px 18px 1fr 80px 72px 48px 80px 54px 72px 84px 30px 30px",
+      gridTemplateColumns: ROW_COLS,
       gap: 4, padding: "4px 8px", fontSize: 10, fontWeight: 700,
       textTransform: "uppercase" as const, letterSpacing: "0.07em",
       color: "var(--clr-text-muted)", borderBottom: "2px solid var(--clr-border)", marginBottom: 2,
     }}>
-      <span>#</span><span />
+      <span>N°</span>
       <span>Nome</span>
-      <span>Categoria</span>
-      <span>Fornecedor</span>
-      <span>Un</span>
+      <span>Grupo</span>
+      <span style={{ textAlign: "center" }}>Un</span>
       <span style={{ textAlign: "right" }}>Qtd</span>
       <span style={{ textAlign: "right" }}>BDI</span>
       <span style={{ textAlign: "right" }}>Custo</span>
       <span style={{ textAlign: "right" }}>Preço</span>
-      <span /><span />
+      <span style={{ textAlign: "center" }}>Status</span>
+      <span />
     </div>
   )
 }
